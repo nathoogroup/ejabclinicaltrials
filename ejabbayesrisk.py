@@ -226,14 +226,18 @@ def johnson_chisq_logbf10(w: float, q: int, ncp: float) -> float:
 
 
 @lru_cache(maxsize=None)
-def johnson_chisq_threshold(q: int, bf10_threshold: float = JOHNSON_BF10_THRESHOLD) -> float:
+def johnson_chisq_calibration(
+    q: int,
+    bf10_threshold: float = JOHNSON_BF10_THRESHOLD,
+) -> tuple[float, float]:
     """
-    UMPBT-style Johnson rejection threshold for a chi-square statistic.
+    UMPBT-style Johnson calibration for a chi-square statistic.
 
     For each q and BF10 threshold gamma, choose the simple alternative
     noncentrality that minimizes the statistic boundary c satisfying:
         f_ncx2(c; q, lambda*) / f_chi2(c; q) = gamma.
     Reject when W >= c, equivalently Johnson BF01 <= 1 / gamma.
+    Returns (lambda*, c).
     """
     q = int(q)
     gamma = float(bf10_threshold)
@@ -271,7 +275,15 @@ def johnson_chisq_threshold(q: int, bf10_threshold: float = JOHNSON_BF10_THRESHO
     if not result.success:
         raise RuntimeError(f"Could not compute Johnson chi-square threshold for q={q}.")
 
-    return float(result.fun)
+    return float(math.exp(result.x)), float(result.fun)
+
+
+def johnson_chisq_ncp(q: int, bf10_threshold: float = JOHNSON_BF10_THRESHOLD) -> float:
+    return johnson_chisq_calibration(q, bf10_threshold)[0]
+
+
+def johnson_chisq_threshold(q: int, bf10_threshold: float = JOHNSON_BF10_THRESHOLD) -> float:
+    return johnson_chisq_calibration(q, bf10_threshold)[1]
 
 
 def johnson_bf01_reject_from_p(p: float, q: int, k01: float = K01) -> bool | float:
@@ -974,6 +986,7 @@ def plot_heatmap(
     """
     present_keys = list(risk["test_key"].drop_duplicates())
     present_tests = [cfg for cfg in TESTS if cfg["key"] in present_keys]
+    is_johnson = value_col == "normalized_delta_r_johnson_hat"
 
     n_panels = len(present_tests)
     ncols = 5 if n_panels > 5 else n_panels
@@ -1037,28 +1050,33 @@ def plot_heatmap(
         )
 
         ax.set_xscale("log")
-        ax.set_title(f"{cfg['short']} (q={cfg['q']})", fontsize=10)
-        ax.tick_params(axis="both", labelsize=8)
+        panel_title = f"{cfg['short']} (q={cfg['q']})"
+        if is_johnson:
+            lambda_star = johnson_chisq_ncp(cfg["q"])
+            panel_title += f"\nTSBF: gamma=3, lambda*={lambda_star:.3g}"
+
+        ax.set_title(panel_title, fontsize=12)
+        ax.tick_params(axis="both", labelsize=10)
 
     for ax in axes_flat[n_panels:]:
         ax.axis("off")
 
     for ax in axes[-1, :]:
-        ax.set_xlabel("Nominal sample size n", fontsize=9)
+        ax.set_xlabel("Nominal sample size n", fontsize=11)
 
     for row in axes:
-        row[0].set_ylabel("Raw simulation effect size", fontsize=9)
+        row[0].set_ylabel("Raw simulation effect size", fontsize=11)
 
     method = None
     if "method" in risk.columns and risk["method"].nunique(dropna=True) == 1:
         method = str(risk["method"].dropna().iloc[0])
     title_prefix = "Asymptotic Bayes-risk" if method == "asymptotic" else "Empirical Bayes-risk"
 
-    fig.suptitle(
-        f"{title_prefix} criticality maps: {reference_label} vs eJAB_01 <= 1/3",
-        fontsize=14,
-        y=1.02,
-    )
+    title = f"{title_prefix} criticality maps: {reference_label} vs eJAB_01 <= 1/3"
+    if is_johnson:
+        title += "\nJohnson TSBF: BF10(W)=f_chisq_q(lambda*)(W)/f_chisq_q(W), gamma=3"
+
+    fig.suptitle(title, fontsize=18, y=1.03)
 
     fig.subplots_adjust(
         left=0.06,
@@ -1073,10 +1091,10 @@ def plot_heatmap(
     cbar = fig.colorbar(last_mesh, cax=cax)
     cbar.set_label(
         f"Normalized risk advantage\n({reference_short} - risk_eJAB) / 0.0025",
-        fontsize=9,
+        fontsize=11,
         labelpad=8,
     )
-    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.tick_params(labelsize=10)
 
     png = outdir / f"{outfile_prefix}{suffix}.png"
 
@@ -1510,6 +1528,7 @@ def main():
     risk.to_csv(risk_csv, index=False)
     config_df = pd.DataFrame(TESTS)
     config_df["johnson_bf10_threshold"] = JOHNSON_BF10_THRESHOLD
+    config_df["johnson_lambda_star"] = config_df["q"].map(lambda q: johnson_chisq_ncp(int(q)))
     config_df["johnson_w_threshold"] = config_df["q"].map(lambda q: johnson_chisq_threshold(int(q)))
     config_df.to_csv(config_csv, index=False)
 

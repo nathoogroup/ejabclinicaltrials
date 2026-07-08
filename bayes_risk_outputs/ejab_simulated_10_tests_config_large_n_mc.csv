@@ -1,11 +1,11 @@
-key,label,short,q,effect_scale,johnson_bf10_threshold,johnson_w_threshold
-ttest,Two-sample t-test,t-test,1,Equal-group mean difference; approximately Cohen's d.,3.0,3.5819628503938494
-lm,Simple linear regression,Linear regression,1,"Slope with x ~ N(0,1), error SD 1.",3.0,3.5819628503938494
-logistic,Simple binary logistic regression,Logistic regression,1,"Log-odds slope with x ~ N(0,1), intercept 0.",3.0,3.5819628503938494
-cox,Cox proportional-hazards regression,Cox PH,1,"Log-hazard slope with x ~ N(0,1); exponential baseline/censoring.",3.0,3.5819628503938494
-wilcoxon,Wilcoxon signed-rank test,Wilcoxon,1,Paired location shift with heavy-tailed t_3 errors.,3.0,3.5819628503938494
-mannwhitney,Mann-Whitney U-test,Mann-Whitney,1,Two-sample location shift with heavy-tailed t_3 errors.,3.0,3.5819628503938494
-anova,One-way ANOVA,ANOVA,3,Four groups; theta scales centered group means with SD 1.,3.0,7.438618580690076
-ranova,One-way repeated-measures ANOVA,rANOVA,3,Four conditions; theta scales centered condition means; ICC fixed.,3.0,7.438618580690076
-chisq,Chi-squared independence test,Chi-square,4,3x3 multinomial table; theta is diagonal log-linear association.,3.0,9.067849956535197
-kruskal,Kruskal-Wallis H-test,Kruskal-Wallis,4,Five groups; theta scales centered group locations with t_3 errors.,3.0,9.067849956535197
+key,label,short,q,effect_scale,johnson_bf10_threshold,johnson_lambda_star,johnson_w_threshold
+ttest,Two-sample t-test,t-test,1,Equal-group mean difference; approximately Cohen's d.,3.0,3.570765463879977,3.5819628503938494
+lm,Simple linear regression,Linear regression,1,"Slope with x ~ N(0,1), error SD 1.",3.0,3.570765463879977,3.5819628503938494
+logistic,Simple binary logistic regression,Logistic regression,1,"Log-odds slope with x ~ N(0,1), intercept 0.",3.0,3.570765463879977,3.5819628503938494
+cox,Cox proportional-hazards regression,Cox PH,1,"Log-hazard slope with x ~ N(0,1); exponential baseline/censoring.",3.0,3.570765463879977,3.5819628503938494
+wilcoxon,Wilcoxon signed-rank test,Wilcoxon,1,Paired location shift with heavy-tailed t_3 errors.,3.0,3.570765463879977,3.5819628503938494
+mannwhitney,Mann-Whitney U-test,Mann-Whitney,1,Two-sample location shift with heavy-tailed t_3 errors.,3.0,3.570765463879977,3.5819628503938494
+anova,One-way ANOVA,ANOVA,3,Four groups; theta scales centered group means with SD 1.,3.0,5.248187953832814,7.438618580690076
+ranova,One-way repeated-measures ANOVA,rANOVA,3,Four conditions; theta scales centered condition means; ICC fixed.,3.0,5.248187953832814,7.438618580690076
+chisq,Chi-squared independence test,Chi-square,4,3x3 multinomial table; theta is diagonal log-linear association.,3.0,5.833361559943967,9.067849956535197
+kruskal,Kruskal-Wallis H-test,Kruskal-Wallis,4,Five groups; theta scales centered group locations with t_3 errors.,3.0,5.833361559943967,9.067849956535197
