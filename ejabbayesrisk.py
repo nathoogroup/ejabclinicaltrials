@@ -73,12 +73,12 @@ TEST_PANELS = (
     TestPanel("t-test", 1),
     TestPanel("Linear regression", 1),
     TestPanel("Logistic regression", 1),
-    TestPanel("ANOVA", 3),
-    TestPanel("rANOVA", 3),
-    TestPanel("Chi-square", 4),
     TestPanel("Cox PH", 1),
     TestPanel("Wilcoxon", 1),
     TestPanel("Mann-Whitney", 1),
+    TestPanel("ANOVA", 3),
+    TestPanel("rANOVA", 3),
+    TestPanel("Chi-square", 4),
     TestPanel("Kruskal-Wallis", 4),
 )
 
