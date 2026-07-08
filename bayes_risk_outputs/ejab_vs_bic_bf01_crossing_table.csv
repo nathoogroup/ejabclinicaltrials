@@ -1,0 +1,16 @@
+comparison,q,theta,approx_min_n_for_ejab_uniformly_lower_risk,note
+bic_bf01,1,0.01,599074.0,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,1,0.02,133203.0,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,1,0.05,18245.0,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,1,0.1,3923.0,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,1,0.2,830.0,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,3,0.01,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,3,0.02,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,3,0.05,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,3,0.1,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,3,0.2,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,4,0.01,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,4,0.02,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,4,0.05,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,4,0.1,,Grid-based; increase n_points/n_max for greater precision.
+bic_bf01,4,0.2,,Grid-based; increase n_points/n_max for greater precision.

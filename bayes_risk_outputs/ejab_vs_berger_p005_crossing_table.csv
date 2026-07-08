@@ -1,0 +1,16 @@
+comparison,q,theta,approx_min_n_for_ejab_uniformly_lower_risk,note
+berger_p005,1,0.01,421815,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,1,0.02,98610,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,1,0.05,14440,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,1,0.1,3376,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,1,0.2,776,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,3,0.01,394549,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,3,0.02,92236,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,3,0.05,27703,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,3,0.1,27703,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,3,0.2,27703,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,4,0.01,388013,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,4,0.02,149727,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,4,0.05,149727,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,4,0.1,149727,Grid-based; increase n_points/n_max for greater precision.
+berger_p005,4,0.2,149727,Grid-based; increase n_points/n_max for greater precision.
