@@ -998,12 +998,16 @@ def make_theoretical_grids(
     return n_grid, theta_grid
 
 
-def theoretical_threshold(reference: str, n, q: int):
+def theoretical_threshold(reference: str, n, q: int, wakefield_prior_variance: float = 1.0):
     if reference == "berger_p005":
         return chi2.isf(ALPHA_P, q)
     if reference == "bic_bf01":
         n = np.asarray(n, dtype=float)
         return q * np.log(n) - 2 * math.log(K01)
+    if reference == "wakefield_bf01":
+        n = np.asarray(n, dtype=float)
+        r = wakefield_prior_variance * n
+        return (q * np.log1p(r) - 2 * math.log(K01)) * ((1 + r) / r)
     raise ValueError(f"Unknown theoretical reference: {reference}")
 
 
@@ -1012,11 +1016,12 @@ def theoretical_normalized_advantage(
     n_grid: np.ndarray,
     theta_grid: np.ndarray,
     reference: str,
+    wakefield_prior_variance: float = 1.0,
 ) -> np.ndarray:
     n_mesh, theta_mesh = np.meshgrid(n_grid.astype(float), theta_grid.astype(float))
     lam = n_mesh * theta_mesh ** 2
 
-    c_ref = theoretical_threshold(reference, n_mesh, q)
+    c_ref = theoretical_threshold(reference, n_mesh, q, wakefield_prior_variance)
     c_ejab = (np.log(n_mesh) - 2 * math.log(K01)) / (1 - n_mesh ** (-1 / q))
 
     alpha_ref = chi2.sf(c_ref, q)
@@ -1035,10 +1040,23 @@ def plot_theoretical_q_panels(
     theta_grid: np.ndarray,
     reference: str,
     outdir: Path,
+    wakefield_prior_variance: float = 1.0,
 ) -> Path:
-    reference_label = "p < 0.005" if reference == "berger_p005" else "BIC BF01 <= 1/3"
-    reference_short = "risk_p" if reference == "berger_p005" else "risk_BIC"
-    slug = "berger_p005" if reference == "berger_p005" else "bic_bf01"
+    reference_label = {
+        "berger_p005": "p < 0.005",
+        "bic_bf01": "BIC BF01 <= 1/3",
+        "wakefield_bf01": "Wakefield BF01 <= 1/3",
+    }[reference]
+    reference_short = {
+        "berger_p005": "risk_p",
+        "bic_bf01": "risk_BIC",
+        "wakefield_bf01": "risk_Wakefield",
+    }[reference]
+    slug = {
+        "berger_p005": "berger_p005",
+        "bic_bf01": "bic_bf01",
+        "wakefield_bf01": "wakefield_bf01",
+    }[reference]
     q_slug = "_".join(str(q) for q in q_values)
 
     fig, axes = plt.subplots(
@@ -1070,7 +1088,13 @@ def plot_theoretical_q_panels(
     y_edges[0] = max(0, y_edges[0])
 
     for ax, q in zip(axes_flat, q_values):
-        z = theoretical_normalized_advantage(q, n_grid, theta_grid, reference)
+        z = theoretical_normalized_advantage(
+            q,
+            n_grid,
+            theta_grid,
+            reference,
+            wakefield_prior_variance=wakefield_prior_variance,
+        )
         last_mesh = ax.pcolormesh(
             x_edges,
             y_edges,
@@ -1107,6 +1131,95 @@ def plot_theoretical_q_panels(
     return outpath
 
 
+def plot_theoretical_three_row_q_panels(
+    q_values: list[int],
+    n_grid: np.ndarray,
+    theta_grid: np.ndarray,
+    outdir: Path,
+    wakefield_prior_variance: float = 1.0,
+) -> Path:
+    references = [
+        ("berger_p005", "eJAB vs Berger p < 0.005", "risk_p"),
+        ("bic_bf01", "eJAB vs BIC BF01 <= 1/3", "risk_BIC"),
+        ("wakefield_bf01", "eJAB vs Wakefield BF01 <= 1/3", "risk_Wakefield"),
+    ]
+    q_slug = "_".join(str(q) for q in q_values)
+    fig, axes = plt.subplots(
+        len(references),
+        len(q_values),
+        figsize=(4.1 * len(q_values), 3.5 * len(references)),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
+    )
+    vmin, vmax = -5, 5
+    last_mesh = None
+
+    x = n_grid.astype(float)
+    x_log = np.log10(x)
+    x_edges = 10 ** np.r_[
+        x_log[0] - (x_log[1] - x_log[0]) / 2,
+        (x_log[:-1] + x_log[1:]) / 2,
+        x_log[-1] + (x_log[-1] - x_log[-2]) / 2,
+    ]
+
+    y = theta_grid.astype(float)
+    y_edges = np.r_[
+        y[0] - (y[1] - y[0]) / 2,
+        (y[:-1] + y[1:]) / 2,
+        y[-1] + (y[-1] - y[-2]) / 2,
+    ]
+    y_edges[0] = max(0, y_edges[0])
+
+    for row_idx, (reference, row_label, _) in enumerate(references):
+        for col_idx, q in enumerate(q_values):
+            ax = axes[row_idx, col_idx]
+            z = theoretical_normalized_advantage(
+                q,
+                n_grid,
+                theta_grid,
+                reference,
+                wakefield_prior_variance=wakefield_prior_variance,
+            )
+            last_mesh = ax.pcolormesh(
+                x_edges,
+                y_edges,
+                np.clip(z, vmin, vmax),
+                shading="auto",
+                vmin=vmin,
+                vmax=vmax,
+            )
+            ax.set_xscale("log")
+            ax.tick_params(axis="both", labelsize=8)
+            if row_idx == 0:
+                ax.set_title(f"q = {q}", fontsize=11)
+            if row_idx == len(references) - 1:
+                ax.set_xlabel("Sample size n", fontsize=9)
+            if col_idx == 0:
+                ax.set_ylabel(row_label + "\n" + r"Effect size $\theta$", fontsize=9)
+
+    fig.suptitle(
+        "Theoretical Bayes-risk criticality maps vs eJAB_01 <= 1/3",
+        fontsize=14,
+        y=0.985,
+    )
+    fig.subplots_adjust(left=0.08, right=0.90, top=0.91, bottom=0.08, wspace=0.10, hspace=0.22)
+
+    cax = fig.add_axes([0.92, 0.20, 0.012, 0.60])
+    cbar = fig.colorbar(last_mesh, cax=cax)
+    cbar.set_label(
+        "Normalized risk advantage\n(risk_reference - risk_eJAB) / 0.0025",
+        fontsize=9,
+        labelpad=8,
+    )
+    cbar.ax.tick_params(labelsize=8)
+
+    outpath = outdir / f"ejab_theoretical_three_rows_q_{q_slug}.png"
+    fig.savefig(outpath, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return outpath
+
+
 def write_theoretical_outputs(args) -> list[Path]:
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -1131,6 +1244,7 @@ def write_theoretical_outputs(args) -> list[Path]:
             "q": q_values,
             "alpha_p": ALPHA_P,
             "k01": K01,
+            "wakefield_prior_variance": args.theoretical_wakefield_prior_variance,
             "n_min": float(n_grid.min()),
             "n_max": float(n_grid.max()),
             "n_points": len(n_grid),
@@ -1143,6 +1257,15 @@ def write_theoretical_outputs(args) -> list[Path]:
     outputs = [config_path]
     outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "berger_p005", outdir))
     outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "bic_bf01", outdir))
+    outputs.append(
+        plot_theoretical_three_row_q_panels(
+            q_values,
+            n_grid,
+            theta_grid,
+            outdir,
+            wakefield_prior_variance=args.theoretical_wakefield_prior_variance,
+        )
+    )
     return outputs
 
 
@@ -1164,6 +1287,7 @@ def main():
     parser.add_argument("--theoretical-theta-min", type=float, default=0.001)
     parser.add_argument("--theoretical-theta-max", type=float, default=0.90)
     parser.add_argument("--theoretical-theta-points", type=int, default=520)
+    parser.add_argument("--theoretical-wakefield-prior-variance", type=float, default=1.0)
     parser.add_argument(
         "--large-n",
         action="store_true",
