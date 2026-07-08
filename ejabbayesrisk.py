@@ -974,6 +974,178 @@ def plot_heatmap(
     return png
 
 
+def parse_int_list(value: str) -> list[int]:
+    return sorted({int(part.strip()) for part in value.split(",") if part.strip()})
+
+
+def make_theoretical_grids(
+    n_min: float,
+    n_max: float,
+    n_points: int,
+    theta_min: float,
+    theta_max: float,
+    theta_points: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    n_grid = np.unique(np.round(np.geomspace(n_min, n_max, n_points)).astype(int))
+
+    low_count = min(14, theta_points)
+    low_theta = np.geomspace(theta_min, min(0.02, theta_max), low_count)
+    high_count = max(theta_points - low_count, 1)
+    high_start = min(0.025, theta_max)
+    high_theta = np.linspace(high_start, theta_max, high_count)
+    theta_grid = np.unique(np.r_[low_theta, high_theta])
+
+    return n_grid, theta_grid
+
+
+def theoretical_threshold(reference: str, n, q: int):
+    if reference == "berger_p005":
+        return chi2.isf(ALPHA_P, q)
+    if reference == "bic_bf01":
+        n = np.asarray(n, dtype=float)
+        return q * np.log(n) - 2 * math.log(K01)
+    raise ValueError(f"Unknown theoretical reference: {reference}")
+
+
+def theoretical_normalized_advantage(
+    q: int,
+    n_grid: np.ndarray,
+    theta_grid: np.ndarray,
+    reference: str,
+) -> np.ndarray:
+    n_mesh, theta_mesh = np.meshgrid(n_grid.astype(float), theta_grid.astype(float))
+    lam = n_mesh * theta_mesh ** 2
+
+    c_ref = theoretical_threshold(reference, n_mesh, q)
+    c_ejab = (np.log(n_mesh) - 2 * math.log(K01)) / (1 - n_mesh ** (-1 / q))
+
+    alpha_ref = chi2.sf(c_ref, q)
+    alpha_ejab = chi2.sf(c_ejab, q)
+    power_ref = stats.ncx2.sf(c_ref, q, lam)
+    power_ejab = stats.ncx2.sf(c_ejab, q, lam)
+
+    risk_ref = 0.5 * (alpha_ref + 1 - power_ref)
+    risk_ejab = 0.5 * (alpha_ejab + 1 - power_ejab)
+    return (risk_ref - risk_ejab) / (ALPHA_P / 2)
+
+
+def plot_theoretical_q_panels(
+    q_values: list[int],
+    n_grid: np.ndarray,
+    theta_grid: np.ndarray,
+    reference: str,
+    outdir: Path,
+) -> Path:
+    reference_label = "p < 0.005" if reference == "berger_p005" else "BIC BF01 <= 1/3"
+    reference_short = "risk_p" if reference == "berger_p005" else "risk_BIC"
+    slug = "berger_p005" if reference == "berger_p005" else "bic_bf01"
+    q_slug = "_".join(str(q) for q in q_values)
+
+    fig, axes = plt.subplots(
+        1,
+        len(q_values),
+        figsize=(4.2 * len(q_values), 4.6),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
+    )
+    axes_flat = axes.ravel()
+    last_mesh = None
+    vmin, vmax = -5, 5
+
+    x = n_grid.astype(float)
+    x_log = np.log10(x)
+    x_edges = 10 ** np.r_[
+        x_log[0] - (x_log[1] - x_log[0]) / 2,
+        (x_log[:-1] + x_log[1:]) / 2,
+        x_log[-1] + (x_log[-1] - x_log[-2]) / 2,
+    ]
+
+    y = theta_grid.astype(float)
+    y_edges = np.r_[
+        y[0] - (y[1] - y[0]) / 2,
+        (y[:-1] + y[1:]) / 2,
+        y[-1] + (y[-1] - y[-2]) / 2,
+    ]
+    y_edges[0] = max(0, y_edges[0])
+
+    for ax, q in zip(axes_flat, q_values):
+        z = theoretical_normalized_advantage(q, n_grid, theta_grid, reference)
+        last_mesh = ax.pcolormesh(
+            x_edges,
+            y_edges,
+            np.clip(z, vmin, vmax),
+            shading="auto",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_xscale("log")
+        ax.set_title(f"q = {q}", fontsize=11)
+        ax.tick_params(axis="both", labelsize=8)
+        ax.set_xlabel("Sample size n", fontsize=9)
+
+    axes_flat[0].set_ylabel(r"Wald-scale effect size $\theta$", fontsize=9)
+    fig.suptitle(
+        f"Theoretical Bayes-risk criticality maps: {reference_label} vs eJAB_01 <= 1/3",
+        fontsize=14,
+        y=1.02,
+    )
+    fig.subplots_adjust(left=0.055, right=0.89, top=0.82, bottom=0.17, wspace=0.12)
+
+    cax = fig.add_axes([0.91, 0.21, 0.012, 0.56])
+    cbar = fig.colorbar(last_mesh, cax=cax)
+    cbar.set_label(
+        f"Normalized risk advantage\n({reference_short} - risk_eJAB) / 0.0025",
+        fontsize=9,
+        labelpad=8,
+    )
+    cbar.ax.tick_params(labelsize=8)
+
+    outpath = outdir / f"ejab_vs_{slug}_theoretical_q_{q_slug}.png"
+    fig.savefig(outpath, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return outpath
+
+
+def write_theoretical_outputs(args) -> list[Path]:
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    q_values = parse_int_list(args.theoretical_q_values)
+    n_grid, theta_grid = make_theoretical_grids(
+        n_min=args.theoretical_n_min,
+        n_max=args.theoretical_n_max,
+        n_points=args.theoretical_n_points,
+        theta_min=args.theoretical_theta_min,
+        theta_max=args.theoretical_theta_max,
+        theta_points=args.theoretical_theta_points,
+    )
+
+    config_path = outdir / (
+        "ejab_theoretical_q_config_"
+        + "_".join(str(q) for q in q_values)
+        + ".csv"
+    )
+    pd.DataFrame(
+        {
+            "q": q_values,
+            "alpha_p": ALPHA_P,
+            "k01": K01,
+            "n_min": float(n_grid.min()),
+            "n_max": float(n_grid.max()),
+            "n_points": len(n_grid),
+            "theta_min": float(theta_grid.min()),
+            "theta_max": float(theta_grid.max()),
+            "theta_points": len(theta_grid),
+        }
+    ).to_csv(config_path, index=False)
+
+    outputs = [config_path]
+    outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "berger_p005", outdir))
+    outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "bic_bf01", outdir))
+    return outputs
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", type=str, default="bayes_risk_outputs")
@@ -984,6 +1156,14 @@ def main():
     parser.add_argument("--n-points", type=int, default=70)
     parser.add_argument("--theta-points", type=int, default=60)
     parser.add_argument("--n-max", type=float, default=1e7)
+    parser.add_argument("--theoretical", action="store_true")
+    parser.add_argument("--theoretical-q-values", type=str, default="1,2,4,16,256")
+    parser.add_argument("--theoretical-n-min", type=float, default=30)
+    parser.add_argument("--theoretical-n-max", type=float, default=1e7)
+    parser.add_argument("--theoretical-n-points", type=int, default=900)
+    parser.add_argument("--theoretical-theta-min", type=float, default=0.001)
+    parser.add_argument("--theoretical-theta-max", type=float, default=0.90)
+    parser.add_argument("--theoretical-theta-points", type=int, default=520)
     parser.add_argument(
         "--large-n",
         action="store_true",
@@ -1001,6 +1181,13 @@ def main():
         help="Comma-separated test keys or 'all'. Keys: " + ",".join([t["key"] for t in TESTS]),
     )
     args = parser.parse_args()
+
+    if args.theoretical:
+        outputs = write_theoretical_outputs(args)
+        print("Done.")
+        for output in outputs:
+            print(f"Wrote: {output}")
+        return
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
