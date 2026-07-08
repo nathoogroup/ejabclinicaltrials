@@ -8,12 +8,17 @@ and:
     BIC BF01 <= 1/3
 versus
     eJAB_01 <= 1/3
+and:
+    Johnson test-statistic BF01 <= 1/3
+versus
+    eJAB_01 <= 1/3
 
 across the ten tests in the eJAB manuscript simulation section.
 
 The script simulates raw datasets, computes test-specific p-values, computes
-eJAB_01 and the BIC BF01 approximation from those p-values, estimates alpha
-under theta=0 and power under theta>0, then estimates:
+eJAB_01, the BIC BF01 approximation, and Johnson's test-statistic BF rule
+from those p-values, estimates alpha under theta=0 and power under theta>0,
+then estimates:
 
     risk(n, theta) = (alpha + 1 - power) / 2
 
@@ -21,6 +26,7 @@ and plots:
 
     normalized_delta_r = (risk_p - risk_eJAB) / (0.005 / 2)
     normalized_delta_r_BIC = (risk_BIC - risk_eJAB) / (0.005 / 2)
+    normalized_delta_r_Johnson = (risk_Johnson - risk_eJAB) / (0.005 / 2)
 
 Positive normalized_delta_r means eJAB has lower estimated Bayes risk than
 the named reference rule.
@@ -52,13 +58,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy import integrate, stats
+from scipy import integrate, optimize, stats
 from scipy.special import expit
 from scipy.stats import chi2
 
 
 ALPHA_P = 0.005
 K01 = 1 / 3
+JOHNSON_BF10_THRESHOLD = 1 / K01
 BASE_SEED = 20260625
 T3_SCALE = 1 / math.sqrt(3)
 HERMITE_X, HERMITE_W = np.polynomial.hermite.hermgauss(80)
@@ -207,6 +214,76 @@ def bic_bf01_reject_from_p(p: float, n_eff: float, q: int, k01: float = K01) -> 
     p_clip = min(max(float(p), np.finfo(float).tiny), 1.0)
     W = chi2.isf(p_clip, q)
     threshold = q * math.log(n_eff) - 2 * math.log(k01)
+    return bool(W >= threshold)
+
+
+def johnson_chisq_logbf10(w: float, q: int, ncp: float) -> float:
+    """
+    Johnson test-statistic BF10 for a chi-square statistic modeled as
+    central chi-square under H0 and noncentral chi-square under H1.
+    """
+    return float(stats.ncx2.logpdf(w, q, ncp) - stats.chi2.logpdf(w, q))
+
+
+@lru_cache(maxsize=None)
+def johnson_chisq_threshold(q: int, bf10_threshold: float = JOHNSON_BF10_THRESHOLD) -> float:
+    """
+    UMPBT-style Johnson rejection threshold for a chi-square statistic.
+
+    For each q and BF10 threshold gamma, choose the simple alternative
+    noncentrality that minimizes the statistic boundary c satisfying:
+        f_ncx2(c; q, lambda*) / f_chi2(c; q) = gamma.
+    Reject when W >= c, equivalently Johnson BF01 <= 1 / gamma.
+    """
+    q = int(q)
+    gamma = float(bf10_threshold)
+    if q <= 0 or gamma <= 1:
+        raise ValueError("Johnson threshold requires q > 0 and BF10 threshold > 1.")
+
+    log_gamma = math.log(gamma)
+
+    def root_for_ncp(ncp: float) -> float:
+        lower = 1e-10
+        upper = max(
+            q + ncp + 10 * math.sqrt(2 * (q + 2 * ncp)),
+            float(chi2.isf(1e-12, q)),
+        )
+        while johnson_chisq_logbf10(upper, q, ncp) < log_gamma:
+            upper *= 2
+        return float(
+            optimize.brentq(
+                lambda w: johnson_chisq_logbf10(w, q, ncp) - log_gamma,
+                lower,
+                upper,
+                maxiter=100,
+            )
+        )
+
+    def objective(log_ncp: float) -> float:
+        return root_for_ncp(math.exp(log_ncp))
+
+    result = optimize.minimize_scalar(
+        objective,
+        bounds=(-8, math.log(1000 * q + 1000)),
+        method="bounded",
+        options={"xatol": 1e-8},
+    )
+    if not result.success:
+        raise RuntimeError(f"Could not compute Johnson chi-square threshold for q={q}.")
+
+    return float(result.fun)
+
+
+def johnson_bf01_reject_from_p(p: float, q: int, k01: float = K01) -> bool | float:
+    """
+    Reject H0 when Johnson's test-statistic BF01 is <= k01.
+    """
+    if not np.isfinite(p):
+        return np.nan
+
+    p_clip = min(max(float(p), np.finfo(float).tiny), 1.0)
+    W = chi2.isf(p_clip, q)
+    threshold = johnson_chisq_threshold(q, 1 / k01)
     return bool(W >= threshold)
 
 
@@ -620,6 +697,7 @@ def simulate_cell(task: dict) -> dict:
     reject_p = []
     reject_ejab = []
     reject_bic = []
+    reject_johnson = []
     p_values = []
     n_eff_values = []
     ejab_values = []
@@ -640,11 +718,17 @@ def simulate_cell(task: dict) -> dict:
         if isinstance(bic_reject, float) and np.isnan(bic_reject):
             continue
 
+        johnson_reject = johnson_bf01_reject_from_p(p, cfg["q"])
+
+        if isinstance(johnson_reject, float) and np.isnan(johnson_reject):
+            continue
+
         ejab_value = ejab01_from_p(p, n_eff, cfg["q"])
 
         reject_p.append(p < ALPHA_P)
         reject_ejab.append(bool(ejab_reject))
         reject_bic.append(bool(bic_reject))
+        reject_johnson.append(bool(johnson_reject))
         p_values.append(p)
         n_eff_values.append(n_eff)
         ejab_values.append(ejab_value)
@@ -655,6 +739,7 @@ def simulate_cell(task: dict) -> dict:
         rejection_p = np.nan
         rejection_ejab = np.nan
         rejection_bic = np.nan
+        rejection_johnson = np.nan
         mean_p = np.nan
         median_p = np.nan
         mean_n_eff = np.nan
@@ -663,6 +748,7 @@ def simulate_cell(task: dict) -> dict:
         rejection_p = float(np.mean(reject_p))
         rejection_ejab = float(np.mean(reject_ejab))
         rejection_bic = float(np.mean(reject_bic))
+        rejection_johnson = float(np.mean(reject_johnson))
         mean_p = float(np.mean(p_values))
         median_p = float(np.median(p_values))
         mean_n_eff = float(np.mean(n_eff_values))
@@ -681,6 +767,7 @@ def simulate_cell(task: dict) -> dict:
         "rejection_p": rejection_p,
         "rejection_ejab": rejection_ejab,
         "rejection_bic": rejection_bic,
+        "rejection_johnson": rejection_johnson,
         "mean_p": mean_p,
         "median_p": median_p,
         "mean_n_eff": mean_n_eff,
@@ -707,16 +794,19 @@ def simulate_cell_asymptotic(task: dict) -> dict:
     p_threshold = chi2.isf(ALPHA_P, q)
     ejab_threshold = ejab_w_threshold(n_eff, q)
     bic_threshold = q * math.log(n_eff) - 2 * math.log(K01)
+    johnson_threshold = johnson_chisq_threshold(q)
 
     if theta == 0:
         rejection_p = float(chi2.sf(p_threshold, q))
         rejection_ejab = float(chi2.sf(ejab_threshold, q))
         rejection_bic = float(chi2.sf(bic_threshold, q))
+        rejection_johnson = float(chi2.sf(johnson_threshold, q))
     else:
         ncp = asymptotic_ncp(cfg["key"], n, theta)
         rejection_p = float(stats.ncx2.sf(p_threshold, q, ncp))
         rejection_ejab = float(stats.ncx2.sf(ejab_threshold, q, ncp))
         rejection_bic = float(stats.ncx2.sf(bic_threshold, q, ncp))
+        rejection_johnson = float(stats.ncx2.sf(johnson_threshold, q, ncp))
 
     return {
         "test": cfg["label"],
@@ -731,6 +821,7 @@ def simulate_cell_asymptotic(task: dict) -> dict:
         "rejection_p": rejection_p,
         "rejection_ejab": rejection_ejab,
         "rejection_bic": rejection_bic,
+        "rejection_johnson": rejection_johnson,
         "mean_p": np.nan,
         "median_p": np.nan,
         "mean_n_eff": n_eff,
@@ -758,16 +849,19 @@ def simulate_cell_large_n_mc(task: dict) -> dict:
     p_threshold = chi2.isf(ALPHA_P, q)
     ejab_threshold = ejab_w_threshold(n_eff, q)
     bic_threshold = q * math.log(n_eff) - 2 * math.log(K01)
+    johnson_threshold = johnson_chisq_threshold(q)
 
     if theta == 0:
         prob_p = float(chi2.sf(p_threshold, q))
         prob_ejab = float(chi2.sf(ejab_threshold, q))
         prob_bic = float(chi2.sf(bic_threshold, q))
+        prob_johnson = float(chi2.sf(johnson_threshold, q))
     else:
         ncp = asymptotic_ncp(cfg["key"], n, theta)
         prob_p = float(stats.ncx2.sf(p_threshold, q, ncp))
         prob_ejab = float(stats.ncx2.sf(ejab_threshold, q, ncp))
         prob_bic = float(stats.ncx2.sf(bic_threshold, q, ncp))
+        prob_johnson = float(stats.ncx2.sf(johnson_threshold, q, ncp))
 
     return {
         "test": cfg["label"],
@@ -782,6 +876,7 @@ def simulate_cell_large_n_mc(task: dict) -> dict:
         "rejection_p": float(rng.binomial(reps, prob_p) / reps),
         "rejection_ejab": float(rng.binomial(reps, prob_ejab) / reps),
         "rejection_bic": float(rng.binomial(reps, prob_bic) / reps),
+        "rejection_johnson": float(rng.binomial(reps, prob_johnson) / reps),
         "mean_p": np.nan,
         "median_p": np.nan,
         "mean_n_eff": n_eff,
@@ -823,11 +918,21 @@ def estimate_risks(raw: pd.DataFrame) -> pd.DataFrame:
     """
     null = (
         raw[raw["theta"] == 0]
-        [["test_key", "n_nominal", "rejection_p", "rejection_ejab", "rejection_bic"]]
+        [
+            [
+                "test_key",
+                "n_nominal",
+                "rejection_p",
+                "rejection_ejab",
+                "rejection_bic",
+                "rejection_johnson",
+            ]
+        ]
         .rename(columns={
             "rejection_p": "alpha_p_hat",
             "rejection_ejab": "alpha_ejab_hat",
             "rejection_bic": "alpha_bic_hat",
+            "rejection_johnson": "alpha_johnson_hat",
         })
     )
 
@@ -836,15 +941,21 @@ def estimate_risks(raw: pd.DataFrame) -> pd.DataFrame:
     alt["power_p_hat"] = alt["rejection_p"]
     alt["power_ejab_hat"] = alt["rejection_ejab"]
     alt["power_bic_hat"] = alt["rejection_bic"]
+    alt["power_johnson_hat"] = alt["rejection_johnson"]
 
     alt["risk_p_hat"] = 0.5 * (alt["alpha_p_hat"] + 1 - alt["power_p_hat"])
     alt["risk_ejab_hat"] = 0.5 * (alt["alpha_ejab_hat"] + 1 - alt["power_ejab_hat"])
     alt["risk_bic_hat"] = 0.5 * (alt["alpha_bic_hat"] + 1 - alt["power_bic_hat"])
+    alt["risk_johnson_hat"] = 0.5 * (
+        alt["alpha_johnson_hat"] + 1 - alt["power_johnson_hat"]
+    )
 
     alt["delta_r_hat"] = alt["risk_p_hat"] - alt["risk_ejab_hat"]
     alt["normalized_delta_r_hat"] = alt["delta_r_hat"] / (ALPHA_P / 2)
     alt["delta_r_bic_hat"] = alt["risk_bic_hat"] - alt["risk_ejab_hat"]
     alt["normalized_delta_r_bic_hat"] = alt["delta_r_bic_hat"] / (ALPHA_P / 2)
+    alt["delta_r_johnson_hat"] = alt["risk_johnson_hat"] - alt["risk_ejab_hat"]
+    alt["normalized_delta_r_johnson_hat"] = alt["delta_r_johnson_hat"] / (ALPHA_P / 2)
 
     return alt
 
@@ -1397,7 +1508,10 @@ def main():
 
     raw.to_csv(raw_csv, index=False)
     risk.to_csv(risk_csv, index=False)
-    pd.DataFrame(TESTS).to_csv(config_csv, index=False)
+    config_df = pd.DataFrame(TESTS)
+    config_df["johnson_bf10_threshold"] = JOHNSON_BF10_THRESHOLD
+    config_df["johnson_w_threshold"] = config_df["q"].map(lambda q: johnson_chisq_threshold(int(q)))
+    config_df.to_csv(config_csv, index=False)
 
     p_plot = plot_heatmap(
         risk,
@@ -1417,6 +1531,15 @@ def main():
         outfile_prefix="ejab_vs_bic_bf01_10_tests_heatmap_empirical",
         suffix=suffix,
     )
+    johnson_plot = plot_heatmap(
+        risk,
+        outdir,
+        value_col="normalized_delta_r_johnson_hat",
+        reference_label="Johnson test-statistic BF01 <= 1/3",
+        reference_short="risk_Johnson",
+        outfile_prefix="ejab_vs_johnson_bf01_10_tests_heatmap_empirical",
+        suffix=suffix,
+    )
 
     print("Done.")
     print(f"Wrote: {raw_csv}")
@@ -1424,6 +1547,7 @@ def main():
     print(f"Wrote: {config_csv}")
     print(f"Wrote: {p_plot}")
     print(f"Wrote: {bic_plot}")
+    print(f"Wrote: {johnson_plot}")
 
 
 if __name__ == "__main__":
