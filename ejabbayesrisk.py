@@ -63,6 +63,26 @@ class Comparison:
     note: str
 
 
+@dataclass(frozen=True)
+class TestPanel:
+    label: str
+    q: int
+
+
+TEST_PANELS = (
+    TestPanel("t-test", 1),
+    TestPanel("Linear regression", 1),
+    TestPanel("Logistic regression", 1),
+    TestPanel("ANOVA", 3),
+    TestPanel("rANOVA", 3),
+    TestPanel("Chi-square", 4),
+    TestPanel("Cox PH", 1),
+    TestPanel("Wilcoxon", 1),
+    TestPanel("Mann-Whitney", 1),
+    TestPanel("Kruskal-Wallis", 4),
+)
+
+
 COMPARISONS = (
     Comparison(
         key="berger_p005",
@@ -306,6 +326,104 @@ def plot_q_panels(
     return fig, axes
 
 
+def plot_test_panels(
+    grids: list[pd.DataFrame],
+    comparison: Comparison,
+    outfile: Path,
+    clip: tuple[float, float] = (-5, 5),
+):
+    """Plot the ten named test panels shown in the manuscript-style figure."""
+    grids_by_q = {int(grid["q"].iloc[0]): grid for grid in grids}
+    missing_q = sorted({panel.q for panel in TEST_PANELS} - set(grids_by_q))
+    if missing_q:
+        missing = ", ".join(str(q) for q in missing_q)
+        raise ValueError(f"Cannot plot test panels; missing q grid(s): {missing}")
+
+    fig, axes = plt.subplots(
+        2,
+        5,
+        figsize=(21, 10.5),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
+    )
+    contour_color = "#3b0055"
+    mesh = None
+
+    for ax, panel in zip(axes.ravel(), TEST_PANELS):
+        grid = grids_by_q[panel.q]
+        n_vals, theta_vals, z = pivot_grid(grid, "normalized_delta_r")
+        z_plot = np.clip(z, *clip)
+        n_grid, theta_grid = np.meshgrid(n_vals, theta_vals)
+
+        mesh = ax.pcolormesh(
+            n_grid,
+            theta_grid,
+            z_plot,
+            shading="auto",
+            cmap="viridis",
+            vmin=clip[0],
+            vmax=clip[1],
+        )
+        if np.nanmin(z) <= 0 <= np.nanmax(z):
+            ax.contour(
+                n_grid,
+                theta_grid,
+                z,
+                levels=[0],
+                colors=contour_color,
+                linewidths=1.3,
+            )
+        if np.nanmin(z) <= 1 <= np.nanmax(z):
+            ax.contour(
+                n_grid,
+                theta_grid,
+                z,
+                levels=[1],
+                colors=contour_color,
+                linewidths=1.1,
+                linestyles="--",
+            )
+
+        ax.set_xscale("log")
+        ax.set_title(f"{panel.label} (q={panel.q})", fontsize=14)
+
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Raw simulation effect size", fontsize=12)
+    for ax in axes[1, :]:
+        ax.set_xlabel("Nominal sample size n", fontsize=12)
+
+    title_reference = (
+        "p < 0.005"
+        if comparison.key == "berger_p005"
+        else "BIC BF01 <= 1/3"
+    )
+    fig.suptitle(
+        f"Asymptotic Bayes-risk criticality maps: {title_reference} vs eJAB_01 <= 1/3",
+        fontsize=20,
+    )
+    if mesh is not None:
+        cbar = fig.colorbar(mesh, ax=axes, shrink=0.72, pad=0.02)
+        reference_risk = "risk_p" if comparison.key == "berger_p005" else "risk_BIC"
+        cbar.set_label(
+            "Normalized risk advantage\n"
+            f"({reference_risk} - risk_eJAB) / 0.0025",
+            fontsize=12,
+        )
+
+    fig.text(
+        0.5,
+        -0.015,
+        "Positive values mean eJAB has lower Bayes risk under the asymptotic "
+        "chi-square approximation. Solid contour: equal risk. Dashed contour: "
+        "normalized advantage = 1. Color clipped to [-5, 5].",
+        ha="center",
+        fontsize=12,
+    )
+    fig.savefig(outfile, dpi=300, bbox_inches="tight")
+    return fig, axes
+
+
 def crossing_table(
     comparison_key: str,
     q_values=(1, 3, 4),
@@ -453,6 +571,13 @@ def build_outputs(args) -> list[Path]:
         plt.close(fig)
         written.append(panel_path)
 
+        test_panel_path = (
+            outdir / f"ejab_vs_{comparison.file_slug}_10_tests_heatmap_large_n_asymptotic.png"
+        )
+        fig, _ = plot_test_panels(grids, comparison, test_panel_path)
+        plt.close(fig)
+        written.append(test_panel_path)
+
         crossing_path = outdir / f"ejab_vs_{comparison.file_slug}_crossing_table.csv"
         crossing_table(
             comparison.key,
@@ -484,10 +609,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--outdir", default="bayes_risk_outputs")
     parser.add_argument("--q-values", default="1,3,4")
     parser.add_argument("--n-min", type=float, default=20)
-    parser.add_argument("--n-max", type=float, default=1e10)
+    parser.add_argument("--n-max", type=float, default=1e7)
     parser.add_argument("--n-points", type=int, default=900)
     parser.add_argument("--theta-min", type=float, default=0.005)
-    parser.add_argument("--theta-max", type=float, default=0.30)
+    parser.add_argument("--theta-max", type=float, default=0.90)
     parser.add_argument("--theta-points", type=int, default=520)
     parser.add_argument("--alpha-p", type=float, default=ALPHA_P)
     parser.add_argument("--k01", type=float, default=K01)
