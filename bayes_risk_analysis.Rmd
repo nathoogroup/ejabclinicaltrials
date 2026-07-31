@@ -1556,10 +1556,11 @@ This analysis directly addresses the comparison of
 2. \(TSBF_{01}\leq1/3\), with the BFF evaluated at the true standardized
    effect size.
 
-The columns correspond to \(2\times2\), \(3\times3\), and \(5\times5\)
-independence tests, with \(q=(d-1)^2\) degrees of freedom. The common vertical
-axis is Cohen's \(w\), so the effect-size scale is comparable across table
-dimensions. Under the noncentral chi-square approximation,
+The columns correspond to \(2\times2\), \(3\times3\), \(5\times5\), and
+\(5\times10\) independence tests, with \(q=(R-1)(C-1)\) degrees of freedom.
+The common vertical axis is Cohen's \(w\), so the effect-size scale is
+comparable across table dimensions. Under the noncentral chi-square
+approximation,
 
 \[
 X^2\mid H_0\sim\chi_q^2,\qquad
@@ -1612,11 +1613,20 @@ w\leq 2\sqrt{
 }.
 \]
 
-The maxima are \(1\), \(2/3\), and \(0.8\) for the \(2\times2\),
-\(3\times3\), and \(5\times5\) designs, respectively. The plots therefore use
-the common valid range \(0<w\leq2/3\).
+The maxima are \(1\), \(2/3\), \(0.8\), and \(2/\sqrt{5}\) for the
+\(2\times2\), \(3\times3\), \(5\times5\), and \(5\times10\) designs,
+respectively. The plots therefore use the common valid range
+\(0<w\leq2/3\).
 
 ```{r chi-square-data-generator}
+chisq_dimensions <- tribble(
+  ~rows, ~columns, ~table_label, ~table_plot_label, ~q,
+  2L,  2L, "2 x 2 (q=1)",   "2 %*% 2~(q == 1)",    1L,
+  3L,  3L, "3 x 3 (q=4)",   "3 %*% 3~(q == 4)",    4L,
+  5L,  5L, "5 x 5 (q=16)",  "5 %*% 5~(q == 16)",  16L,
+  5L, 10L, "5 x 10 (q=36)", "5 %*% 10~(q == 36)", 36L
+)
+
 chisq_probabilities_from_omega <- function(R, C, omega = 0) {
   stopifnot(
     length(R) == 1, length(C) == 1, length(omega) == 1,
@@ -1681,15 +1691,13 @@ simData6 <- function(
   }
 }
 
-chisq_design_validation <- crossing(
-  dimension = c(2L, 3L, 5L),
-  omega = c(0.1, 0.3, 0.5, 0.65)
-) |>
+chisq_design_validation <- chisq_dimensions |>
+  select(rows, columns, table_label, q) |>
+  crossing(omega = c(0.1, 0.3, 0.5, 0.65)) |>
   mutate(
-    probabilities = map2(
-      dimension,
-      omega,
-      ~ chisq_probabilities_from_omega(.x, .x, .y)
+    probabilities = pmap(
+      list(rows, columns, omega),
+      chisq_probabilities_from_omega
     ),
     recovered_omega = map_dbl(
       probabilities,
@@ -1719,7 +1727,11 @@ stopifnot(
   sum(simData6(120, 3, 3, 0.3, "jointMulti")) == 120,
   all(rowSums(
     simData6(120, 3, 3, 0.3, "indepMulti")
-  ) == 40)
+  ) == 40),
+  sum(simData6(100, 5, 10, 0.3, "jointMulti")) == 100,
+  all(rowSums(
+    simData6(100, 5, 10, 0.3, "indepMulti")
+  ) == 20)
 )
 
 kable(
@@ -1730,17 +1742,12 @@ kable(
 ```
 
 ```{r chi-square-dimension-risk-grid}
-chisq_dimensions <- tibble(
-  dimension = c(2L, 3L, 5L),
-  table_label = c("2 x 2 (q=1)", "3 x 3 (q=4)", "5 x 5 (q=16)"),
-  q = c(1L, 4L, 16L)
-)
-
 chisq_w_grid <- dense_theta_grid[
   dense_theta_grid <= 2 / 3 + sqrt(.Machine$double.eps)
 ]
 
-chisq_dimension_cell <- function(dimension, table_label, q, n, w) {
+chisq_dimension_cell <- function(
+    rows, columns, table_label, table_plot_label, q, n, w) {
   lambda <- n * w^2
 
   critical_p05 <- qchisq(1 - p05_threshold, df = q)
@@ -1780,8 +1787,10 @@ chisq_dimension_cell <- function(dimension, table_label, q, n, w) {
   risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
 
   tibble(
-    dimension = dimension,
+    rows = rows,
+    columns = columns,
     table_label = table_label,
+    table_plot_label = table_plot_label,
     q = q,
     n = n,
     w = w,
@@ -1823,7 +1832,7 @@ write.csv(
 )
 
 chisq_pattern_agreement <- chisq_dimension_risk |>
-  group_by(dimension, table_label, q) |>
+  group_by(rows, columns, table_label, q) |>
   summarise(
     grid_cells = n(),
     same_lower_risk_rule = mean(
@@ -1879,7 +1888,7 @@ chisq_w_bounds <- cell_boundaries(
 
 chisq_dimension_plot_data <- chisq_dimension_risk |>
   select(
-    dimension, table_label, q, n, w,
+    rows, columns, table_label, table_plot_label, q, n, w,
     delta_p05_minus_ejab, delta_tsbf_minus_ejab
   ) |>
   pivot_longer(
@@ -1916,13 +1925,8 @@ chisq_dimension_plot_data <- chisq_dimension_risk |>
       )
     ),
     table_plot_label = factor(
-      table_label,
-      levels = chisq_dimensions$table_label,
-      labels = c(
-        "2 %*% 2~(q == 1)",
-        "3 %*% 3~(q == 4)",
-        "5 %*% 5~(q == 16)"
-      )
+      table_plot_label,
+      levels = chisq_dimensions$table_plot_label
     )
   ) |>
   left_join(
