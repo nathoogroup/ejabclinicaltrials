@@ -19,13 +19,13 @@
 "p < 0.05 versus eJAB","ranova","Repeated-measures ANOVA",3,0.253466877768125
 "p < 0.05 versus eJAB","ttest","Two-sample t-test",1,0.351793112274117
 "p < 0.05 versus eJAB","wilcoxon","Wilcoxon signed-rank",1,0.342423223917727
-"BIC BF01 <= 1/3 versus eJAB","anova","One-way ANOVA",3,0.23125
-"BIC BF01 <= 1/3 versus eJAB","chisq","Chi-square independence",4,0.3315
-"BIC BF01 <= 1/3 versus eJAB","cox","Cox PH regression",1,0.00624999999999998
-"BIC BF01 <= 1/3 versus eJAB","lm","Linear regression",1,0.0287500000000001
-"BIC BF01 <= 1/3 versus eJAB","logistic","Logistic regression",1,0.07925
-"BIC BF01 <= 1/3 versus eJAB","ranova","Repeated-measures ANOVA",3,0.1595
-"BIC BF01 <= 1/3 versus eJAB","ttest","Two-sample t-test",1,0.0224999999999999
+"BIC BF01 <= 1/3 versus eJAB","anova","One-way ANOVA",3,0.2615
+"BIC BF01 <= 1/3 versus eJAB","chisq","Chi-square independence",4,0.33225
+"BIC BF01 <= 1/3 versus eJAB","cox","Cox PH regression",1,0.0110000000000001
+"BIC BF01 <= 1/3 versus eJAB","lm","Linear regression",1,0.0364999999999999
+"BIC BF01 <= 1/3 versus eJAB","logistic","Logistic regression",1,0.10675
+"BIC BF01 <= 1/3 versus eJAB","ranova","Repeated-measures ANOVA",3,0.1835
+"BIC BF01 <= 1/3 versus eJAB","ttest","Two-sample t-test",1,0.0325000000000001
 "TSBF01 <= 1/3 versus eJAB","anova","One-way ANOVA",3,0.250308857354584
 "TSBF01 <= 1/3 versus eJAB","chisq","Chi-square independence",4,0.141766164780065
 "TSBF01 <= 1/3 versus eJAB","cox","Cox PH regression",1,0.298400907094031
