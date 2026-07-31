@@ -1,0 +1,2025 @@
+---
+title: "Bayes-risk comparisons for eJAB"
+author: "eJAB clinical-trials project"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  refresh: false
+  dense_refresh: false
+  seed: 20260724
+  null_reps: 2000
+  alt_reps: 500
+  workers: 1
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 13,
+  fig.height = 11,
+  dpi = 160
+)
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(patchwork)
+library(purrr)
+library(scales)
+library(survival)
+library(tidyr)
+
+set.seed(params$seed)
+
+output_dir <- "bayes_risk_outputs/revised_three_comparisons"
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+simulation_file <- file.path(output_dir, "bayes_risk_simulation.rds")
+risk_file <- file.path(output_dir, "bayes_risk_grid.csv")
+dense_file <- file.path(output_dir, "dense_bayes_risk_grid.rds")
+dense_csv <- file.path(output_dir, "dense_bayes_risk_grid.csv")
+
+bf01_threshold <- 1 / 3
+p_threshold <- 0.005
+p05_threshold <- 0.05
+n_grid <- c(30L, 60L, 120L, 250L, 500L)
+theta_grid <- c(0.05, 0.10, 0.20, 0.35, 0.50, 0.80)
+dense_n_grid <- unique(round(exp(seq(log(30), log(1e7), length.out = 70))))
+dense_theta_grid <- unique(c(
+  exp(seq(log(0.001), log(0.02), length.out = 14)),
+  seq(0.025, 0.9, length.out = 46)
+))
+```
+
+# Comparisons
+
+This R Markdown file is the single source for four Bayes-risk comparisons:
+
+1. \(eJAB_{01}\leq1/3\) versus \(p<0.005\), for all 10 tests.
+2. \(eJAB_{01}\leq1/3\) versus \(p<0.05\), for all 10 tests.
+3. \(eJAB_{01}\leq1/3\) versus \(BF_{01}^{BIC}\leq1/3\), for the seven
+   non-rank tests. The Cox calculation uses the number of observed events as
+   \(n_{\mathrm{eff}}\).
+4. \(eJAB_{01}\leq1/3\) versus \(TSBF_{01}\leq1/3\), for all 10 tests.
+
+For the seven non-rank tests, the TSBF functions are transcribed from
+`Bayes_factor_function.pdf`. Each function is evaluated at the **true**
+standardized effect size. This is preferable to an estimated effect in a
+simulation study because the generating value is known and does not add
+effect-estimation noise to the decision rule.
+
+For Wilcoxon signed-rank and Mann-Whitney, the TSBF follows Theorem 1 and
+Table 1 of Yuan and Johnson (2008). Setting \(\tau=1/C\) gives
+
+\[
+TSBF_{01}(T^*)=\sqrt{2}\exp(-T^{*2}/4).
+\]
+
+Kruskal-Wallis has a limiting chi-square rather than normal distribution, so
+its TSBF uses the paper's Section 5 extension:
+
+\[
+TSBF_{01}(W)=(1+\tau)^{(k-1)/2}
+ \exp\left\{-\frac{\tau W}{2(1+\tau)}\right\},
+\qquad \tau=1.
+\]
+
+# Analysis scope and exclusions
+
+```{r scope}
+scope <- tribble(
+  ~test, ~p_comparison, ~bic_comparison, ~tsbf_comparison, ~tsbf_source,
+  "Two-sample t-test", "Included", "Included", "Included", "BFF PDF page 1",
+  "Simple linear regression", "Included", "Included", "Included", "BFF PDF page 2",
+  "Simple logistic regression", "Included", "Included", "Included", "BFF PDF page 3",
+  "Cox proportional-hazards regression", "Included", "Included; events are n_eff", "Included", "BFF PDF page 7",
+  "Wilcoxon signed-rank test", "Included", "Excluded", "Included", "Yuan-Johnson Theorem 1 and Table 1",
+  "Mann-Whitney U-test", "Included", "Excluded", "Included", "Yuan-Johnson Theorem 1 and Table 1",
+  "One-way ANOVA", "Included", "Included", "Included", "BFF PDF page 4",
+  "Repeated-measures ANOVA", "Included", "Included", "Included", "BFF PDF page 5",
+  "Chi-square independence test", "Included", "Included", "Included", "BFF PDF page 6",
+  "Kruskal-Wallis test", "Included", "Excluded", "Included", "Yuan-Johnson Section 5"
+)
+
+kable(scope)
+write.csv(
+  scope,
+  file.path(output_dir, "comparison_scope_and_exclusions.csv"),
+  row.names = FALSE
+)
+```
+
+The three rank tests are excluded only from the BIC comparison because that
+comparison is restricted to the seven prespecified non-rank test classes. They
+remain in the \(p<0.005\) and TSBF comparisons.
+
+A simulated replicate is excluded before inspecting any decision-rule result
+when the fitted model fails, its native test statistic is non-finite, its
+\(p\)-value is non-finite or outside \([0,1]\), or its effective sample size is
+not greater than one. No replicate is excluded because its \(p\)-value, test
+statistic, effect size, eJAB, BIC BF, or TSBF is unusually large or small.
+
+# eJAB and BIC functions
+
+For eJAB, a test with \(q\) tested degrees of freedom maps its reported
+two-sided or right-tail \(p\)-value to
+
+\[
+W=F^{-1}_{\chi_q^2}(1-p).
+\]
+
+The eJAB approximation is
+
+\[
+eJAB_{01}=\sqrt{n_{\mathrm{eff}}}
+\exp\left[-\frac12(1-n_{\mathrm{eff}}^{-1/q})W\right]
+\]
+
+For the BIC comparison, let
+\(\Lambda=2\{\ell(\widehat\theta_1)-\ell(\widehat\theta_0)\}\) be the
+likelihood-ratio statistic calculated directly from the fitted alternative and
+null models. The BIC Bayes-factor approximation is
+
+\[
+BF_{01}^{BIC}=n_{\mathrm{eff}}^{q/2}\exp(-\Lambda/2).
+\]
+
+Thus, the BIC decision does not substitute an asymptotic chi-square quantile
+for the fitted-model likelihood ratio.
+
+```{r ejab-bic-functions}
+clip_p <- function(p) {
+  pmin(pmax(p, .Machine$double.xmin), 1 - .Machine$double.eps)
+}
+
+ejab01 <- function(p, n_eff, q) {
+  W <- qchisq(clip_p(p), df = q, lower.tail = FALSE)
+  sqrt(n_eff) * exp(-0.5 * (1 - n_eff^(-1 / q)) * W)
+}
+
+bic_bf01_from_lr <- function(lr_statistic, n_eff, q) {
+  n_eff^(q / 2) * exp(-pmax(lr_statistic, 0) / 2)
+}
+```
+
+# Test-statistic Bayes-factor functions
+
+The following functions transcribe the seven BFFs from
+`Bayes_factor_function.pdf`. The PDF reports \(BFF_{10}\); the analysis uses
+\(TSBF_{01}=1/BFF_{10}\).
+
+```{r tsbf-functions}
+bff10_t <- function(t, nu, tau2) {
+  r <- 1 + t^2 / nu
+  u <- 1 + t^2 / (nu * (1 + tau2))
+  k <- tau2 * (nu + 1) / (nu * (1 + tau2))
+  exp(
+    -1.5 * log1p(tau2) +
+      ((nu + 1) / 2) * (log(r) - log(u)) +
+      log1p(k * t^2 / u)
+  )
+}
+
+bff10_z <- function(z, tau2) {
+  exp(
+    -1.5 * log1p(tau2) +
+      log1p(tau2 * z^2 / (1 + tau2)) +
+      tau2 * z^2 / (2 * (1 + tau2))
+  )
+}
+
+bff10_anova <- function(F_stat, groups, n_total, tau2) {
+  v <- (n_total - groups) * (1 + tau2)
+  exp(
+    -((groups + 1) / 2) * log1p(tau2) +
+      ((n_total - 1) / 2) *
+        (log1p((groups - 1) * F_stat / (n_total - groups)) -
+           log1p((groups - 1) * F_stat / v)) +
+      log1p((n_total - 1) * tau2 * F_stat /
+              (v + (groups - 1) * F_stat))
+  )
+}
+
+bff10_ranova <- function(F_stat, conditions, subjects, tau2) {
+  u <- (subjects - 1) * (1 + tau2)
+  exp(
+    -((conditions + 1) / 2) * log1p(tau2) +
+      (((conditions - 1) * subjects) / 2) *
+        (log1p(F_stat / (subjects - 1)) - log1p(F_stat / u)) +
+      log1p(subjects * tau2 * F_stat / (u + F_stat))
+  )
+}
+
+bff10_chisq <- function(chisq_stat, q, tau2) {
+  exp(
+    -(q / 2 + 1) * log1p(tau2) +
+      log1p(tau2 * chisq_stat / (q * (1 + tau2))) +
+      tau2 * chisq_stat / (2 * (1 + tau2))
+  )
+}
+
+bff10_cox <- function(lambda, tau2) {
+  bff10_z(sqrt(pmax(lambda, 0)), tau2)
+}
+
+yuan_johnson_normal_bf01 <- function(T_star) {
+  sqrt(2) * exp(-T_star^2 / 4)
+}
+
+yuan_johnson_kw_bf01 <- function(W, groups, tau = 1) {
+  q <- groups - 1
+  (1 + tau)^(q / 2) * exp(-tau * W / (2 * (1 + tau)))
+}
+
+stopifnot(
+  all.equal(bff10_t(2, 28, 0), 1),
+  all.equal(bff10_z(2, 0), 1),
+  all.equal(bff10_anova(2, 4, 40, 0), 1),
+  all.equal(bff10_ranova(2, 4, 20, 0), 1),
+  all.equal(bff10_chisq(5, 4, 0), 1),
+  all.equal(bff10_cox(4, 0), 1),
+  all.equal(yuan_johnson_normal_bf01(0), sqrt(2)),
+  all.equal(yuan_johnson_kw_bf01(0, 5), 4)
+)
+```
+
+# Simulation models
+
+All tests use their native row-level statistic. The three rank tests use
+heavy-tailed \(t_3\) errors with variance one, matching the earlier simulation.
+
+```{r simulation-models}
+test_labels <- c(
+  ttest = "Two-sample t-test",
+  lm = "Linear regression",
+  logistic = "Logistic regression",
+  cox = "Cox PH regression",
+  wilcoxon = "Wilcoxon signed-rank",
+  mannwhitney = "Mann-Whitney",
+  anova = "One-way ANOVA",
+  ranova = "Repeated-measures ANOVA",
+  chisq = "Chi-square independence",
+  kruskal = "Kruskal-Wallis"
+)
+
+q_by_test <- c(
+  ttest = 1L, lm = 1L, logistic = 1L, cox = 1L,
+  wilcoxon = 1L, mannwhitney = 1L,
+  anova = 3L, ranova = 3L, chisq = 4L, kruskal = 4L
+)
+
+bic_test_keys <- c(
+  "ttest", "lm", "logistic", "cox",
+  "anova", "ranova", "chisq"
+)
+
+contrast_scores <- function(k) {
+  x <- seq_len(k) - (k + 1) / 2
+  x / sqrt(mean(x^2))
+}
+
+chisq_probabilities <- function(theta) {
+  log_p <- matrix(0, 3, 3)
+  diag(log_p) <- theta
+  p <- exp(log_p)
+  p / sum(p)
+}
+
+chisq_omega2 <- function(theta) {
+  p <- chisq_probabilities(theta)
+  expected <- outer(rowSums(p), colSums(p))
+  sum((p - expected)^2 / expected)
+}
+
+tau2_for <- function(test_key, n, theta, simulation_result = NULL) {
+  if (test_key == "ttest") {
+    n1 <- floor(n / 2)
+    n2 <- n - n1
+    return(theta^2 / (2 * (1 / n1 + 1 / n2)))
+  }
+  if (test_key == "lm") return(n * theta^2 / 2)
+  if (test_key == "logistic") return(n * (theta / 2)^2 / 2)
+  if (test_key == "cox") {
+    events <- simulation_result$events
+    return(theta^2 * events / 4)
+  }
+  if (test_key == "anova") {
+    groups <- 4
+    scores <- contrast_scores(groups)
+    sizes <- rep(floor(n / groups), groups)
+    if (n %% groups > 0) {
+      sizes[seq_len(n %% groups)] <- sizes[seq_len(n %% groups)] + 1
+    }
+    weights <- sizes / sum(sizes)
+    means <- theta * scores
+    omega2 <- sum(weights * (means - sum(weights * means))^2) / (groups - 1)
+    return(n * omega2 / 2)
+  }
+  if (test_key == "ranova") {
+    conditions <- 4
+    means <- theta * contrast_scores(conditions)
+    omega2 <- sum((means - mean(means))^2) / (conditions - 1)
+    return(n * omega2 / 2)
+  }
+  if (test_key == "chisq") return(n * chisq_omega2(theta))
+  NA_real_
+}
+
+simulate_one <- function(test_key, n, theta) {
+  tryCatch({
+    if (test_key == "ttest") {
+      n1 <- floor(n / 2)
+      n2 <- n - n1
+      y1 <- rnorm(n1, theta, 1)
+      y2 <- rnorm(n2, 0, 1)
+      y <- c(y1, y2)
+      group <- factor(rep(c(1, 0), c(n1, n2)))
+      fit <- t.test(y1, y2, var.equal = TRUE)
+      full_model <- lm(y ~ group)
+      null_model <- lm(y ~ 1)
+      statistic <- unname(fit$statistic)
+      nu <- unname(fit$parameter)
+      return(list(
+        statistic = statistic,
+        p = 2 * pt(-abs(statistic), nu),
+        n_eff = n,
+        nu = nu,
+        bic_lr = pmax(
+          2 * (as.numeric(logLik(full_model)) -
+                 as.numeric(logLik(null_model))),
+          0
+        )
+      ))
+    }
+
+    if (test_key == "lm") {
+      x <- rnorm(n)
+      y <- theta * x + rnorm(n)
+      full_model <- lm(y ~ x)
+      null_model <- lm(y ~ 1)
+      fit <- summary(full_model)
+      statistic <- unname(fit$coefficients["x", "t value"])
+      nu <- fit$df[2]
+      return(list(
+        statistic = statistic,
+        p = 2 * pt(-abs(statistic), nu),
+        n_eff = n,
+        nu = nu,
+        bic_lr = pmax(
+          2 * (as.numeric(logLik(full_model)) -
+                 as.numeric(logLik(null_model))),
+          0
+        )
+      ))
+    }
+
+    if (test_key == "logistic") {
+      x <- rnorm(n)
+      y <- rbinom(n, 1, plogis(theta * x))
+      full_model <- suppressWarnings(glm(y ~ x, family = binomial()))
+      null_model <- suppressWarnings(glm(y ~ 1, family = binomial()))
+      statistic <- unname(summary(full_model)$coefficients["x", "z value"])
+      return(list(
+        statistic = statistic,
+        p = 2 * pnorm(-abs(statistic)),
+        n_eff = n,
+        bic_lr = pmax(
+          2 * (as.numeric(logLik(full_model)) -
+                 as.numeric(logLik(null_model))),
+          0
+        )
+      ))
+    }
+
+    if (test_key == "cox") {
+      x <- sample(rep(c(0, 1), length.out = n))
+      event_time <- rexp(n, rate = 0.1 * exp(theta * x))
+      censor_time <- rexp(n, rate = 0.025)
+      time <- pmin(event_time, censor_time)
+      event <- as.integer(event_time <= censor_time)
+      fit <- suppressWarnings(coxph(
+        Surv(time, event) ~ x,
+        ties = "efron",
+        control = coxph.control(iter.max = 30)
+      ))
+      lambda <- pmax(unname(2 * diff(fit$loglik)), 0)
+      events <- sum(event)
+      return(list(
+        statistic = lambda,
+        p = pchisq(lambda, 1, lower.tail = FALSE),
+        n_eff = events,
+        events = events,
+        bic_lr = lambda
+      ))
+    }
+
+    if (test_key == "wilcoxon") {
+      d <- theta + rt(n, 3) / sqrt(3)
+      ranks <- rank(abs(d), ties.method = "average")
+      T_stat <- sum(ranks[d > 0])
+      mean0 <- n * (n + 1) / 4
+      sd0 <- sqrt(n * (n + 1) * (2 * n + 1) / 24)
+      T_star <- (T_stat - mean0) / sd0
+      return(list(
+        statistic = T_star,
+        p = 2 * pnorm(-abs(T_star)),
+        n_eff = n,
+        bic_lr = NA_real_
+      ))
+    }
+
+    if (test_key == "mannwhitney") {
+      n1 <- floor(n / 2)
+      n2 <- n - n1
+      x <- rt(n1, 3) / sqrt(3)
+      y <- theta + rt(n2, 3) / sqrt(3)
+      combined_ranks <- rank(c(x, y), ties.method = "average")
+      T_stat <- sum(combined_ranks[seq_len(n1)])
+      mean0 <- n1 * (n + 1) / 2
+      sd0 <- sqrt(n1 * n2 * (n + 1) / 12)
+      T_star <- (T_stat - mean0) / sd0
+      return(list(
+        statistic = T_star,
+        p = 2 * pnorm(-abs(T_star)),
+        n_eff = n,
+        bic_lr = NA_real_
+      ))
+    }
+
+    if (test_key == "anova") {
+      groups <- 4
+      sizes <- rep(floor(n / groups), groups)
+      if (n %% groups > 0) {
+        sizes[seq_len(n %% groups)] <- sizes[seq_len(n %% groups)] + 1
+      }
+      means <- theta * contrast_scores(groups)
+      group <- factor(rep(seq_len(groups), sizes))
+      y <- rnorm(n, rep(means, sizes), 1)
+      full_model <- lm(y ~ group)
+      null_model <- lm(y ~ 1)
+      tab <- anova(full_model)
+      statistic <- unname(tab["group", "F value"])
+      return(list(
+        statistic = statistic,
+        p = pf(statistic, groups - 1, n - groups, lower.tail = FALSE),
+        n_eff = n,
+        bic_lr = pmax(
+          2 * (as.numeric(logLik(full_model)) -
+                 as.numeric(logLik(null_model))),
+          0
+        )
+      ))
+    }
+
+    if (test_key == "ranova") {
+      conditions <- 4
+      subject <- factor(rep(seq_len(n), each = conditions))
+      condition <- factor(rep(seq_len(conditions), times = n))
+      subject_intercept <- rep(rnorm(n, 0, 0.7), each = conditions)
+      means <- rep(theta * contrast_scores(conditions), times = n)
+      y <- means + subject_intercept + rnorm(n * conditions)
+      full_model <- lm(y ~ subject + condition)
+      null_model <- lm(y ~ subject)
+      tab <- anova(full_model)
+      statistic <- unname(tab["condition", "F value"])
+      df1 <- conditions - 1
+      df2 <- (conditions - 1) * (n - 1)
+      return(list(
+        statistic = statistic,
+        p = pf(statistic, df1, df2, lower.tail = FALSE),
+        n_eff = n * (conditions - 1),
+        bic_lr = pmax(
+          2 * (as.numeric(logLik(full_model)) -
+                 as.numeric(logLik(null_model))),
+          0
+        )
+      ))
+    }
+
+    if (test_key == "chisq") {
+      counts <- matrix(
+        rmultinom(1, n, as.vector(chisq_probabilities(theta))),
+        3, 3
+      )
+      fit <- suppressWarnings(chisq.test(counts, correct = FALSE))
+      statistic <- unname(fit$statistic)
+      positive <- counts > 0 & fit$expected > 0
+      likelihood_ratio <- 2 * sum(
+        counts[positive] * log(counts[positive] / fit$expected[positive])
+      )
+      return(list(
+        statistic = statistic,
+        p = pchisq(statistic, 4, lower.tail = FALSE),
+        n_eff = n,
+        bic_lr = pmax(likelihood_ratio, 0)
+      ))
+    }
+
+    if (test_key == "kruskal") {
+      groups <- 5
+      sizes <- rep(floor(n / groups), groups)
+      if (n %% groups > 0) {
+        sizes[seq_len(n %% groups)] <- sizes[seq_len(n %% groups)] + 1
+      }
+      means <- theta * contrast_scores(groups)
+      group <- factor(rep(seq_len(groups), sizes))
+      y <- rep(means, sizes) + rt(n, 3) / sqrt(3)
+      fit <- kruskal.test(y ~ group)
+      statistic <- unname(fit$statistic)
+      return(list(
+        statistic = statistic,
+        p = pchisq(statistic, 4, lower.tail = FALSE),
+        n_eff = n,
+        bic_lr = NA_real_
+      ))
+    }
+
+    stop("Unknown test key")
+  }, error = function(e) {
+    list(
+      statistic = NA_real_,
+      p = NA_real_,
+      n_eff = NA_real_,
+      bic_lr = NA_real_
+    )
+  })
+}
+```
+
+# Decision rules and Bayes-risk estimation
+
+```{r risk-functions}
+valid_result <- function(x, test_key) {
+  is.finite(x$statistic) &&
+    is.finite(x$p) && x$p >= 0 && x$p <= 1 &&
+    is.finite(x$n_eff) && x$n_eff > 1 &&
+    (
+      !test_key %in% bic_test_keys ||
+        (is.finite(x$bic_lr) && x$bic_lr >= 0)
+    )
+}
+
+tsbf01 <- function(test_key, result, n, theta) {
+  if (test_key == "wilcoxon" || test_key == "mannwhitney") {
+    return(yuan_johnson_normal_bf01(result$statistic))
+  }
+  if (test_key == "kruskal") {
+    return(yuan_johnson_kw_bf01(result$statistic, groups = 5, tau = 1))
+  }
+
+  tau2 <- tau2_for(test_key, n, theta, result)
+  bf10 <- switch(
+    test_key,
+    ttest = bff10_t(result$statistic, result$nu, tau2),
+    lm = bff10_t(result$statistic, result$nu, tau2),
+    logistic = bff10_z(result$statistic, tau2),
+    cox = bff10_cox(result$statistic, tau2),
+    anova = bff10_anova(result$statistic, 4, n, tau2),
+    ranova = bff10_ranova(result$statistic, 4, n, tau2),
+    chisq = bff10_chisq(result$statistic, 4, tau2),
+    stop("Unknown test key")
+  )
+  1 / bf10
+}
+
+decisions_for <- function(draws, test_key, n, theta) {
+  q <- unname(q_by_test[test_key])
+  p <- map_dbl(draws, "p")
+  n_eff <- map_dbl(draws, "n_eff")
+  ejab <- ejab01(p, n_eff, q)
+  bic <- if (test_key %in% bic_test_keys) {
+    bic_bf01_from_lr(map_dbl(draws, "bic_lr"), n_eff, q)
+  } else {
+    rep(NA_real_, length(draws))
+  }
+  tsbf <- map_dbl(draws, ~ tsbf01(test_key, .x, n, theta))
+
+  tibble(
+    reject_p = p < p_threshold,
+    reject_ejab = ejab <= bf01_threshold,
+    reject_bic = bic <= bf01_threshold,
+    reject_tsbf = tsbf <= bf01_threshold
+  )
+}
+
+simulate_test_n <- function(test_key, n, null_reps, alt_reps, seed) {
+  set.seed(seed)
+
+  null_draws <- replicate(
+    null_reps,
+    simulate_one(test_key, n, 0),
+    simplify = FALSE
+  )
+  null_draws <- null_draws[
+    map_lgl(null_draws, valid_result, test_key = test_key)
+  ]
+
+  map_dfr(theta_grid, function(theta) {
+    alt_draws <- replicate(
+      alt_reps,
+      simulate_one(test_key, n, theta),
+      simplify = FALSE
+    )
+    alt_draws <- alt_draws[
+      map_lgl(alt_draws, valid_result, test_key = test_key)
+    ]
+
+    if (!length(null_draws) || !length(alt_draws)) {
+      return(tibble(
+        test_key = test_key,
+        test = unname(test_labels[test_key]),
+        n = n,
+        theta = theta,
+        null_valid_reps = length(null_draws),
+        alt_valid_reps = length(alt_draws)
+      ))
+    }
+
+    null_decisions <- decisions_for(null_draws, test_key, n, theta)
+    alt_decisions <- decisions_for(alt_draws, test_key, n, theta)
+
+    alpha_p <- mean(null_decisions$reject_p)
+    power_p <- mean(alt_decisions$reject_p)
+    alpha_ejab <- mean(null_decisions$reject_ejab)
+    power_ejab <- mean(alt_decisions$reject_ejab)
+    alpha_tsbf <- mean(null_decisions$reject_tsbf)
+    power_tsbf <- mean(alt_decisions$reject_tsbf)
+
+    if (test_key %in% bic_test_keys) {
+      alpha_bic <- mean(null_decisions$reject_bic)
+      power_bic <- mean(alt_decisions$reject_bic)
+    } else {
+      alpha_bic <- NA_real_
+      power_bic <- NA_real_
+    }
+
+    risk_p <- 0.5 * (alpha_p + 1 - power_p)
+    risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
+    risk_bic <- 0.5 * (alpha_bic + 1 - power_bic)
+    risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
+
+    tibble(
+      test_key = test_key,
+      test = unname(test_labels[test_key]),
+      q = unname(q_by_test[test_key]),
+      n = n,
+      theta = theta,
+      null_valid_reps = length(null_draws),
+      alt_valid_reps = length(alt_draws),
+      alpha_p = alpha_p,
+      power_p = power_p,
+      alpha_ejab = alpha_ejab,
+      power_ejab = power_ejab,
+      alpha_bic = alpha_bic,
+      power_bic = power_bic,
+      alpha_tsbf = alpha_tsbf,
+      power_tsbf = power_tsbf,
+      risk_p = risk_p,
+      risk_ejab = risk_ejab,
+      risk_bic = risk_bic,
+      risk_tsbf = risk_tsbf,
+      delta_p_minus_ejab = risk_p - risk_ejab,
+      delta_bic_minus_ejab = risk_bic - risk_ejab,
+      delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
+    )
+  })
+}
+```
+
+Null draws are generated once for each test and sample size and reused across
+the six effect-size cells. The TSBF false-positive rate is nevertheless
+recalculated for each effect size because the parametric BFF prior scale depends
+on the standardized alternative effect.
+
+```{r run-simulation}
+task_grid <- crossing(
+  test_key = names(test_labels),
+  n = n_grid
+) |>
+  mutate(seed = params$seed + row_number())
+
+if (isTRUE(params$refresh) || !file.exists(simulation_file)) {
+  tasks <- split(task_grid, seq_len(nrow(task_grid)))
+  run_task <- function(task) {
+    simulate_test_n(
+      task$test_key,
+      task$n,
+      params$null_reps,
+      params$alt_reps,
+      task$seed
+    )
+  }
+
+  if (.Platform$OS.type != "windows" && params$workers > 1) {
+    result_list <- parallel::mclapply(
+      tasks,
+      run_task,
+      mc.cores = params$workers
+    )
+  } else {
+    result_list <- lapply(tasks, run_task)
+  }
+
+  risk <- bind_rows(result_list)
+  saveRDS(risk, simulation_file)
+} else {
+  risk <- readRDS(simulation_file)
+}
+
+write.csv(risk, risk_file, row.names = FALSE)
+
+validation_summary <- risk |>
+  summarise(
+    cells = n(),
+    minimum_null_valid_reps = min(null_valid_reps),
+    minimum_alt_valid_reps = min(alt_valid_reps),
+    nonfinite_required_risks = sum(
+      !is.finite(risk_p) | !is.finite(risk_ejab) | !is.finite(risk_tsbf)
+    ),
+    nonfinite_bic_risks_in_scope = sum(
+      test_key %in% bic_test_keys & !is.finite(risk_bic)
+    )
+  )
+
+kable(validation_summary)
+```
+
+# Dense large-\(n\) criticality grid
+
+The publication-style maps use a 70-point logarithmic sample-size grid from
+\(30\) to \(10^7\) and a 60-point effect-size grid from \(0.001\) to \(0.9\).
+At these sample sizes, row-level simulation is not computationally meaningful.
+Instead, rejection probabilities are evaluated from each test's native
+central/noncentral statistic distribution. The TSBF is always evaluated from
+the relevant test-statistic BFF; no generic \(p\)-to-chi-square TSBF is used.
+
+```{r dense-distributions}
+t3_scale <- 1 / sqrt(3)
+t3_pdf <- function(x) dt(x / t3_scale, df = 3) / t3_scale
+t3_cdf <- function(x) pt(x / t3_scale, df = 3)
+
+mw_ncp_per_n <- function(theta) {
+  if (theta == 0) return(0)
+  area <- integrate(
+    function(e) t3_cdf(theta + e) * t3_pdf(e),
+    -Inf, Inf, rel.tol = 1e-8, subdivisions = 300L
+  )$value
+  3 * (area - 0.5)^2
+}
+
+wilcoxon_ncp_per_n <- function(theta) {
+  if (theta == 0) return(0)
+  abs_cdf_shifted <- function(x) {
+    t3_cdf(x - theta) - t3_cdf(-x - theta)
+  }
+  area <- integrate(
+    function(d) abs_cdf_shifted(d) * t3_pdf(d - theta),
+    0, Inf, rel.tol = 1e-8, subdivisions = 300L
+  )$value
+  12 * (area - 0.25)^2
+}
+
+kruskal_ncp_per_n <- function(theta) {
+  if (theta == 0) return(0)
+  locations <- theta * contrast_scores(5)
+  pooled_cdf <- function(x) {
+    rowMeans(vapply(locations, function(loc) t3_cdf(x - loc), numeric(length(x))))
+  }
+  rank_means <- vapply(locations, function(loc) {
+    integrate(
+      function(x) pooled_cdf(x) * t3_pdf(x - loc),
+      -Inf, Inf, rel.tol = 1e-8, subdivisions = 300L
+    )$value
+  }, numeric(1))
+  12 * mean((rank_means - 0.5)^2)
+}
+
+rank_ncp <- tibble(theta = c(0, dense_theta_grid)) |>
+  mutate(
+    wilcoxon = map_dbl(theta, wilcoxon_ncp_per_n),
+    mannwhitney = map_dbl(theta, mw_ncp_per_n),
+    kruskal = map_dbl(theta, kruskal_ncp_per_n)
+  )
+
+rank_ncp_value <- function(test_key, theta) {
+  rank_ncp[[test_key]][match(theta, rank_ncp$theta)]
+}
+
+cox_event_fraction_dense <- function(theta) {
+  0.5 * (
+    0.1 / (0.1 + 0.025) +
+      (0.1 * exp(theta)) / (0.1 * exp(theta) + 0.025)
+  )
+}
+
+n_eff_dense <- function(test_key, n, theta) {
+  if (test_key == "cox") return(n * cox_event_fraction_dense(theta))
+  if (test_key == "ranova") return(3 * n)
+  n
+}
+
+native_ncp <- function(test_key, n, theta) {
+  if (theta == 0) return(0)
+  switch(
+    test_key,
+    ttest = theta / sqrt(1 / floor(n / 2) + 1 / (n - floor(n / 2))),
+    lm = sqrt(n) * theta,
+    logistic = sqrt(n) * theta / 2,
+    cox = n_eff_dense("cox", n, theta) * theta^2 / 4,
+    wilcoxon = sqrt(n * rank_ncp_value("wilcoxon", theta)),
+    mannwhitney = sqrt(n * rank_ncp_value("mannwhitney", theta)),
+    anova = n * theta^2,
+    ranova = 4 * n * theta^2,
+    chisq = n * chisq_omega2(theta),
+    kruskal = n * rank_ncp_value("kruskal", theta),
+    stop("Unknown test key")
+  )
+}
+
+native_rejection_at_stat <- function(test_key, n, theta, critical) {
+  if (!is.finite(critical)) return(0)
+  if (critical <= 0) return(1)
+  ncp <- native_ncp(test_key, n, theta)
+
+  probability <- switch(
+    test_key,
+    ttest = {
+      df <- n - 2
+      pt(-critical, df = df, ncp = ncp) +
+        pt(critical, df = df, ncp = ncp, lower.tail = FALSE)
+    },
+    lm = {
+      df <- n - 2
+      pt(-critical, df = df, ncp = ncp) +
+        pt(critical, df = df, ncp = ncp, lower.tail = FALSE)
+    },
+    logistic = {
+      pnorm(-critical, mean = ncp) +
+        pnorm(critical, mean = ncp, lower.tail = FALSE)
+    },
+    cox = pchisq(critical, df = 1, ncp = ncp, lower.tail = FALSE),
+    wilcoxon = {
+      pnorm(-critical, mean = ncp) +
+        pnorm(critical, mean = ncp, lower.tail = FALSE)
+    },
+    mannwhitney = {
+      pnorm(-critical, mean = ncp) +
+        pnorm(critical, mean = ncp, lower.tail = FALSE)
+    },
+    anova = pf(
+      critical, df1 = 3, df2 = n - 4, ncp = ncp, lower.tail = FALSE
+    ),
+    ranova = pf(
+      critical, df1 = 3, df2 = 3 * (n - 1),
+      ncp = ncp, lower.tail = FALSE
+    ),
+    chisq = pchisq(critical, df = 4, ncp = ncp, lower.tail = FALSE),
+    kruskal = pchisq(critical, df = 4, ncp = ncp, lower.tail = FALSE),
+    stop("Unknown test key")
+  )
+  pmin(pmax(probability, 0), 1)
+}
+
+native_critical_from_p <- function(test_key, n, p_cut) {
+  p_cut <- clip_p(p_cut)
+  switch(
+    test_key,
+    ttest = qt(1 - p_cut / 2, df = n - 2),
+    lm = qt(1 - p_cut / 2, df = n - 2),
+    logistic = qnorm(1 - p_cut / 2),
+    cox = qchisq(1 - p_cut, df = 1),
+    wilcoxon = qnorm(1 - p_cut / 2),
+    mannwhitney = qnorm(1 - p_cut / 2),
+    anova = qf(1 - p_cut, df1 = 3, df2 = n - 4),
+    ranova = qf(1 - p_cut, df1 = 3, df2 = 3 * (n - 1)),
+    chisq = qchisq(1 - p_cut, df = 4),
+    kruskal = qchisq(1 - p_cut, df = 4),
+    stop("Unknown test key")
+  )
+}
+
+p_cut_ejab <- function(n_eff, q) {
+  W <- (log(n_eff) - 2 * log(bf01_threshold)) /
+    (1 - n_eff^(-1 / q))
+  pchisq(W, df = q, lower.tail = FALSE)
+}
+
+```
+
+```{r dense-tsbf-thresholds}
+log_bff10_t <- function(t, nu, tau2) {
+  r <- 1 + t^2 / nu
+  u <- 1 + t^2 / (nu * (1 + tau2))
+  k <- tau2 * (nu + 1) / (nu * (1 + tau2))
+  -1.5 * log1p(tau2) +
+    ((nu + 1) / 2) * (log(r) - log(u)) +
+    log1p(k * t^2 / u)
+}
+
+log_bff10_z <- function(z, tau2) {
+  -1.5 * log1p(tau2) +
+    log1p(tau2 * z^2 / (1 + tau2)) +
+    tau2 * z^2 / (2 * (1 + tau2))
+}
+
+log_bff10_anova <- function(F_stat, groups, n_total, tau2) {
+  v <- (n_total - groups) * (1 + tau2)
+  -((groups + 1) / 2) * log1p(tau2) +
+    ((n_total - 1) / 2) *
+      (log1p((groups - 1) * F_stat / (n_total - groups)) -
+         log1p((groups - 1) * F_stat / v)) +
+    log1p((n_total - 1) * tau2 * F_stat /
+            (v + (groups - 1) * F_stat))
+}
+
+log_bff10_ranova <- function(F_stat, conditions, subjects, tau2) {
+  u <- (subjects - 1) * (1 + tau2)
+  -((conditions + 1) / 2) * log1p(tau2) +
+    (((conditions - 1) * subjects) / 2) *
+      (log1p(F_stat / (subjects - 1)) - log1p(F_stat / u)) +
+    log1p(subjects * tau2 * F_stat / (u + F_stat))
+}
+
+log_bff10_chisq <- function(chisq_stat, q, tau2) {
+  -(q / 2 + 1) * log1p(tau2) +
+    log1p(tau2 * chisq_stat / (q * (1 + tau2))) +
+    tau2 * chisq_stat / (2 * (1 + tau2))
+}
+
+critical_root <- function(log_bf_function) {
+  target <- log(3)
+  if (log_bf_function(0) >= target) return(0)
+  upper <- 1
+  value <- log_bf_function(upper)
+  while ((!is.finite(value) || value < target) && upper < 1e7) {
+    upper <- upper * 2
+    value <- log_bf_function(upper)
+  }
+  if (!is.finite(value) || value < target) return(Inf)
+  uniroot(
+    function(x) log_bf_function(x) - target,
+    interval = c(0, upper),
+    tol = 1e-8
+  )$root
+}
+
+dense_tau2 <- function(test_key, n, theta, data_theta = theta) {
+  switch(
+    test_key,
+    ttest = {
+      n1 <- floor(n / 2)
+      n2 <- n - n1
+      theta^2 / (2 * (1 / n1 + 1 / n2))
+    },
+    lm = n * theta^2 / 2,
+    logistic = n * theta^2 / 8,
+    cox = n_eff_dense("cox", n, data_theta) * theta^2 / 4,
+    anova = n * theta^2 / 6,
+    ranova = 2 * n * theta^2 / 3,
+    chisq = n * chisq_omega2(theta),
+    NA_real_
+  )
+}
+
+dense_tsbf_critical <- function(test_key, n, theta, data_theta = theta) {
+  if (test_key %in% c("wilcoxon", "mannwhitney")) {
+    return(sqrt(4 * log(3 * sqrt(2))))
+  }
+  if (test_key == "kruskal") {
+    return(4 * log(12))
+  }
+
+  tau2 <- dense_tau2(test_key, n, theta, data_theta)
+  log_fun <- switch(
+    test_key,
+    ttest = function(x) log_bff10_t(x, n - 2, tau2),
+    lm = function(x) log_bff10_t(x, n - 2, tau2),
+    logistic = function(x) log_bff10_z(x, tau2),
+    cox = function(x) log_bff10_z(sqrt(x), tau2),
+    anova = function(x) log_bff10_anova(x, 4, n, tau2),
+    ranova = function(x) log_bff10_ranova(x, 4, n, tau2),
+    chisq = function(x) log_bff10_chisq(x, 4, tau2),
+    stop("Unknown test key")
+  )
+  critical_root(log_fun)
+}
+```
+
+```{r compute-dense-grid}
+dense_cell <- function(test_key, n, theta) {
+  q <- unname(q_by_test[test_key])
+  n_eff_null <- n_eff_dense(test_key, n, 0)
+  n_eff_alt <- n_eff_dense(test_key, n, theta)
+
+  p_crit <- native_critical_from_p(test_key, n, p_threshold)
+  p05_crit <- native_critical_from_p(test_key, n, p05_threshold)
+  ejab_crit_null <- native_critical_from_p(
+    test_key, n, p_cut_ejab(n_eff_null, q)
+  )
+  ejab_crit_alt <- native_critical_from_p(
+    test_key, n, p_cut_ejab(n_eff_alt, q)
+  )
+
+  alpha_p <- native_rejection_at_stat(test_key, n, 0, p_crit)
+  power_p <- native_rejection_at_stat(test_key, n, theta, p_crit)
+  alpha_p05 <- native_rejection_at_stat(test_key, n, 0, p05_crit)
+  power_p05 <- native_rejection_at_stat(test_key, n, theta, p05_crit)
+  alpha_ejab <- native_rejection_at_stat(test_key, n, 0, ejab_crit_null)
+  power_ejab <- native_rejection_at_stat(test_key, n, theta, ejab_crit_alt)
+
+  tsbf_crit_null <- dense_tsbf_critical(test_key, n, theta, data_theta = 0)
+  tsbf_crit_alt <- dense_tsbf_critical(
+    test_key, n, theta, data_theta = theta
+  )
+  alpha_tsbf <- native_rejection_at_stat(test_key, n, 0, tsbf_crit_null)
+  power_tsbf <- native_rejection_at_stat(
+    test_key, n, theta, tsbf_crit_alt
+  )
+
+  # A fitted-model likelihood ratio is not available in this analytic dense
+  # grid, so no BIC risk is calculated here.
+  alpha_bic <- power_bic <- NA_real_
+
+  risk_p <- 0.5 * (alpha_p + 1 - power_p)
+  risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
+  risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
+  risk_bic <- 0.5 * (alpha_bic + 1 - power_bic)
+  risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
+
+  tibble(
+    test_key = test_key,
+    test = unname(test_labels[test_key]),
+    q = q,
+    n = n,
+    theta = theta,
+    risk_p = risk_p,
+    risk_p05 = risk_p05,
+    risk_ejab = risk_ejab,
+    risk_bic = risk_bic,
+    risk_tsbf = risk_tsbf,
+    delta_p_minus_ejab = risk_p - risk_ejab,
+    delta_p05_minus_ejab = risk_p05 - risk_ejab,
+    delta_bic_minus_ejab = risk_bic - risk_ejab,
+    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
+  )
+}
+
+if (isTRUE(params$dense_refresh) || !file.exists(dense_file)) {
+  dense_tasks <- crossing(
+    test_key = names(test_labels),
+    n = dense_n_grid,
+    theta = dense_theta_grid
+  )
+  task_groups <- split(dense_tasks, dense_tasks$test_key)
+  run_dense_test <- function(task) {
+    pmap_dfr(task, dense_cell)
+  }
+  if (.Platform$OS.type != "windows" && params$workers > 1) {
+    dense_result <- parallel::mclapply(
+      task_groups, run_dense_test, mc.cores = params$workers
+    )
+  } else {
+    dense_result <- lapply(task_groups, run_dense_test)
+  }
+  dense_risk <- bind_rows(dense_result)
+  saveRDS(dense_risk, dense_file)
+} else {
+  dense_risk <- readRDS(dense_file)
+}
+
+# Add the p<0.05 comparison to caches created before this comparison existed.
+if (!all(c("risk_p05", "delta_p05_minus_ejab") %in% names(dense_risk))) {
+  p05_risk <- pmap_dfr(
+    dense_risk[c("test_key", "n", "theta")],
+    function(test_key, n, theta) {
+      p05_crit <- native_critical_from_p(test_key, n, p05_threshold)
+      alpha_p05 <- native_rejection_at_stat(test_key, n, 0, p05_crit)
+      power_p05 <- native_rejection_at_stat(test_key, n, theta, p05_crit)
+      risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
+      tibble(
+        risk_p05 = risk_p05,
+        delta_p05_minus_ejab = risk_p05
+      )
+    }
+  )
+  p05_risk$delta_p05_minus_ejab <-
+    p05_risk$risk_p05 - dense_risk$risk_ejab
+  dense_risk <- bind_cols(dense_risk, p05_risk)
+  saveRDS(dense_risk, dense_file)
+}
+
+# Older caches contained BIC risks from a central/noncentral-chi-square
+# approximation. Keep those values out of both the exported data and plots.
+dense_risk <- dense_risk |>
+  mutate(
+    risk_bic = NA_real_,
+    delta_bic_minus_ejab = NA_real_
+  )
+
+write.csv(dense_risk, dense_csv, row.names = FALSE)
+
+kable(tibble(
+  dense_cells = nrow(dense_risk),
+  n_min = min(dense_risk$n),
+  n_max = max(dense_risk$n),
+  theta_min = min(dense_risk$theta),
+  theta_max = max(dense_risk$theta),
+  nonfinite_required_risks = sum(
+    !is.finite(dense_risk$risk_p) |
+      !is.finite(dense_risk$risk_p05) |
+      !is.finite(dense_risk$risk_ejab) |
+      !is.finite(dense_risk$risk_tsbf)
+  )
+))
+```
+
+# Risk plots
+
+Every risk map starts from the raw Bayes-risk difference
+
+\[
+\Delta R(n,\theta)
+=R_{\mathrm{comparison}}(n,\theta)-R_{eJAB}(n,\theta).
+\]
+
+Within each test panel, the displayed value is
+
+\[
+\Delta R_{\mathrm{scaled}}(n,\theta)
+=\frac{\Delta R(n,\theta)}{
+\max_{n,\theta}|\Delta R(n,\theta)|}.
+\]
+
+All panels therefore use the same \([-1,1]\) purple-white-yellow scale without
+clipping. Each panel is annotated with the raw maximum absolute risk difference
+used as its divisor. Positive/yellow values mean eJAB has lower estimated Bayes
+risk; negative/purple values mean the comparison rule has lower estimated
+Bayes risk.
+
+```{r plotting-functions}
+facet_labels <- c(
+  ttest = "'t-test'~(q == 1)",
+  lm = "'Linear regression'~(q == 1)",
+  logistic = "'Logistic regression'~(q == 1)",
+  cox = "'Cox PH'~(q == 1)",
+  wilcoxon = "'Wilcoxon'~(q == 1)",
+  mannwhitney = "'Mann-Whitney'~(q == 1)",
+  anova = "'ANOVA'~(q == 3)",
+  ranova = "'rANOVA'~(q == 3)",
+  chisq = "'Chi-square'~(q == 4)",
+  kruskal = "'Kruskal-Wallis'~(q == 4)"
+)
+
+plot_criticality_map <- function(data, value_col, title,
+                                 filename, ncol = 5, height = 7.5,
+                                 x_breaks = 2:7,
+                                 x_labels = parse(text = paste0("10^", 2:7))) {
+  scaled_data <- data |>
+    group_by(facet_label) |>
+    mutate(
+      panel_max_abs_risk_difference = max(
+        abs(.data[[value_col]]), na.rm = TRUE
+      ),
+      panel_max_abs_risk_difference = if_else(
+        is.finite(panel_max_abs_risk_difference) &
+          panel_max_abs_risk_difference > 0,
+        panel_max_abs_risk_difference,
+        1
+      ),
+      scaled_risk_advantage =
+        .data[[value_col]] / panel_max_abs_risk_difference
+    ) |>
+    ungroup()
+
+  panel_annotations <- scaled_data |>
+    distinct(facet_label, panel_max_abs_risk_difference) |>
+    mutate(
+      annotation = sprintf(
+        "plain('max')*'|'*Delta*R*'|' == %.4f",
+        panel_max_abs_risk_difference
+      )
+    )
+
+  p <- ggplot(
+    scaled_data,
+    aes(
+      xmin = xmin, xmax = xmax,
+      ymin = ymin, ymax = ymax,
+      fill = scaled_risk_advantage
+    )
+  ) +
+    geom_rect() +
+    geom_label(
+      data = panel_annotations,
+      aes(x = -Inf, y = Inf, label = annotation),
+      inherit.aes = FALSE,
+      hjust = -0.05,
+      vjust = 1.15,
+      size = 3,
+      linewidth = 0.2,
+      parse = TRUE,
+      fill = scales::alpha("white", 0.85)
+    ) +
+    facet_wrap(
+      ~ facet_label,
+      ncol = ncol,
+      labeller = label_parsed
+    ) +
+    scale_x_continuous(
+      breaks = x_breaks,
+      labels = x_labels,
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = c(0.2, 0.4, 0.6, 0.8),
+      limits = c(0, 0.91),
+      expand = c(0, 0)
+    ) +
+    scale_fill_gradient2(
+      low = "#440154",
+      mid = "#F7F7F7",
+      high = "#FDE725",
+      midpoint = 0,
+      limits = c(-1, 1),
+      breaks = c(-1, -0.5, 0, 0.5, 1),
+      name = expression(frac(Delta*R, plain("max")*abs(Delta*R)))
+    ) +
+    labs(
+      title = title,
+      x = expression("Nominal sample size " * n),
+      y = expression("Raw simulation effect size " * theta)
+    ) +
+    guides(
+      fill = guide_colorbar(
+        title.position = "right",
+        barwidth = grid::unit(0.55, "cm"),
+        barheight = grid::unit(8.2, "cm")
+      )
+    ) +
+    theme_bw(base_size = 11) +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_rect(color = "black", linewidth = 0.45),
+      legend.position = "right",
+      legend.title = element_text(angle = 90, hjust = 0.5),
+      strip.background = element_blank(),
+      strip.text = element_text(size = 11),
+      plot.title = element_text(hjust = 0.5, size = 17),
+      axis.text.x = element_text(size = 9),
+      panel.spacing = grid::unit(0.55, "cm")
+    )
+
+  ggsave(
+    file.path(output_dir, filename),
+    p,
+    width = 16,
+    height = height,
+    dpi = 300
+  )
+  p
+}
+
+cell_boundaries <- function(values, lower = -Inf, upper = Inf) {
+  centers <- sort(unique(values))
+  middle <- (head(centers, -1) + tail(centers, -1)) / 2
+  left <- c(centers[1] - (middle[1] - centers[1]), middle)
+  right <- c(middle, centers[length(centers)] +
+               (centers[length(centers)] - middle[length(middle)]))
+  tibble(
+    center = centers,
+    lower = pmax(left, lower),
+    upper = pmin(right, upper)
+  )
+}
+
+x_bounds <- cell_boundaries(log10(dense_n_grid))
+y_bounds <- cell_boundaries(dense_theta_grid, lower = 0, upper = 0.91)
+empirical_x_bounds <- cell_boundaries(log10(n_grid))
+empirical_y_bounds <- cell_boundaries(theta_grid, lower = 0, upper = 0.91)
+
+plot_data <- dense_risk |>
+  mutate(
+    log10_n = log10(n),
+    test = factor(test, levels = unname(test_labels)),
+    facet_label = factor(
+      unname(facet_labels[test_key]),
+      levels = unname(facet_labels)
+    )
+  ) |>
+  left_join(
+    x_bounds |> transmute(log10_n = center, xmin = lower, xmax = upper),
+    by = "log10_n"
+  ) |>
+  left_join(
+    y_bounds |> transmute(theta = center, ymin = lower, ymax = upper),
+    by = "theta"
+  )
+
+# BIC risks are displayed only from the raw-data Monte Carlo experiment.
+# In particular, they do not use the dense central/noncentral-chi-square
+# rejection-probability approximation used to populate `dense_risk`.
+empirical_bic_plot_data <- risk |>
+  filter(test_key %in% bic_test_keys) |>
+  mutate(
+    log10_n = log10(n),
+    test = factor(test, levels = unname(test_labels)),
+    facet_label = factor(
+      unname(facet_labels[test_key]),
+      levels = unname(facet_labels[bic_test_keys])
+    )
+  ) |>
+  left_join(
+    empirical_x_bounds |>
+      transmute(log10_n = center, xmin = lower, xmax = upper),
+    by = "log10_n"
+  ) |>
+  left_join(
+    empirical_y_bounds |>
+      transmute(theta = center, ymin = lower, ymax = upper),
+    by = "theta"
+  ) |>
+  droplevels()
+
+panel_scaling_summary <- function(data, value_col, comparison_label) {
+  data |>
+    group_by(test_key, test, q) |>
+    summarise(
+      panel_max_abs_risk_difference = max(
+        abs(.data[[value_col]]), na.rm = TRUE
+      ),
+      .groups = "drop"
+    ) |>
+    mutate(comparison = comparison_label, .before = 1)
+}
+
+all_risk_panel_scaling_factors <- bind_rows(
+  panel_scaling_summary(
+    plot_data,
+    "delta_p_minus_ejab",
+    "p < 0.005 versus eJAB"
+  ),
+  panel_scaling_summary(
+    plot_data,
+    "delta_p05_minus_ejab",
+    "p < 0.05 versus eJAB"
+  ),
+  panel_scaling_summary(
+    empirical_bic_plot_data,
+    "delta_bic_minus_ejab",
+    "BIC BF01 <= 1/3 versus eJAB"
+  ),
+  panel_scaling_summary(
+    plot_data,
+    "delta_tsbf_minus_ejab",
+    "TSBF01 <= 1/3 versus eJAB"
+  )
+)
+
+write.csv(
+  all_risk_panel_scaling_factors,
+  file.path(output_dir, "all_risk_plot_panel_scaling_factors.csv"),
+  row.names = FALSE
+)
+```
+
+## 1. eJAB versus \(p<0.005\): all 10 tests
+
+```{r plot-p, fig.height=7.5}
+p_vs_ejab <- plot_criticality_map(
+  plot_data,
+  "delta_p_minus_ejab",
+  expression(
+    "Large-sample Bayes-risk criticality maps: " *
+      p < 0.005 ~ "versus" ~ eJAB["01"] <= 1/3
+  ),
+  "01_ejab_vs_p005_all_10_tests.png",
+  ncol = 5,
+  height = 7.5
+)
+p_vs_ejab
+```
+
+## 2. eJAB versus \(p<0.05\): all 10 tests
+
+```{r plot-p05, fig.height=7.5}
+p05_vs_ejab <- plot_criticality_map(
+  plot_data,
+  "delta_p05_minus_ejab",
+  expression(
+    "Large-sample Bayes-risk criticality maps: " *
+      p < 0.05 ~ "versus" ~ eJAB["01"] <= 1/3
+  ),
+  "02_ejab_vs_p05_all_10_tests.png",
+  ncol = 5,
+  height = 7.5
+)
+p05_vs_ejab
+```
+
+## 3. eJAB versus BIC BF: seven non-rank tests, raw-data Monte Carlo
+
+```{r plot-bic, fig.height=7.5}
+bic_vs_ejab <- plot_criticality_map(
+  empirical_bic_plot_data,
+  "delta_bic_minus_ejab",
+  expression(
+    "Empirical Bayes-risk criticality maps: " *
+      BF["01"]^plain(BIC) <= 1/3 ~ "versus" ~ eJAB["01"] <= 1/3
+  ),
+  "02_ejab_vs_bic_bf01_seven_tests.png",
+  ncol = 4,
+  height = 7.5,
+  x_breaks = log10(n_grid),
+  x_labels = scales::comma(n_grid)
+)
+bic_vs_ejab
+```
+
+## 4. eJAB versus TSBF: all 10 tests
+
+```{r plot-tsbf, fig.height=7.5}
+tsbf_vs_ejab <- plot_criticality_map(
+  plot_data,
+  "delta_tsbf_minus_ejab",
+  expression(
+    "Large-sample Bayes-risk criticality maps: " *
+      TSBF["01"] <= 1/3 ~ "versus" ~ eJAB["01"] <= 1/3
+  ),
+  "03_ejab_vs_tsbf01_all_10_tests.png",
+  ncol = 5,
+  height = 7.5
+)
+tsbf_vs_ejab
+```
+
+## Combined figure
+
+```{r combined-figure, fig.height=30}
+combined <- p_vs_ejab / p05_vs_ejab / bic_vs_ejab / tsbf_vs_ejab +
+  plot_annotation(
+    title = "Four Bayes-risk comparisons for eJAB",
+    theme = theme(plot.title = element_text(face = "bold", size = 16))
+  )
+combined
+
+ggsave(
+  file.path(output_dir, "00_all_four_bayes_risk_comparisons.png"),
+  combined,
+  width = 17,
+  height = 30,
+  dpi = 300
+)
+```
+
+# Focused chi-square comparison across table dimensions
+
+This analysis directly addresses the comparison of
+\(eJAB_{01}\leq1/3\) with:
+
+1. \(p<0.05\), and
+2. \(TSBF_{01}\leq1/3\), with the BFF evaluated at the true standardized
+   effect size.
+
+The columns correspond to \(2\times2\), \(3\times3\), and \(5\times5\)
+independence tests, with \(q=(d-1)^2\) degrees of freedom. The common vertical
+axis is Cohen's \(w\), so the effect-size scale is comparable across table
+dimensions. Under the noncentral chi-square approximation,
+
+\[
+X^2\mid H_0\sim\chi_q^2,\qquad
+X^2\mid w\sim\chi_q^2(nw^2).
+\]
+
+Following Eqs. (6.5) and (6.6) of `Bayes_factor_function (1).pdf`, the
+chi-square BFF is
+
+\[
+BFF_{10}(X^2\mid\tau^2)
+=(1+\tau^2)^{-q/2-1}
+\left\{1+\frac{\tau^2X^2}{q(1+\tau^2)}\right\}
+\exp\left\{\frac{\tau^2X^2}{2(1+\tau^2)}\right\},
+\qquad
+\tau_\omega^2=n\omega^2.
+\]
+
+The BFF is evaluated at the true standardized effect, so the implementation
+sets \(\tau^2=nw^2\). The risk calculations use equal prior model probabilities
+and equal error costs:
+
+\[
+R_d(n,w)=\frac12\{\alpha_d(n,w)+1-\operatorname{power}_d(n,w)\}.
+\]
+
+The contingency-table generator below implements the checkerboard probability
+perturbation used for these comparisons. For an \(R\times C\) table, there are
+\(4\lfloor R/2\rfloor\lfloor C/2\rfloor\) perturbed cells. With
+
+\[
+\delta=
+\frac{0.5w}{
+\sqrt{RC\lfloor R/2\rfloor\lfloor C/2\rfloor}},
+\]
+
+the resulting population Cohen's effect satisfies
+
+\[
+\sum_{i,j}\frac{(p_{ij}-1/(RC))^2}{1/(RC)}=w^2.
+\]
+
+Thus, the noncentral chi-square risk engine below is the large-sample
+counterpart of this exact data-generating process. This probability construction
+requires
+
+\[
+w\leq 2\sqrt{
+\frac{\lfloor R/2\rfloor\lfloor C/2\rfloor}{RC}
+}.
+\]
+
+The maxima are \(1\), \(2/3\), and \(0.8\) for the \(2\times2\),
+\(3\times3\), and \(5\times5\) designs, respectively. The plots therefore use
+the common valid range \(0<w\leq2/3\).
+
+```{r chi-square-data-generator}
+chisq_probabilities_from_omega <- function(R, C, omega = 0) {
+  stopifnot(
+    length(R) == 1, length(C) == 1, length(omega) == 1,
+    is.finite(R), is.finite(C), is.finite(omega),
+    R >= 2, C >= 2, R == as.integer(R), C == as.integer(C),
+    omega >= 0
+  )
+
+  K <- R * C
+  active_blocks <- floor(R / 2) * floor(C / 2)
+  delta <- 0.5 * omega / sqrt(K * active_blocks)
+
+  perturbation <- outer(
+    seq_len(R),
+    seq_len(C),
+    function(i, j) (-1)^(i + j)
+  )
+  if (R %% 2 == 1) perturbation[R, ] <- 0
+  if (C %% 2 == 1) perturbation[, C] <- 0
+
+  probabilities <- matrix(1 / K, nrow = R, ncol = C) +
+    delta * perturbation
+
+  probability_tolerance <- sqrt(.Machine$double.eps)
+  if (
+    any(probabilities < -probability_tolerance) ||
+      any(probabilities > 1 + probability_tolerance)
+  ) {
+    stop("omega produces invalid cell probabilities.")
+  }
+  pmin(pmax(probabilities, 0), 1)
+}
+
+simData6 <- function(
+    size, R, C, omega = 0,
+    simType = c("jointMulti", "indepMulti")) {
+  simType <- match.arg(simType)
+  if (
+    length(size) != 1 || !is.finite(size) ||
+      size < 1 || size != as.integer(size)
+  ) {
+    stop("size must be a positive integer.")
+  }
+
+  prob_H1 <- chisq_probabilities_from_omega(R, C, omega)
+
+  if (simType == "jointMulti") {
+    draw <- rmultinom(1, size = size, prob = as.vector(prob_H1))
+    matrix(draw, nrow = R, ncol = C)
+  } else {
+    if (size %% R != 0) {
+      stop("size must be divisible by R for balanced fixed row margins.")
+    }
+    row_size <- size / R
+    t(vapply(
+      seq_len(R),
+      function(i) {
+        as.vector(rmultinom(1, size = row_size, prob = prob_H1[i, ]))
+      },
+      numeric(C)
+    ))
+  }
+}
+
+chisq_design_validation <- crossing(
+  dimension = c(2L, 3L, 5L),
+  omega = c(0.1, 0.3, 0.5, 0.65)
+) |>
+  mutate(
+    probabilities = map2(
+      dimension,
+      omega,
+      ~ chisq_probabilities_from_omega(.x, .x, .y)
+    ),
+    recovered_omega = map_dbl(
+      probabilities,
+      function(p) {
+        p0 <- 1 / length(p)
+        sqrt(sum((p - p0)^2 / p0))
+      }
+    ),
+    maximum_row_margin_error = map_dbl(
+      probabilities,
+      ~ max(abs(rowSums(.x) - 1 / nrow(.x)))
+    ),
+    maximum_column_margin_error = map_dbl(
+      probabilities,
+      ~ max(abs(colSums(.x) - 1 / ncol(.x)))
+    )
+  ) |>
+  select(-probabilities)
+
+stopifnot(
+  max(abs(
+    chisq_design_validation$recovered_omega -
+      chisq_design_validation$omega
+  )) < 1e-12,
+  max(chisq_design_validation$maximum_row_margin_error) < 1e-12,
+  max(chisq_design_validation$maximum_column_margin_error) < 1e-12,
+  sum(simData6(120, 3, 3, 0.3, "jointMulti")) == 120,
+  all(rowSums(
+    simData6(120, 3, 3, 0.3, "indepMulti")
+  ) == 40)
+)
+
+kable(
+  chisq_design_validation,
+  digits = 12,
+  caption = "Validation of the contingency-table effect-size construction"
+)
+```
+
+```{r chi-square-dimension-risk-grid}
+chisq_dimensions <- tibble(
+  dimension = c(2L, 3L, 5L),
+  table_label = c("2 x 2 (q=1)", "3 x 3 (q=4)", "5 x 5 (q=16)"),
+  q = c(1L, 4L, 16L)
+)
+
+chisq_w_grid <- dense_theta_grid[
+  dense_theta_grid <= 2 / 3 + sqrt(.Machine$double.eps)
+]
+
+chisq_dimension_cell <- function(dimension, table_label, q, n, w) {
+  lambda <- n * w^2
+
+  critical_p05 <- qchisq(1 - p05_threshold, df = q)
+  critical_ejab <- (
+    log(n) - 2 * log(bf01_threshold)
+  ) / (1 - n^(-1 / q))
+
+  tau2 <- n * w^2
+  critical_tsbf <- critical_root(
+    function(x) log_bff10_chisq(x, q, tau2)
+  )
+
+  alpha_p05 <- pchisq(critical_p05, df = q, lower.tail = FALSE)
+  alpha_ejab <- pchisq(critical_ejab, df = q, lower.tail = FALSE)
+  alpha_tsbf <- if (is.finite(critical_tsbf)) {
+    pchisq(critical_tsbf, df = q, lower.tail = FALSE)
+  } else {
+    0
+  }
+
+  power_p05 <- pchisq(
+    critical_p05, df = q, ncp = lambda, lower.tail = FALSE
+  )
+  power_ejab <- pchisq(
+    critical_ejab, df = q, ncp = lambda, lower.tail = FALSE
+  )
+  power_tsbf <- if (is.finite(critical_tsbf)) {
+    pchisq(
+      critical_tsbf, df = q, ncp = lambda, lower.tail = FALSE
+    )
+  } else {
+    0
+  }
+
+  risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
+  risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
+  risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
+
+  tibble(
+    dimension = dimension,
+    table_label = table_label,
+    q = q,
+    n = n,
+    w = w,
+    alpha_p05 = alpha_p05,
+    alpha_ejab = alpha_ejab,
+    alpha_tsbf = alpha_tsbf,
+    power_p05 = power_p05,
+    power_ejab = power_ejab,
+    power_tsbf = power_tsbf,
+    beta_p05 = 1 - power_p05,
+    beta_ejab = 1 - power_ejab,
+    beta_tsbf = 1 - power_tsbf,
+    risk_p05 = risk_p05,
+    risk_ejab = risk_ejab,
+    risk_tsbf = risk_tsbf,
+    delta_p05_minus_ejab = risk_p05 - risk_ejab,
+    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
+  )
+}
+
+chisq_dimension_tasks <- crossing(
+  chisq_dimensions,
+  n = dense_n_grid,
+  w = chisq_w_grid
+)
+
+chisq_dimension_risk <- pmap_dfr(
+  chisq_dimension_tasks,
+  chisq_dimension_cell
+)
+
+chisq_dimension_risk_file <- file.path(
+  output_dir, "chisq_dimensions_risk_grid.csv"
+)
+write.csv(
+  chisq_dimension_risk,
+  chisq_dimension_risk_file,
+  row.names = FALSE
+)
+
+chisq_pattern_agreement <- chisq_dimension_risk |>
+  group_by(dimension, table_label, q) |>
+  summarise(
+    grid_cells = n(),
+    same_lower_risk_rule = mean(
+      sign(delta_p05_minus_ejab) == sign(delta_tsbf_minus_ejab)
+    ),
+    both_favor_ejab = mean(
+      delta_p05_minus_ejab > 0 & delta_tsbf_minus_ejab > 0
+    ),
+    both_favor_reference = mean(
+      delta_p05_minus_ejab < 0 & delta_tsbf_minus_ejab < 0
+    ),
+    p05_only_favors_ejab = mean(
+      delta_p05_minus_ejab > 0 & delta_tsbf_minus_ejab < 0
+    ),
+    tsbf_only_favors_ejab = mean(
+      delta_p05_minus_ejab < 0 & delta_tsbf_minus_ejab > 0
+    ),
+    .groups = "drop"
+  )
+
+write.csv(
+  chisq_pattern_agreement,
+  file.path(output_dir, "chisq_dimensions_pattern_agreement.csv"),
+  row.names = FALSE
+)
+
+kable(
+  chisq_pattern_agreement,
+  digits = 3,
+  caption = "Agreement between the two eJAB risk-comparison patterns"
+)
+```
+
+Each panel below starts with the raw Bayes-risk difference
+\(\Delta R=R_{\mathrm{reference}}-R_{eJAB}\), then divides by that panel's
+largest absolute raw difference:
+
+\[
+\Delta R_{\mathrm{scaled}}
+=\frac{\Delta R}{\max_{n,w}|\Delta R|}.
+\]
+
+All panels therefore span the common scale \([-1,1]\), while the annotation in
+each panel reports the raw \(\max|\Delta R|\) used as its divisor.
+Positive/yellow values favor eJAB; negative/purple values favor the rule named
+in that row. No risk differences are clipped.
+
+```{r chi-square-dimension-risk-plot, fig.height=8}
+chisq_x_bounds <- cell_boundaries(log10(dense_n_grid))
+chisq_w_bounds <- cell_boundaries(
+  chisq_w_grid, lower = 0, upper = 2 / 3
+)
+
+chisq_dimension_plot_data <- chisq_dimension_risk |>
+  select(
+    dimension, table_label, q, n, w,
+    delta_p05_minus_ejab, delta_tsbf_minus_ejab
+  ) |>
+  pivot_longer(
+    cols = starts_with("delta_"),
+    names_to = "comparison",
+    values_to = "risk_advantage"
+  ) |>
+  mutate(
+    log10_n = log10(n),
+    table_label = factor(
+      table_label,
+      levels = chisq_dimensions$table_label
+    ),
+    comparison = factor(
+      comparison,
+      levels = c(
+        "delta_p05_minus_ejab",
+        "delta_tsbf_minus_ejab"
+      ),
+      labels = c(
+        "p < 0.05 versus eJAB",
+        "TSBF(true w) versus eJAB"
+      )
+    ),
+    comparison_plot_label = factor(
+      comparison,
+      levels = c(
+        "p < 0.05 versus eJAB",
+        "TSBF(true w) versus eJAB"
+      ),
+      labels = c(
+        "italic(p) < 0.05~'versus'~eJAB['01'] <= 1/3",
+        "TSBF['01'](omega) <= 1/3~'versus'~eJAB['01'] <= 1/3"
+      )
+    ),
+    table_plot_label = factor(
+      table_label,
+      levels = chisq_dimensions$table_label,
+      labels = c(
+        "2 %*% 2~(q == 1)",
+        "3 %*% 3~(q == 4)",
+        "5 %*% 5~(q == 16)"
+      )
+    )
+  ) |>
+  left_join(
+    chisq_x_bounds |>
+      transmute(log10_n = center, xmin = lower, xmax = upper),
+    by = "log10_n"
+  ) |>
+  left_join(
+    chisq_w_bounds |>
+      transmute(w = center, ymin = lower, ymax = upper),
+    by = "w"
+  ) |>
+  group_by(comparison, table_label) |>
+  mutate(
+    panel_max_abs_risk_difference = max(
+      abs(risk_advantage), na.rm = TRUE
+    ),
+    scaled_risk_advantage =
+      risk_advantage / panel_max_abs_risk_difference
+  ) |>
+  ungroup()
+
+chisq_panel_scaling_factors <- chisq_dimension_plot_data |>
+  distinct(
+    comparison,
+    table_label,
+    panel_max_abs_risk_difference
+  ) |>
+  arrange(comparison, table_label)
+
+write.csv(
+  chisq_panel_scaling_factors,
+  file.path(
+    output_dir,
+    "chisq_dimensions_panel_scaling_factors.csv"
+  ),
+  row.names = FALSE
+)
+
+kable(
+  chisq_panel_scaling_factors,
+  digits = 6,
+  caption = "Panel-specific maximum absolute raw Bayes-risk differences"
+)
+
+chisq_panel_annotations <- chisq_panel_scaling_factors |>
+  left_join(
+    chisq_dimension_plot_data |>
+      distinct(
+        comparison, table_label,
+        comparison_plot_label, table_plot_label
+      ),
+    by = c("comparison", "table_label")
+  ) |>
+  mutate(
+    annotation = sprintf(
+      "plain('max')*'|'*Delta*R*'|' == %.4f",
+      panel_max_abs_risk_difference
+    )
+  )
+
+chisq_dimension_risk_plot <- ggplot(
+  chisq_dimension_plot_data,
+  aes(
+    xmin = xmin, xmax = xmax,
+    ymin = ymin, ymax = ymax,
+    fill = scaled_risk_advantage
+  )
+) +
+  geom_rect() +
+  geom_label(
+    data = chisq_panel_annotations,
+    aes(x = -Inf, y = Inf, label = annotation),
+    inherit.aes = FALSE,
+    hjust = -0.05,
+    vjust = 1.15,
+    size = 3,
+    linewidth = 0.2,
+    parse = TRUE,
+    fill = scales::alpha("white", 0.85)
+  ) +
+  facet_grid(
+    comparison_plot_label ~ table_plot_label,
+    labeller = label_parsed
+  ) +
+  scale_x_continuous(
+    breaks = 2:7,
+    labels = parse(text = paste0("10^", 2:7)),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = c(0.2, 0.4, 0.6),
+    limits = c(0, 2 / 3),
+    expand = c(0, 0)
+  ) +
+  scale_fill_gradient2(
+    low = "#440154",
+    mid = "#F7F7F7",
+    high = "#FDE725",
+    midpoint = 0,
+    limits = c(-1, 1),
+    breaks = c(-1, -0.5, 0, 0.5, 1),
+    name = expression(frac(Delta*R, plain("max")*abs(Delta*R)))
+  ) +
+  labs(
+    title = expression(chi^2~"Bayes-risk comparisons across table dimensions"),
+    x = expression("Nominal sample size " * n),
+    y = expression("True standardized effect size (" * omega * ")")
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "right",
+      barwidth = grid::unit(0.55, "cm"),
+      barheight = grid::unit(8.2, "cm")
+    )
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", linewidth = 0.45),
+    legend.position = "right",
+    legend.title = element_text(angle = 90, hjust = 0.5),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 11),
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.text.x = element_text(size = 9),
+    panel.spacing = grid::unit(0.55, "cm")
+  )
+
+chisq_dimension_risk_plot
+
+ggsave(
+  file.path(
+    output_dir,
+    "04_chisq_dimensions_ejab_vs_p05_and_tsbf.png"
+  ),
+  chisq_dimension_risk_plot,
+  width = 15,
+  height = 8,
+  dpi = 300
+)
+```
+
+# Reproducibility
+
+```{r reproducibility}
+settings <- tibble(
+  setting = c(
+    "Seed",
+    "Null replicates per test/sample-size cell",
+    "Alternative replicates per effect-size cell",
+    "Workers",
+    "eJAB/BIC/TSBF BF01 threshold",
+    "Classical p-value threshold (stringent)",
+    "Classical p-value threshold (conventional)",
+    "Simulation cache"
+  ),
+  value = c(
+    params$seed,
+    params$null_reps,
+    params$alt_reps,
+    params$workers,
+    bf01_threshold,
+    p_threshold,
+    p05_threshold,
+    simulation_file
+  )
+)
+kable(settings)
+sessionInfo()
+```

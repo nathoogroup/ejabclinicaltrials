@@ -1,0 +1,7 @@
+"comparison","table_label","panel_max_abs_risk_difference"
+"p < 0.05 versus eJAB","2 x 2 (q=1)",0.351739116556267
+"p < 0.05 versus eJAB","3 x 3 (q=4)",0.219738468781406
+"p < 0.05 versus eJAB","5 x 5 (q=16)",0.0513004417680983
+"TSBF(true w) versus eJAB","2 x 2 (q=1)",0.303044577896956
+"TSBF(true w) versus eJAB","3 x 3 (q=4)",0.142703454350254
+"TSBF(true w) versus eJAB","5 x 5 (q=16)",0.410052166568446

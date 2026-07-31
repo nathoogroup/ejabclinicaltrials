@@ -5,27 +5,24 @@ Simulated Bayes-risk criticality maps for:
 versus
     eJAB_01 <= 1/3
 and:
-    BIC BF01 <= 1/3
-versus
-    eJAB_01 <= 1/3
-and:
     Johnson test-statistic BF01 <= 1/3
 versus
     eJAB_01 <= 1/3
 
-across the ten tests in the eJAB manuscript simulation section.
+The p-value and Johnson comparisons cover all ten tests in the eJAB
+manuscript simulation section. BIC output is deliberately disabled here:
+`bayes_risk_analysis.Rmd` computes the seven-test BIC comparison from direct
+fitted-model likelihood ratios and raw-data Monte Carlo risks.
 
-The script simulates raw datasets, computes test-specific p-values, computes
-eJAB_01, the BIC BF01 approximation, and Johnson's test-statistic BF rule
-from those p-values, estimates alpha under theta=0 and power under theta>0,
-then estimates:
+The script simulates raw datasets, computes test-specific p-values, eJAB_01,
+and Johnson's test-statistic BF rule, estimates alpha under theta=0 and power
+under theta>0, then estimates:
 
     risk(n, theta) = (alpha + 1 - power) / 2
 
 and plots:
 
     normalized_delta_r = (risk_p - risk_eJAB) / (0.005 / 2)
-    normalized_delta_r_BIC = (risk_BIC - risk_eJAB) / (0.005 / 2)
     normalized_delta_r_Johnson = (risk_Johnson - risk_eJAB) / (0.005 / 2)
 
 Positive normalized_delta_r means eJAB has lower estimated Bayes risk than
@@ -143,7 +140,6 @@ TESTS = [
         "effect_scale": "Five groups; theta scales centered group locations with t_3 errors.",
     },
 ]
-
 
 def make_grids(
     fast: bool = False,
@@ -725,11 +721,6 @@ def simulate_cell(task: dict) -> dict:
         if isinstance(ejab_reject, float) and np.isnan(ejab_reject):
             continue
 
-        bic_reject = bic_bf01_reject_from_p(p, n_eff, cfg["q"])
-
-        if isinstance(bic_reject, float) and np.isnan(bic_reject):
-            continue
-
         johnson_reject = johnson_bf01_reject_from_p(p, cfg["q"])
 
         if isinstance(johnson_reject, float) and np.isnan(johnson_reject):
@@ -739,7 +730,7 @@ def simulate_cell(task: dict) -> dict:
 
         reject_p.append(p < ALPHA_P)
         reject_ejab.append(bool(ejab_reject))
-        reject_bic.append(bool(bic_reject))
+        reject_bic.append(np.nan)
         reject_johnson.append(bool(johnson_reject))
         p_values.append(p)
         n_eff_values.append(n_eff)
@@ -759,7 +750,7 @@ def simulate_cell(task: dict) -> dict:
     else:
         rejection_p = float(np.mean(reject_p))
         rejection_ejab = float(np.mean(reject_ejab))
-        rejection_bic = float(np.mean(reject_bic))
+        rejection_bic = np.nan
         rejection_johnson = float(np.mean(reject_johnson))
         mean_p = float(np.mean(p_values))
         median_p = float(np.median(p_values))
@@ -805,19 +796,18 @@ def simulate_cell_asymptotic(task: dict) -> dict:
     n_eff = asymptotic_n_eff(cfg["key"], n, theta)
     p_threshold = chi2.isf(ALPHA_P, q)
     ejab_threshold = ejab_w_threshold(n_eff, q)
-    bic_threshold = q * math.log(n_eff) - 2 * math.log(K01)
     johnson_threshold = johnson_chisq_threshold(q)
 
     if theta == 0:
         rejection_p = float(chi2.sf(p_threshold, q))
         rejection_ejab = float(chi2.sf(ejab_threshold, q))
-        rejection_bic = float(chi2.sf(bic_threshold, q))
+        rejection_bic = np.nan
         rejection_johnson = float(chi2.sf(johnson_threshold, q))
     else:
         ncp = asymptotic_ncp(cfg["key"], n, theta)
         rejection_p = float(stats.ncx2.sf(p_threshold, q, ncp))
         rejection_ejab = float(stats.ncx2.sf(ejab_threshold, q, ncp))
-        rejection_bic = float(stats.ncx2.sf(bic_threshold, q, ncp))
+        rejection_bic = np.nan
         rejection_johnson = float(stats.ncx2.sf(johnson_threshold, q, ncp))
 
     return {
@@ -860,19 +850,16 @@ def simulate_cell_large_n_mc(task: dict) -> dict:
     n_eff = asymptotic_n_eff(cfg["key"], n, theta)
     p_threshold = chi2.isf(ALPHA_P, q)
     ejab_threshold = ejab_w_threshold(n_eff, q)
-    bic_threshold = q * math.log(n_eff) - 2 * math.log(K01)
     johnson_threshold = johnson_chisq_threshold(q)
 
     if theta == 0:
         prob_p = float(chi2.sf(p_threshold, q))
         prob_ejab = float(chi2.sf(ejab_threshold, q))
-        prob_bic = float(chi2.sf(bic_threshold, q))
         prob_johnson = float(chi2.sf(johnson_threshold, q))
     else:
         ncp = asymptotic_ncp(cfg["key"], n, theta)
         prob_p = float(stats.ncx2.sf(p_threshold, q, ncp))
         prob_ejab = float(stats.ncx2.sf(ejab_threshold, q, ncp))
-        prob_bic = float(stats.ncx2.sf(bic_threshold, q, ncp))
         prob_johnson = float(stats.ncx2.sf(johnson_threshold, q, ncp))
 
     return {
@@ -887,7 +874,7 @@ def simulate_cell_large_n_mc(task: dict) -> dict:
         "valid_reps": reps,
         "rejection_p": float(rng.binomial(reps, prob_p) / reps),
         "rejection_ejab": float(rng.binomial(reps, prob_ejab) / reps),
-        "rejection_bic": float(rng.binomial(reps, prob_bic) / reps),
+        "rejection_bic": np.nan,
         "rejection_johnson": float(rng.binomial(reps, prob_johnson) / reps),
         "mean_p": np.nan,
         "median_p": np.nan,
@@ -965,7 +952,6 @@ def estimate_risks(raw: pd.DataFrame) -> pd.DataFrame:
     alt["delta_r_hat"] = alt["risk_p_hat"] - alt["risk_ejab_hat"]
     alt["normalized_delta_r_hat"] = alt["delta_r_hat"] / (ALPHA_P / 2)
     alt["delta_r_bic_hat"] = alt["risk_bic_hat"] - alt["risk_ejab_hat"]
-    alt["normalized_delta_r_bic_hat"] = alt["delta_r_bic_hat"] / (ALPHA_P / 2)
     alt["delta_r_johnson_hat"] = alt["risk_johnson_hat"] - alt["risk_ejab_hat"]
     alt["normalized_delta_r_johnson_hat"] = alt["delta_r_johnson_hat"] / (ALPHA_P / 2)
 
@@ -1385,16 +1371,8 @@ def write_theoretical_outputs(args) -> list[Path]:
 
     outputs = [config_path]
     outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "berger_p005", outdir))
-    outputs.append(plot_theoretical_q_panels(q_values, n_grid, theta_grid, "bic_bf01", outdir))
-    outputs.append(
-        plot_theoretical_three_row_q_panels(
-            q_values,
-            n_grid,
-            theta_grid,
-            outdir,
-            wakefield_prior_variance=args.theoretical_wakefield_prior_variance,
-        )
-    )
+    # BIC is deliberately omitted here: this theoretical engine evaluates
+    # risks with central/noncentral chi-square approximations.
     return outputs
 
 
@@ -1541,14 +1519,10 @@ def main():
         outfile_prefix="ejab_vs_berger_p005_10_tests_heatmap_empirical",
         suffix=suffix,
     )
-    bic_plot = plot_heatmap(
-        risk,
-        outdir,
-        value_col="normalized_delta_r_bic_hat",
-        reference_label="BIC BF01 <= 1/3",
-        reference_short="risk_BIC",
-        outfile_prefix="ejab_vs_bic_bf01_10_tests_heatmap_empirical",
-        suffix=suffix,
+    bic_plot = None
+    print(
+        "Skipped BIC risk plot: use bayes_risk_analysis.Rmd, which computes "
+        "BIC from direct fitted-model likelihood ratios."
     )
     johnson_plot = plot_heatmap(
         risk,
@@ -1565,7 +1539,8 @@ def main():
     print(f"Wrote: {risk_csv}")
     print(f"Wrote: {config_csv}")
     print(f"Wrote: {p_plot}")
-    print(f"Wrote: {bic_plot}")
+    if bic_plot is not None:
+        print(f"Wrote: {bic_plot}")
     print(f"Wrote: {johnson_plot}")
 
 
