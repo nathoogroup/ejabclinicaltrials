@@ -53,7 +53,7 @@ bic_risk_file <- file.path(
   output_dir, "large_sample_empirical_bic_risk_grid.csv"
 )
 
-bf01_threshold <- 1 / 3
+bf01_threshold <- 1
 p_threshold <- 0.005
 p05_threshold <- 0.05
 n_grid <- c(30L, 60L, 120L, 250L, 500L)
@@ -66,7 +66,8 @@ bic_theta_grid <- unique(c(
 dense_n_grid <- unique(round(exp(seq(log(30), log(1e7), length.out = 70))))
 dense_theta_grid <- unique(c(
   exp(seq(log(0.001), log(0.02), length.out = 14)),
-  seq(0.025, 0.9, length.out = 46)
+  seq(0.025, 0.9, length.out = 46),
+  seq(0.925, 2, by = 0.025)
 ))
 ```
 
@@ -74,12 +75,12 @@ dense_theta_grid <- unique(c(
 
 This R Markdown file is the single source for four Bayes-risk comparisons:
 
-1. \(eJAB_{01}\leq1/3\) versus \(p<0.005\), for all 10 tests.
-2. \(eJAB_{01}\leq1/3\) versus \(p<0.05\), for all 10 tests.
-3. \(eJAB_{01}\leq1/3\) versus \(BF_{01}^{BIC}\leq1/3\), for the seven
+1. \(eJAB_{01}\leq1\) versus \(p<0.005\), for all 10 tests.
+2. \(eJAB_{01}\leq1\) versus \(p<0.05\), for all 10 tests.
+3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the seven
    non-rank tests. The Cox calculation uses the number of observed events as
    \(n_{\mathrm{eff}}\).
-4. \(eJAB_{01}\leq1/3\) versus \(TSBF_{01}\leq1/3\), for all 10 tests.
+4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for all 10 tests.
 
 For the seven non-rank tests, the TSBF functions are transcribed from
 `Bayes_factor_function.pdf`. Each function is evaluated at the **true**
@@ -797,11 +798,12 @@ kable(bic_validation_summary)
 # Dense large-\(n\) criticality grid
 
 The publication-style maps use a 70-point logarithmic sample-size grid from
-\(30\) to \(10^7\) and a 60-point effect-size grid from \(0.001\) to \(0.9\).
-At these sample sizes, row-level simulation is not computationally meaningful.
-Instead, rejection probabilities are evaluated from each test's native
-central/noncentral statistic distribution. The TSBF is always evaluated from
-the relevant test-statistic BFF; no generic \(p\)-to-chi-square TSBF is used.
+\(30\) to \(10^7\) and a 104-point raw effect-size grid from \(0.001\) to
+\(2\). At these sample sizes, row-level simulation is not computationally
+meaningful. Instead, rejection probabilities are evaluated from each test's
+native central/noncentral statistic distribution. The TSBF is always evaluated
+from the relevant test-statistic BFF; no generic \(p\)-to-chi-square TSBF is
+used.
 
 ```{r dense-distributions}
 t3_scale <- 1 / sqrt(3)
@@ -997,7 +999,7 @@ log_bff10_chisq <- function(chisq_stat, q, tau2) {
 }
 
 critical_root <- function(log_bf_function) {
-  target <- log(3)
+  target <- log(1 / bf01_threshold)
   if (log_bf_function(0) >= target) return(0)
   upper <- 1
   value <- log_bf_function(upper)
@@ -1033,10 +1035,10 @@ dense_tau2 <- function(test_key, n, theta, data_theta = theta) {
 
 dense_tsbf_critical <- function(test_key, n, theta, data_theta = theta) {
   if (test_key %in% c("wilcoxon", "mannwhitney")) {
-    return(sqrt(4 * log(3 * sqrt(2))))
+    return(sqrt(4 * log(sqrt(2) / bf01_threshold)))
   }
   if (test_key == "kruskal") {
-    return(4 * log(12))
+    return(4 * log(4 / bf01_threshold))
   }
 
   tau2 <- dense_tau2(test_key, n, theta, data_theta)
@@ -1223,8 +1225,11 @@ facet_labels <- c(
 plot_criticality_map <- function(data, value_col, title,
                                  filename, ncol = 5, height = 7.5,
                                  x_breaks = 2:7,
-                                 x_labels = parse(text = paste0("10^", 2:7))) {
+                                 x_labels = parse(text = paste0("10^", 2:7)),
+                                 y_max = 2,
+                                 y_breaks = seq(0.5, y_max, by = 0.5)) {
   scaled_data <- data |>
+    filter(theta <= y_max + sqrt(.Machine$double.eps)) |>
     group_by(facet_label) |>
     mutate(
       panel_max_abs_risk_difference = max(
@@ -1281,8 +1286,8 @@ plot_criticality_map <- function(data, value_col, title,
       expand = c(0, 0)
     ) +
     scale_y_continuous(
-      breaks = c(0.2, 0.4, 0.6, 0.8),
-      limits = c(0, 0.91),
+      breaks = y_breaks,
+      limits = c(0, y_max),
       expand = c(0, 0)
     ) +
     scale_fill_gradient2(
@@ -1343,7 +1348,7 @@ cell_boundaries <- function(values, lower = -Inf, upper = Inf) {
 }
 
 x_bounds <- cell_boundaries(log10(dense_n_grid))
-y_bounds <- cell_boundaries(dense_theta_grid, lower = 0, upper = 0.91)
+y_bounds <- cell_boundaries(dense_theta_grid, lower = 0, upper = 2)
 empirical_x_bounds <- cell_boundaries(log10(bic_n_grid))
 empirical_y_bounds <- cell_boundaries(
   bic_theta_grid, lower = 0, upper = 0.91
@@ -1417,12 +1422,12 @@ all_risk_panel_scaling_factors <- bind_rows(
   panel_scaling_summary(
     empirical_bic_plot_data,
     "delta_bic_minus_ejab",
-    "BIC BF01 <= 1/3 versus eJAB"
+    "BIC BF01 <= 1 versus eJAB"
   ),
   panel_scaling_summary(
     plot_data,
     "delta_tsbf_minus_ejab",
-    "TSBF01 <= 1/3 versus eJAB"
+    "TSBF01 <= 1 versus eJAB"
   )
 )
 
@@ -1441,7 +1446,7 @@ p_vs_ejab <- plot_criticality_map(
   "delta_p_minus_ejab",
   expression(
     "Large-sample Bayes-risk criticality maps: " *
-      p < 0.005 ~ "versus" ~ eJAB["01"] <= 1/3
+      p < 0.005 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "01_ejab_vs_p005_all_10_tests.png",
   ncol = 5,
@@ -1458,7 +1463,7 @@ p05_vs_ejab <- plot_criticality_map(
   "delta_p05_minus_ejab",
   expression(
     "Large-sample Bayes-risk criticality maps: " *
-      p < 0.05 ~ "versus" ~ eJAB["01"] <= 1/3
+      p < 0.05 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "02_ejab_vs_p05_all_10_tests.png",
   ncol = 5,
@@ -1482,13 +1487,15 @@ bic_vs_ejab <- plot_criticality_map(
   "delta_bic_minus_ejab",
   expression(
     "Large-sample empirical Bayes-risk criticality maps: " *
-      BF["01"]^plain(BIC) <= 1/3 ~ "versus" ~ eJAB["01"] <= 1/3
+      BF["01"]^plain(BIC) <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "02_ejab_vs_bic_bf01_seven_tests.png",
   ncol = 4,
   height = 7.5,
   x_breaks = 2:4,
-  x_labels = parse(text = paste0("10^", 2:4))
+  x_labels = parse(text = paste0("10^", 2:4)),
+  y_max = 0.91,
+  y_breaks = c(0.2, 0.4, 0.6, 0.8)
 ) +
   geom_line(
     data = bic_contours,
@@ -1519,7 +1526,7 @@ tsbf_vs_ejab <- plot_criticality_map(
   "delta_tsbf_minus_ejab",
   expression(
     "Large-sample Bayes-risk criticality maps: " *
-      TSBF["01"] <= 1/3 ~ "versus" ~ eJAB["01"] <= 1/3
+      TSBF["01"] <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "03_ejab_vs_tsbf01_all_10_tests.png",
   ncol = 5,
@@ -1550,10 +1557,10 @@ ggsave(
 # Focused chi-square comparison across table dimensions
 
 This analysis directly addresses the comparison of
-\(eJAB_{01}\leq1/3\) with:
+\(eJAB_{01}\leq1\) with:
 
 1. \(p<0.05\), and
-2. \(TSBF_{01}\leq1/3\), with the BFF evaluated at the true standardized
+2. \(TSBF_{01}\leq1\), with the BFF evaluated at the true standardized
    effect size.
 
 The columns correspond to \(2\times2\), \(3\times3\), \(5\times5\), and
@@ -1615,8 +1622,13 @@ w\leq 2\sqrt{
 
 The maxima are \(1\), \(2/3\), \(0.8\), and \(2/\sqrt{5}\) for the
 \(2\times2\), \(3\times3\), \(5\times5\), and \(5\times10\) designs,
-respectively. The plots therefore use the common valid range
-\(0<w\leq2/3\).
+respectively. These bounds apply only to this particular checkerboard
+construction. The noncentral chi-square risk calculation depends on
+\((q,n,w)\), rather than on that construction, so the plots use the broader
+common range \(0\leq w\leq2\). Values above a design's attainable maximum
+should therefore be interpreted as theoretical noncentral chi-square
+extrapolations rather than results generated by a contingency table from that
+design.
 
 ```{r chi-square-data-generator}
 chisq_dimensions <- tribble(
@@ -1742,8 +1754,9 @@ kable(
 ```
 
 ```{r chi-square-dimension-risk-grid}
+chisq_w_max <- 2
 chisq_w_grid <- dense_theta_grid[
-  dense_theta_grid <= 2 / 3 + sqrt(.Machine$double.eps)
+  dense_theta_grid <= chisq_w_max + sqrt(.Machine$double.eps)
 ]
 
 chisq_dimension_cell <- function(
@@ -1883,7 +1896,7 @@ in that row. No risk differences are clipped.
 ```{r chi-square-dimension-risk-plot, fig.height=8}
 chisq_x_bounds <- cell_boundaries(log10(dense_n_grid))
 chisq_w_bounds <- cell_boundaries(
-  chisq_w_grid, lower = 0, upper = 2 / 3
+  chisq_w_grid, lower = 0, upper = chisq_w_max
 )
 
 chisq_dimension_plot_data <- chisq_dimension_risk |>
@@ -1920,8 +1933,8 @@ chisq_dimension_plot_data <- chisq_dimension_risk |>
         "TSBF(true w) versus eJAB"
       ),
       labels = c(
-        "italic(p) < 0.05~'versus'~eJAB['01'] <= 1/3",
-        "TSBF['01'](omega) <= 1/3~'versus'~eJAB['01'] <= 1/3"
+        "italic(p) < 0.05~'versus'~eJAB['01'] <= 1",
+        "TSBF['01'](omega) <= 1~'versus'~eJAB['01'] <= 1"
       )
     ),
     table_plot_label = factor(
@@ -2018,8 +2031,8 @@ chisq_dimension_risk_plot <- ggplot(
     expand = c(0, 0)
   ) +
   scale_y_continuous(
-    breaks = c(0.2, 0.4, 0.6),
-    limits = c(0, 2 / 3),
+    breaks = seq(0.5, chisq_w_max, by = 0.5),
+    limits = c(0, chisq_w_max),
     expand = c(0, 0)
   ) +
   scale_fill_gradient2(
