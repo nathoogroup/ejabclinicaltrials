@@ -14,12 +14,11 @@ regenerated locally.
 
 ## Required implementation on Fir
 
-1. Parameterize the empirical BIC grid in `bayes_risk_analysis.Rmd`. A useful
-   dense target is 48 logarithmically spaced sample sizes from 100 to 10,000
-   and 64 effect sizes from 0.002 to 0.9 (20 logarithmic points from 0.002 to
-   0.02 plus 44 linear points from 0.025 to 0.9).
+1. The empirical BIC grid in `bayes_risk_analysis.Rmd` matches the other dense
+   plots: 70 logarithmically spaced sample sizes from 30 to 10^7 and 104 effect
+   sizes from 0.001 to 2.
 2. Extract or expose the BIC task functions so one Slurm array task can run a
-   deterministic subset of the Cartesian product of the seven BIC test classes
+   deterministic subset of the Cartesian product of the six parametric-likelihood BIC test classes
    and sample-size grid. Each task should evaluate every effect size for its
    assigned `(test_key, n)` cell.
 3. Use a Slurm job array, not a single-node `mclapply`, for the expensive BIC
@@ -44,9 +43,9 @@ regenerated locally.
 
 ## Current statistical settings
 
-- BIC test classes: two-sample t, linear regression, logistic regression, Cox
-  proportional hazards, one-way ANOVA, repeated-measures ANOVA, and chi-square
-  independence.
+- BIC test classes: two-sample t, linear regression, logistic regression,
+  one-way ANOVA, repeated-measures ANOVA, and chi-square independence. Cox is
+  excluded because its partial likelihood is semiparametric.
 - BIC null replicates per `(test_key, n)` task: 2,000.
 - BIC alternative replicates per effect-size cell: 400.
 - Equal prior model probabilities and equal error costs.

@@ -11,3 +11,6 @@ csv/CTR_summary.csv
 .Rhistory
 .RData
 .Rproj.user/
+
+# Job-specific Slurm logs and intermediate BIC shards
+slurm_bic_runs/

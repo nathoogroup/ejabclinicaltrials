@@ -17,6 +17,8 @@ params:
   bic_null_reps: 2000
   bic_alt_reps: 400
   workers: 4
+  bic_task_id: null
+  bic_shard_dir: null
 ---
 
 ```{r setup, include=FALSE}
@@ -58,10 +60,11 @@ p_threshold <- 0.005
 p05_threshold <- 0.05
 n_grid <- c(30L, 60L, 120L, 250L, 500L)
 theta_grid <- c(0.05, 0.10, 0.20, 0.35, 0.50, 0.80)
-bic_n_grid <- unique(round(exp(seq(log(100), log(1e4), length.out = 24))))
+bic_n_grid <- unique(round(exp(seq(log(30), log(1e7), length.out = 70))))
 bic_theta_grid <- unique(c(
-  exp(seq(log(0.002), log(0.02), length.out = 10)),
-  seq(0.025, 0.9, length.out = 22)
+  exp(seq(log(0.001), log(0.02), length.out = 14)),
+  seq(0.025, 0.9, length.out = 46),
+  seq(0.925, 2, by = 0.025)
 ))
 dense_n_grid <- unique(round(exp(seq(log(30), log(1e7), length.out = 70))))
 dense_theta_grid <- unique(c(
@@ -77,48 +80,31 @@ This R Markdown file is the single source for four Bayes-risk comparisons:
 
 1. \(eJAB_{01}\leq1\) versus \(p<0.005\), for all 10 tests.
 2. \(eJAB_{01}\leq1\) versus \(p<0.05\), for all 10 tests.
-3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the seven
-   non-rank tests. The Cox calculation uses the number of observed events as
-   \(n_{\mathrm{eff}}\).
-4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for all 10 tests.
+3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the six tests
+   with an explicit parametric likelihood. Cox regression and the three rank
+   tests are excluded.
+4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for the chi-square
+   independence test only.
 
-For the seven non-rank tests, the TSBF functions are transcribed from
-`Bayes_factor_function.pdf`. Each function is evaluated at the **true**
-standardized effect size. This is preferable to an estimated effect in a
-simulation study because the generating value is known and does not add
-effect-estimation noise to the decision rule.
-
-For Wilcoxon signed-rank and Mann-Whitney, the TSBF follows Theorem 1 and
-Table 1 of Yuan and Johnson (2008). Setting \(\tau=1/C\) gives
-
-\[
-TSBF_{01}(T^*)=\sqrt{2}\exp(-T^{*2}/4).
-\]
-
-Kruskal-Wallis has a limiting chi-square rather than normal distribution, so
-its TSBF uses the paper's Section 5 extension:
-
-\[
-TSBF_{01}(W)=(1+\tau)^{(k-1)/2}
- \exp\left\{-\frac{\tau W}{2(1+\tau)}\right\},
-\qquad \tau=1.
-\]
+The TSBF comparison is restricted to the chi-square independence test. Its
+test-statistic Bayes-factor function is transcribed from page 6 of
+`Bayes_factor_function.pdf` and evaluated at the true standardized effect size.
 
 # Analysis scope and exclusions
 
 ```{r scope}
 scope <- tribble(
   ~test, ~p_comparison, ~bic_comparison, ~tsbf_comparison, ~tsbf_source,
-  "Two-sample t-test", "Included", "Included", "Included", "BFF PDF page 1",
-  "Simple linear regression", "Included", "Included", "Included", "BFF PDF page 2",
-  "Simple logistic regression", "Included", "Included", "Included", "BFF PDF page 3",
-  "Cox proportional-hazards regression", "Included", "Included; events are n_eff", "Included", "BFF PDF page 7",
-  "Wilcoxon signed-rank test", "Included", "Excluded", "Included", "Yuan-Johnson Theorem 1 and Table 1",
-  "Mann-Whitney U-test", "Included", "Excluded", "Included", "Yuan-Johnson Theorem 1 and Table 1",
-  "One-way ANOVA", "Included", "Included", "Included", "BFF PDF page 4",
-  "Repeated-measures ANOVA", "Included", "Included", "Included", "BFF PDF page 5",
+  "Two-sample t-test", "Included", "Included", "Excluded", NA_character_,
+  "Simple linear regression", "Included", "Included", "Excluded", NA_character_,
+  "Simple logistic regression", "Included", "Included", "Excluded", NA_character_,
+  "Cox proportional-hazards regression", "Included", "Excluded; semiparametric partial likelihood", "Excluded", NA_character_,
+  "Wilcoxon signed-rank test", "Included", "Excluded", "Excluded", NA_character_,
+  "Mann-Whitney U-test", "Included", "Excluded", "Excluded", NA_character_,
+  "One-way ANOVA", "Included", "Included", "Excluded", NA_character_,
+  "Repeated-measures ANOVA", "Included", "Included", "Excluded", NA_character_,
   "Chi-square independence test", "Included", "Included", "Included", "BFF PDF page 6",
-  "Kruskal-Wallis test", "Included", "Excluded", "Included", "Yuan-Johnson Section 5"
+  "Kruskal-Wallis test", "Included", "Excluded", "Excluded", NA_character_
 )
 
 kable(scope)
@@ -129,9 +115,9 @@ write.csv(
 )
 ```
 
-The three rank tests are excluded only from the BIC comparison because that
-comparison is restricted to the seven prespecified non-rank test classes. They
-remain in the \(p<0.005\) and TSBF comparisons.
+Cox regression and the three rank tests are excluded from the BIC comparison,
+which is restricted to tests with an explicit parametric likelihood. TSBF is
+evaluated only for the chi-square independence test.
 
 A simulated replicate is excluded before inspecting any decision-rule result
 when the fitted model fails, its native test statistic is non-finite, its
@@ -289,9 +275,10 @@ q_by_test <- c(
 )
 
 bic_test_keys <- c(
-  "ttest", "lm", "logistic", "cox",
+  "ttest", "lm", "logistic",
   "anova", "ranova", "chisq"
 )
+tsbf_test_keys <- "chisq"
 
 contrast_scores <- function(k) {
   x <- seq_len(k) - (k + 1) / 2
@@ -379,20 +366,26 @@ simulate_one <- function(test_key, n, theta) {
     }
 
     if (test_key == "logistic") {
-      x <- rnorm(n)
-      y <- rbinom(n, 1, plogis(theta * x))
-      full_model <- suppressWarnings(glm(y ~ x, family = binomial()))
-      null_model <- suppressWarnings(glm(y ~ 1, family = binomial()))
-      statistic <- unname(summary(full_model)$coefficients["x", "z value"])
+      # A balanced binary predictor makes the two binomial group counts exact
+      # sufficient statistics. This evaluates the same parametric likelihood
+      # without allocating an n-row dataset at sample sizes up to 10^7.
+      sizes <- c(floor(n / 2), n - floor(n / 2))
+      probabilities <- plogis(c(-theta / 2, theta / 2))
+      successes <- rbinom(2, sizes, probabilities)
+      fitted_probabilities <- successes / sizes
+      pooled_probability <- sum(successes) / n
+      full_loglik <- sum(dbinom(
+        successes, sizes, fitted_probabilities, log = TRUE
+      ))
+      null_loglik <- sum(dbinom(
+        successes, sizes, pooled_probability, log = TRUE
+      ))
+      likelihood_ratio <- pmax(2 * (full_loglik - null_loglik), 0)
       return(list(
-        statistic = statistic,
-        p = 2 * pnorm(-abs(statistic)),
+        statistic = sqrt(likelihood_ratio),
+        p = pchisq(likelihood_ratio, 1, lower.tail = FALSE),
         n_eff = n,
-        bic_lr = pmax(
-          2 * (as.numeric(logLik(full_model)) -
-                 as.numeric(logLik(null_model))),
-          0
-        )
+        bic_lr = likelihood_ratio
       ))
     }
 
@@ -582,7 +575,11 @@ decisions_for <- function(draws, test_key, n, theta) {
   } else {
     rep(NA_real_, length(draws))
   }
-  tsbf <- map_dbl(draws, ~ tsbf01(test_key, .x, n, theta))
+  tsbf <- if (test_key %in% tsbf_test_keys) {
+    map_dbl(draws, ~ tsbf01(test_key, .x, n, theta))
+  } else {
+    rep(NA_real_, length(draws))
+  }
 
   tibble(
     reject_p = p < p_threshold,
@@ -633,8 +630,13 @@ simulate_test_n <- function(test_key, n, null_reps, alt_reps, seed,
     power_p <- mean(alt_decisions$reject_p)
     alpha_ejab <- mean(null_decisions$reject_ejab)
     power_ejab <- mean(alt_decisions$reject_ejab)
-    alpha_tsbf <- mean(null_decisions$reject_tsbf)
-    power_tsbf <- mean(alt_decisions$reject_tsbf)
+    if (test_key %in% tsbf_test_keys) {
+      alpha_tsbf <- mean(null_decisions$reject_tsbf)
+      power_tsbf <- mean(alt_decisions$reject_tsbf)
+    } else {
+      alpha_tsbf <- NA_real_
+      power_tsbf <- NA_real_
+    }
 
     if (test_key %in% bic_test_keys) {
       alpha_bic <- mean(null_decisions$reject_bic)
@@ -678,9 +680,9 @@ simulate_test_n <- function(test_key, n, null_reps, alt_reps, seed,
 ```
 
 Null draws are generated once for each test and sample size and reused across
-the six effect-size cells. The TSBF false-positive rate is nevertheless
-recalculated for each effect size because the parametric BFF prior scale depends
-on the standardized alternative effect.
+the six effect-size cells. For the in-scope chi-square TSBF comparison, the
+false-positive rate is recalculated for each effect size because the BFF prior
+scale depends on the standardized alternative effect.
 
 ```{r run-simulation}
 task_grid <- crossing(
@@ -725,10 +727,13 @@ validation_summary <- risk |>
     minimum_null_valid_reps = min(null_valid_reps),
     minimum_alt_valid_reps = min(alt_valid_reps),
     nonfinite_required_risks = sum(
-      !is.finite(risk_p) | !is.finite(risk_ejab) | !is.finite(risk_tsbf)
+      !is.finite(risk_p) | !is.finite(risk_ejab)
     ),
     nonfinite_bic_risks_in_scope = sum(
       test_key %in% bic_test_keys & !is.finite(risk_bic)
+    ),
+    nonfinite_tsbf_risks_in_scope = sum(
+      test_key %in% tsbf_test_keys & !is.finite(risk_tsbf)
     )
   )
 
@@ -737,14 +742,16 @@ kable(validation_summary)
 
 ## Dense large-sample empirical BIC grid
 
-The BIC comparison uses a dedicated \(24\times32\) grid: 24 logarithmically
-spaced sample sizes from 100 to 10,000 and 32 effect sizes from 0.002 to 0.9.
+The BIC comparison uses the same \(70\times104\) extent as the other dense
+maps: 70 logarithmically spaced sample sizes from 30 to \(10^7\) and 104 effect
+sizes from 0.001 to 2.
 Every cell is estimated from model-based Monte Carlo draws and direct
 likelihood ratios. The Gaussian panels use exact finite-sample sufficient-
 statistic distributions that are algebraically identical to refitting the
-nested models. The logistic, Cox, and contingency-table panels use simulated
-datasets and their fitted likelihood ratios. No interpolation or asymptotic
-chi-square substitution is used to densify the BIC figure.
+nested models. Logistic regression uses exact grouped-binomial sufficient
+statistics, and the contingency-table panel uses multinomial counts. No
+interpolation or asymptotic chi-square substitution is used to densify the BIC
+figure.
 
 ```{r dense-empirical-bic-grid}
 bic_task_grid <- crossing(
@@ -753,18 +760,47 @@ bic_task_grid <- crossing(
 ) |>
   mutate(seed = params$seed + 100000L + row_number())
 
+run_bic_task <- function(task) {
+  simulate_test_n(
+    task$test_key,
+    task$n,
+    params$bic_null_reps,
+    params$bic_alt_reps,
+    task$seed,
+    effect_grid = bic_theta_grid
+  )
+}
+
+# Slurm array mode renders only far enough to evaluate this chunk. Each array
+# element owns exactly one deterministic (test_key, n) task and writes its
+# result atomically, so interrupted tasks cannot leave plausible partial data.
+if (!is.null(params$bic_task_id)) {
+  task_id <- as.integer(params$bic_task_id)
+  if (length(task_id) != 1L || is.na(task_id) ||
+      task_id < 1L || task_id > nrow(bic_task_grid)) {
+    stop("bic_task_id must be between 1 and ", nrow(bic_task_grid))
+  }
+  if (is.null(params$bic_shard_dir) || !nzchar(params$bic_shard_dir)) {
+    stop("bic_shard_dir is required in Slurm array mode")
+  }
+
+  dir.create(params$bic_shard_dir, recursive = TRUE, showWarnings = FALSE)
+  shard <- run_bic_task(bic_task_grid[task_id, , drop = FALSE]) |>
+    mutate(task_id = task_id, .before = 1)
+  shard_file <- file.path(
+    params$bic_shard_dir, sprintf("bic_task_%04d.rds", task_id)
+  )
+  temporary_file <- paste0(shard_file, ".tmp-", Sys.getpid())
+  saveRDS(shard, temporary_file)
+  if (!file.rename(temporary_file, shard_file)) {
+    unlink(temporary_file)
+    stop("Could not atomically publish shard: ", shard_file)
+  }
+  knitr::knit_exit()
+}
+
 if (isTRUE(params$bic_refresh) || !file.exists(bic_simulation_file)) {
   bic_tasks <- split(bic_task_grid, seq_len(nrow(bic_task_grid)))
-  run_bic_task <- function(task) {
-    simulate_test_n(
-      task$test_key,
-      task$n,
-      params$bic_null_reps,
-      params$bic_alt_reps,
-      task$seed,
-      effect_grid = bic_theta_grid
-    )
-  }
 
   if (.Platform$OS.type != "windows" && params$workers > 1) {
     bic_result_list <- parallel::mclapply(
@@ -1079,14 +1115,18 @@ dense_cell <- function(test_key, n, theta) {
   alpha_ejab <- native_rejection_at_stat(test_key, n, 0, ejab_crit_null)
   power_ejab <- native_rejection_at_stat(test_key, n, theta, ejab_crit_alt)
 
-  tsbf_crit_null <- dense_tsbf_critical(test_key, n, theta, data_theta = 0)
-  tsbf_crit_alt <- dense_tsbf_critical(
-    test_key, n, theta, data_theta = theta
-  )
-  alpha_tsbf <- native_rejection_at_stat(test_key, n, 0, tsbf_crit_null)
-  power_tsbf <- native_rejection_at_stat(
-    test_key, n, theta, tsbf_crit_alt
-  )
+  if (test_key %in% tsbf_test_keys) {
+    tsbf_crit_null <- dense_tsbf_critical(test_key, n, theta, data_theta = 0)
+    tsbf_crit_alt <- dense_tsbf_critical(
+      test_key, n, theta, data_theta = theta
+    )
+    alpha_tsbf <- native_rejection_at_stat(test_key, n, 0, tsbf_crit_null)
+    power_tsbf <- native_rejection_at_stat(
+      test_key, n, theta, tsbf_crit_alt
+    )
+  } else {
+    alpha_tsbf <- power_tsbf <- NA_real_
+  }
 
   # A fitted-model likelihood ratio is not available in this analytic dense
   # grid, so no BIC risk is calculated here.
@@ -1179,7 +1219,10 @@ kable(tibble(
   nonfinite_required_risks = sum(
     !is.finite(dense_risk$risk_p) |
       !is.finite(dense_risk$risk_p05) |
-      !is.finite(dense_risk$risk_ejab) |
+      !is.finite(dense_risk$risk_ejab)
+  ),
+  nonfinite_tsbf_risks_in_scope = sum(
+    dense_risk$test_key %in% tsbf_test_keys &
       !is.finite(dense_risk$risk_tsbf)
   )
 ))
@@ -1351,7 +1394,7 @@ x_bounds <- cell_boundaries(log10(dense_n_grid))
 y_bounds <- cell_boundaries(dense_theta_grid, lower = 0, upper = 2)
 empirical_x_bounds <- cell_boundaries(log10(bic_n_grid))
 empirical_y_bounds <- cell_boundaries(
-  bic_theta_grid, lower = 0, upper = 0.91
+  bic_theta_grid, lower = 0, upper = 2
 )
 
 plot_data <- dense_risk |>
@@ -1425,7 +1468,7 @@ all_risk_panel_scaling_factors <- bind_rows(
     "BIC BF01 <= 1 versus eJAB"
   ),
   panel_scaling_summary(
-    plot_data,
+    filter(plot_data, test_key %in% tsbf_test_keys),
     "delta_tsbf_minus_ejab",
     "TSBF01 <= 1 versus eJAB"
   )
@@ -1472,12 +1515,13 @@ p05_vs_ejab <- plot_criticality_map(
 p05_vs_ejab
 ```
 
-## 3. eJAB versus BIC BF: seven non-rank tests, raw-data Monte Carlo
+## 3. eJAB versus BIC BF: six parametric-likelihood tests
 
 ```{r plot-bic, fig.height=7.5}
 bic_contours <- crossing(
   c_value = c(0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8),
-  log10_n = seq(2, 4, length.out = 500)
+  log10_n = seq(log10(min(bic_n_grid)), log10(max(bic_n_grid)),
+                length.out = 500)
 ) |>
   mutate(theta = c_value / sqrt(10^log10_n)) |>
   filter(theta >= min(bic_theta_grid), theta <= max(bic_theta_grid))
@@ -1489,13 +1533,13 @@ bic_vs_ejab <- plot_criticality_map(
     "Large-sample empirical Bayes-risk criticality maps: " *
       BF["01"]^plain(BIC) <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
-  "02_ejab_vs_bic_bf01_seven_tests.png",
-  ncol = 4,
+  "02_ejab_vs_bic_bf01_six_parametric_tests.png",
+  ncol = 3,
   height = 7.5,
-  x_breaks = 2:4,
-  x_labels = parse(text = paste0("10^", 2:4)),
-  y_max = 0.91,
-  y_breaks = c(0.2, 0.4, 0.6, 0.8)
+  x_breaks = 2:7,
+  x_labels = parse(text = paste0("10^", 2:7)),
+  y_max = 2,
+  y_breaks = c(0.5, 1, 1.5, 2)
 ) +
   geom_line(
     data = bic_contours,
@@ -1508,7 +1552,7 @@ bic_vs_ejab <- plot_criticality_map(
   )
 
 ggsave(
-  file.path(output_dir, "02_ejab_vs_bic_bf01_seven_tests.png"),
+  file.path(output_dir, "02_ejab_vs_bic_bf01_six_parametric_tests.png"),
   bic_vs_ejab,
   width = 16,
   height = 7.5,
@@ -1518,18 +1562,18 @@ ggsave(
 bic_vs_ejab
 ```
 
-## 4. eJAB versus TSBF: all 10 tests
+## 4. eJAB versus TSBF: chi-square independence only
 
 ```{r plot-tsbf, fig.height=7.5}
 tsbf_vs_ejab <- plot_criticality_map(
-  plot_data,
+  filter(plot_data, test_key %in% tsbf_test_keys),
   "delta_tsbf_minus_ejab",
   expression(
     "Large-sample Bayes-risk criticality maps: " *
       TSBF["01"] <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
-  "03_ejab_vs_tsbf01_all_10_tests.png",
-  ncol = 5,
+  "03_ejab_vs_tsbf01_chisq.png",
+  ncol = 1,
   height = 7.5
 )
 tsbf_vs_ejab

@@ -1,9 +1,9 @@
 "comparison","table_label","panel_max_abs_risk_difference"
-"p < 0.05 versus eJAB","2 x 2 (q=1)",0.351739116556267
-"p < 0.05 versus eJAB","3 x 3 (q=4)",0.219738468781406
-"p < 0.05 versus eJAB","5 x 5 (q=16)",0.0513004417680983
-"p < 0.05 versus eJAB","5 x 10 (q=36)",0.125490306544588
-"TSBF(true w) versus eJAB","2 x 2 (q=1)",0.303044577896956
-"TSBF(true w) versus eJAB","3 x 3 (q=4)",0.142703454350254
-"TSBF(true w) versus eJAB","5 x 5 (q=16)",0.410052166568446
-"TSBF(true w) versus eJAB","5 x 10 (q=36)",0.487789257880606
+"p < 0.05 versus eJAB","2 x 2 (q=1)",0.319229252456358
+"p < 0.05 versus eJAB","3 x 3 (q=4)",0.173896085352645
+"p < 0.05 versus eJAB","5 x 5 (q=16)",0.144044320642703
+"p < 0.05 versus eJAB","5 x 10 (q=36)",0.170105889099181
+"TSBF(true w) versus eJAB","2 x 2 (q=1)",0.314733024870209
+"TSBF(true w) versus eJAB","3 x 3 (q=4)",0.107462431881528
+"TSBF(true w) versus eJAB","5 x 5 (q=16)",0.394356109712702
+"TSBF(true w) versus eJAB","5 x 10 (q=36)",0.422612386501696
