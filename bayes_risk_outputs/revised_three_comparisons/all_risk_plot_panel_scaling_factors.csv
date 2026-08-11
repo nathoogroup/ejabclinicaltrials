@@ -25,4 +25,6 @@
 "BIC BF01 <= 1 versus eJAB","logistic","Logistic regression",1,0.0335000000000001
 "BIC BF01 <= 1 versus eJAB","ranova","Repeated-measures ANOVA",3,0.34575
 "BIC BF01 <= 1 versus eJAB","ttest","Two-sample t-test",1,0.023
-"TSBF01 <= 1 versus eJAB","chisq","Chi-square independence",4,0.111879885801692
+"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.314733024870209
+"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.107462431881528
+"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.394356109712702

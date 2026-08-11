@@ -7,5 +7,5 @@
 "Mann-Whitney U-test","Included","Excluded","Excluded",NA
 "One-way ANOVA","Included","Included","Excluded",NA
 "Repeated-measures ANOVA","Included","Included","Excluded",NA
-"Chi-square independence test","Included","Included","Included","BFF PDF page 6"
+"Chi-square independence test","Included","Included","Included for 2x2, 3x3, and 5x5 designs","BFF PDF page 6"
 "Kruskal-Wallis test","Included","Excluded","Excluded",NA

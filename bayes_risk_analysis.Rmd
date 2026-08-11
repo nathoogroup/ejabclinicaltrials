@@ -83,12 +83,13 @@ This R Markdown file is the single source for four Bayes-risk comparisons:
 3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the six tests
    with an explicit parametric likelihood. Cox regression and the three rank
    tests are excluded.
-4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for the chi-square
-   independence test only.
+4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for the \(2\times2\),
+   \(3\times3\), and \(5\times5\) chi-square independence designs.
 
-The TSBF comparison is restricted to the chi-square independence test. Its
-test-statistic Bayes-factor function is transcribed from page 6 of
-`Bayes_factor_function.pdf` and evaluated at the true standardized effect size.
+The TSBF comparison is restricted to these three chi-square independence
+designs. Its test-statistic Bayes-factor function is transcribed from page 6 of
+`Bayes_factor_function.pdf`, evaluated at the true standardized effect size,
+and uses \(q=(R-1)(C-1)\) for each table dimension.
 
 # Analysis scope and exclusions
 
@@ -103,7 +104,7 @@ scope <- tribble(
   "Mann-Whitney U-test", "Included", "Excluded", "Excluded", NA_character_,
   "One-way ANOVA", "Included", "Included", "Excluded", NA_character_,
   "Repeated-measures ANOVA", "Included", "Included", "Excluded", NA_character_,
-  "Chi-square independence test", "Included", "Included", "Included", "BFF PDF page 6",
+  "Chi-square independence test", "Included", "Included", "Included for 2x2, 3x3, and 5x5 designs", "BFF PDF page 6",
   "Kruskal-Wallis test", "Included", "Excluded", "Excluded", NA_character_
 )
 
@@ -117,7 +118,7 @@ write.csv(
 
 Cox regression and the three rank tests are excluded from the BIC comparison,
 which is restricted to tests with an explicit parametric likelihood. TSBF is
-evaluated only for the chi-square independence test.
+evaluated for the 2x2, 3x3, and 5x5 chi-square independence designs.
 
 A simulated replicate is excluded before inspecting any decision-rule result
 when the fitted model fails, its native test statistic is non-finite, its
@@ -1251,6 +1252,10 @@ used as its divisor. Positive/yellow values mean eJAB has lower estimated Bayes
 risk; negative/purple values mean the comparison rule has lower estimated
 Bayes risk.
 
+Dashed black curves show local alternatives of the form
+\(\theta=c/\sqrt{n}\), or \(w=c/\sqrt{n}\) for the table-dimension plots, for
+\(c\in\{0.25,0.5,0.75,1,1.5,2,3,4,6,8\}\).
+
 ```{r plotting-functions}
 facet_labels <- c(
   ttest = "'t-test'~(q == 1)",
@@ -1265,12 +1270,33 @@ facet_labels <- c(
   kruskal = "'Kruskal-Wallis'~(q == 4)"
 )
 
+local_alternative_c_values <- c(
+  0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8
+)
+
+local_alternative_contours <- function(n_values, effect_values) {
+  crossing(
+    c_value = local_alternative_c_values,
+    log10_n = seq(
+      log10(min(n_values)), log10(max(n_values)), length.out = 500
+    )
+  ) |>
+    mutate(theta = c_value / sqrt(10^log10_n)) |>
+    filter(
+      theta >= min(effect_values),
+      theta <= max(effect_values)
+    )
+}
+
 plot_criticality_map <- function(data, value_col, title,
                                  filename, ncol = 5, height = 7.5,
                                  x_breaks = 2:7,
                                  x_labels = parse(text = paste0("10^", 2:7)),
                                  y_max = 2,
-                                 y_breaks = seq(0.5, y_max, by = 0.5)) {
+                                 y_breaks = seq(0.5, y_max, by = 0.5),
+                                 y_label = expression(
+                                   "Raw simulation effect size " * theta
+                                 )) {
   scaled_data <- data |>
     filter(theta <= y_max + sqrt(.Machine$double.eps)) |>
     group_by(facet_label) |>
@@ -1298,6 +1324,11 @@ plot_criticality_map <- function(data, value_col, title,
       )
     )
 
+  local_contours <- local_alternative_contours(
+    10^data$log10_n,
+    data$theta
+  )
+
   p <- ggplot(
     scaled_data,
     aes(
@@ -1307,6 +1338,15 @@ plot_criticality_map <- function(data, value_col, title,
     )
   ) +
     geom_rect() +
+    geom_line(
+      data = local_contours,
+      aes(x = log10_n, y = theta, group = c_value),
+      inherit.aes = FALSE,
+      color = "black",
+      linetype = "dashed",
+      linewidth = 0.3,
+      alpha = 0.75
+    ) +
     geom_label(
       data = panel_annotations,
       aes(x = -Inf, y = Inf, label = annotation),
@@ -1345,7 +1385,7 @@ plot_criticality_map <- function(data, value_col, title,
     labs(
       title = title,
       x = expression("Nominal sample size " * n),
-      y = expression("Raw simulation effect size " * theta)
+      y = y_label
     ) +
     guides(
       fill = guide_colorbar(
@@ -1439,6 +1479,117 @@ empirical_bic_plot_data <- bic_risk |>
   ) |>
   droplevels()
 
+chisq_dimensions <- tribble(
+  ~rows, ~columns, ~table_label, ~table_plot_label, ~q,
+  2L, 2L, "2 x 2 (q=1)",  "2 %*% 2~(q == 1)",   1L,
+  3L, 3L, "3 x 3 (q=4)",  "3 %*% 3~(q == 4)",   4L,
+  5L, 5L, "5 x 5 (q=16)", "5 %*% 5~(q == 16)", 16L
+)
+
+chisq_w_max <- 2
+chisq_w_grid <- dense_theta_grid[
+  dense_theta_grid <= chisq_w_max + sqrt(.Machine$double.eps)
+]
+
+chisq_dimension_cell <- function(
+    rows, columns, table_label, table_plot_label, q, n, w) {
+  lambda <- n * w^2
+
+  critical_p05 <- qchisq(1 - p05_threshold, df = q)
+  critical_ejab <- (
+    log(n) - 2 * log(bf01_threshold)
+  ) / (1 - n^(-1 / q))
+
+  tau2 <- n * w^2
+  critical_tsbf <- critical_root(
+    function(x) log_bff10_chisq(x, q, tau2)
+  )
+
+  alpha_p05 <- pchisq(critical_p05, df = q, lower.tail = FALSE)
+  alpha_ejab <- pchisq(critical_ejab, df = q, lower.tail = FALSE)
+  alpha_tsbf <- if (is.finite(critical_tsbf)) {
+    pchisq(critical_tsbf, df = q, lower.tail = FALSE)
+  } else {
+    0
+  }
+
+  power_p05 <- pchisq(
+    critical_p05, df = q, ncp = lambda, lower.tail = FALSE
+  )
+  power_ejab <- pchisq(
+    critical_ejab, df = q, ncp = lambda, lower.tail = FALSE
+  )
+  power_tsbf <- if (is.finite(critical_tsbf)) {
+    pchisq(
+      critical_tsbf, df = q, ncp = lambda, lower.tail = FALSE
+    )
+  } else {
+    0
+  }
+
+  risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
+  risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
+  risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
+
+  tibble(
+    rows = rows,
+    columns = columns,
+    table_label = table_label,
+    table_plot_label = table_plot_label,
+    q = q,
+    n = n,
+    w = w,
+    alpha_p05 = alpha_p05,
+    alpha_ejab = alpha_ejab,
+    alpha_tsbf = alpha_tsbf,
+    power_p05 = power_p05,
+    power_ejab = power_ejab,
+    power_tsbf = power_tsbf,
+    beta_p05 = 1 - power_p05,
+    beta_ejab = 1 - power_ejab,
+    beta_tsbf = 1 - power_tsbf,
+    risk_p05 = risk_p05,
+    risk_ejab = risk_ejab,
+    risk_tsbf = risk_tsbf,
+    delta_p05_minus_ejab = risk_p05 - risk_ejab,
+    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
+  )
+}
+
+chisq_dimension_tasks <- crossing(
+  chisq_dimensions,
+  n = dense_n_grid,
+  w = chisq_w_grid
+)
+
+chisq_dimension_risk <- pmap_dfr(
+  chisq_dimension_tasks,
+  chisq_dimension_cell
+)
+
+tsbf_dimension_plot_data <- chisq_dimension_risk |>
+  transmute(
+    test_key = table_label,
+    test = table_label,
+    q = q,
+    n = n,
+    theta = w,
+    delta_tsbf_minus_ejab = delta_tsbf_minus_ejab,
+    log10_n = log10(n),
+    facet_label = factor(
+      table_plot_label,
+      levels = chisq_dimensions$table_plot_label
+    )
+  ) |>
+  left_join(
+    x_bounds |> transmute(log10_n = center, xmin = lower, xmax = upper),
+    by = "log10_n"
+  ) |>
+  left_join(
+    y_bounds |> transmute(theta = center, ymin = lower, ymax = upper),
+    by = "theta"
+  )
+
 panel_scaling_summary <- function(data, value_col, comparison_label) {
   data |>
     group_by(test_key, test, q) |>
@@ -1468,9 +1619,9 @@ all_risk_panel_scaling_factors <- bind_rows(
     "BIC BF01 <= 1 versus eJAB"
   ),
   panel_scaling_summary(
-    filter(plot_data, test_key %in% tsbf_test_keys),
+    tsbf_dimension_plot_data,
     "delta_tsbf_minus_ejab",
-    "TSBF01 <= 1 versus eJAB"
+    "TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5"
   )
 )
 
@@ -1518,14 +1669,6 @@ p05_vs_ejab
 ## 3. eJAB versus BIC BF: six parametric-likelihood tests
 
 ```{r plot-bic, fig.height=7.5}
-bic_contours <- crossing(
-  c_value = c(0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8),
-  log10_n = seq(log10(min(bic_n_grid)), log10(max(bic_n_grid)),
-                length.out = 500)
-) |>
-  mutate(theta = c_value / sqrt(10^log10_n)) |>
-  filter(theta >= min(bic_theta_grid), theta <= max(bic_theta_grid))
-
 bic_vs_ejab <- plot_criticality_map(
   empirical_bic_plot_data,
   "delta_bic_minus_ejab",
@@ -1540,41 +1683,27 @@ bic_vs_ejab <- plot_criticality_map(
   x_labels = parse(text = paste0("10^", 2:7)),
   y_max = 2,
   y_breaks = c(0.5, 1, 1.5, 2)
-) +
-  geom_line(
-    data = bic_contours,
-    aes(x = log10_n, y = theta, group = c_value),
-    inherit.aes = FALSE,
-    color = "black",
-    linetype = "dashed",
-    linewidth = 0.3,
-    alpha = 0.75
-  )
-
-ggsave(
-  file.path(output_dir, "02_ejab_vs_bic_bf01_six_parametric_tests.png"),
-  bic_vs_ejab,
-  width = 16,
-  height = 7.5,
-  dpi = 300
 )
 
 bic_vs_ejab
 ```
 
-## 4. eJAB versus TSBF: chi-square independence only
+## 4. eJAB versus TSBF: three chi-square table dimensions
 
-```{r plot-tsbf, fig.height=7.5}
+```{r plot-tsbf, fig.height=5.5}
 tsbf_vs_ejab <- plot_criticality_map(
-  filter(plot_data, test_key %in% tsbf_test_keys),
+  tsbf_dimension_plot_data,
   "delta_tsbf_minus_ejab",
   expression(
     "Large-sample Bayes-risk criticality maps: " *
       TSBF["01"] <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
-  "03_ejab_vs_tsbf01_chisq.png",
-  ncol = 1,
-  height = 7.5
+  "03_ejab_vs_tsbf01_three_table_sizes.png",
+  ncol = 3,
+  height = 5.5,
+  y_label = expression(
+    "True standardized effect size (" * omega * ")"
+  )
 )
 tsbf_vs_ejab
 ```
@@ -1607,8 +1736,8 @@ This analysis directly addresses the comparison of
 2. \(TSBF_{01}\leq1\), with the BFF evaluated at the true standardized
    effect size.
 
-The columns correspond to \(2\times2\), \(3\times3\), \(5\times5\), and
-\(5\times10\) independence tests, with \(q=(R-1)(C-1)\) degrees of freedom.
+The columns correspond to \(2\times2\), \(3\times3\), and \(5\times5\)
+independence tests, with \(q=(R-1)(C-1)\) degrees of freedom.
 The common vertical axis is Cohen's \(w\), so the effect-size scale is
 comparable across table dimensions. Under the noncentral chi-square
 approximation,
@@ -1664,9 +1793,9 @@ w\leq 2\sqrt{
 }.
 \]
 
-The maxima are \(1\), \(2/3\), \(0.8\), and \(2/\sqrt{5}\) for the
-\(2\times2\), \(3\times3\), \(5\times5\), and \(5\times10\) designs,
-respectively. These bounds apply only to this particular checkerboard
+The maxima are \(1\), \(2/3\), and \(0.8\) for the \(2\times2\),
+\(3\times3\), and \(5\times5\) designs, respectively. These bounds apply only
+to this particular checkerboard
 construction. The noncentral chi-square risk calculation depends on
 \((q,n,w)\), rather than on that construction, so the plots use the broader
 common range \(0\leq w\leq2\). Values above a design's attainable maximum
@@ -1675,14 +1804,6 @@ extrapolations rather than results generated by a contingency table from that
 design.
 
 ```{r chi-square-data-generator}
-chisq_dimensions <- tribble(
-  ~rows, ~columns, ~table_label, ~table_plot_label, ~q,
-  2L,  2L, "2 x 2 (q=1)",   "2 %*% 2~(q == 1)",    1L,
-  3L,  3L, "3 x 3 (q=4)",   "3 %*% 3~(q == 4)",    4L,
-  5L,  5L, "5 x 5 (q=16)",  "5 %*% 5~(q == 16)",  16L,
-  5L, 10L, "5 x 10 (q=36)", "5 %*% 10~(q == 36)", 36L
-)
-
 chisq_probabilities_from_omega <- function(R, C, omega = 0) {
   stopifnot(
     length(R) == 1, length(C) == 1, length(omega) == 1,
@@ -1783,11 +1904,7 @@ stopifnot(
   sum(simData6(120, 3, 3, 0.3, "jointMulti")) == 120,
   all(rowSums(
     simData6(120, 3, 3, 0.3, "indepMulti")
-  ) == 40),
-  sum(simData6(100, 5, 10, 0.3, "jointMulti")) == 100,
-  all(rowSums(
-    simData6(100, 5, 10, 0.3, "indepMulti")
-  ) == 20)
+  ) == 40)
 )
 
 kable(
@@ -1798,87 +1915,6 @@ kable(
 ```
 
 ```{r chi-square-dimension-risk-grid}
-chisq_w_max <- 2
-chisq_w_grid <- dense_theta_grid[
-  dense_theta_grid <= chisq_w_max + sqrt(.Machine$double.eps)
-]
-
-chisq_dimension_cell <- function(
-    rows, columns, table_label, table_plot_label, q, n, w) {
-  lambda <- n * w^2
-
-  critical_p05 <- qchisq(1 - p05_threshold, df = q)
-  critical_ejab <- (
-    log(n) - 2 * log(bf01_threshold)
-  ) / (1 - n^(-1 / q))
-
-  tau2 <- n * w^2
-  critical_tsbf <- critical_root(
-    function(x) log_bff10_chisq(x, q, tau2)
-  )
-
-  alpha_p05 <- pchisq(critical_p05, df = q, lower.tail = FALSE)
-  alpha_ejab <- pchisq(critical_ejab, df = q, lower.tail = FALSE)
-  alpha_tsbf <- if (is.finite(critical_tsbf)) {
-    pchisq(critical_tsbf, df = q, lower.tail = FALSE)
-  } else {
-    0
-  }
-
-  power_p05 <- pchisq(
-    critical_p05, df = q, ncp = lambda, lower.tail = FALSE
-  )
-  power_ejab <- pchisq(
-    critical_ejab, df = q, ncp = lambda, lower.tail = FALSE
-  )
-  power_tsbf <- if (is.finite(critical_tsbf)) {
-    pchisq(
-      critical_tsbf, df = q, ncp = lambda, lower.tail = FALSE
-    )
-  } else {
-    0
-  }
-
-  risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
-  risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
-  risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
-
-  tibble(
-    rows = rows,
-    columns = columns,
-    table_label = table_label,
-    table_plot_label = table_plot_label,
-    q = q,
-    n = n,
-    w = w,
-    alpha_p05 = alpha_p05,
-    alpha_ejab = alpha_ejab,
-    alpha_tsbf = alpha_tsbf,
-    power_p05 = power_p05,
-    power_ejab = power_ejab,
-    power_tsbf = power_tsbf,
-    beta_p05 = 1 - power_p05,
-    beta_ejab = 1 - power_ejab,
-    beta_tsbf = 1 - power_tsbf,
-    risk_p05 = risk_p05,
-    risk_ejab = risk_ejab,
-    risk_tsbf = risk_tsbf,
-    delta_p05_minus_ejab = risk_p05 - risk_ejab,
-    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
-  )
-}
-
-chisq_dimension_tasks <- crossing(
-  chisq_dimensions,
-  n = dense_n_grid,
-  w = chisq_w_grid
-)
-
-chisq_dimension_risk <- pmap_dfr(
-  chisq_dimension_tasks,
-  chisq_dimension_cell
-)
-
 chisq_dimension_risk_file <- file.path(
   output_dir, "chisq_dimensions_risk_grid.csv"
 )
@@ -2045,6 +2081,11 @@ chisq_panel_annotations <- chisq_panel_scaling_factors |>
     )
   )
 
+chisq_local_contours <- local_alternative_contours(
+  dense_n_grid,
+  chisq_w_grid
+)
+
 chisq_dimension_risk_plot <- ggplot(
   chisq_dimension_plot_data,
   aes(
@@ -2054,6 +2095,15 @@ chisq_dimension_risk_plot <- ggplot(
   )
 ) +
   geom_rect() +
+  geom_line(
+    data = chisq_local_contours,
+    aes(x = log10_n, y = theta, group = c_value),
+    inherit.aes = FALSE,
+    color = "black",
+    linetype = "dashed",
+    linewidth = 0.3,
+    alpha = 0.75
+  ) +
   geom_label(
     data = chisq_panel_annotations,
     aes(x = -Inf, y = Inf, label = annotation),
