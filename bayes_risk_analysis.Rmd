@@ -299,6 +299,10 @@ chisq_omega2 <- function(theta) {
   sum((p - expected)^2 / expected)
 }
 
+chisq_tau2 <- function(n, omega2, q) {
+  n * omega2 / q
+}
+
 tau2_for <- function(test_key, n, theta, simulation_result = NULL) {
   if (test_key == "ttest") {
     n1 <- floor(n / 2)
@@ -329,7 +333,13 @@ tau2_for <- function(test_key, n, theta, simulation_result = NULL) {
     omega2 <- sum((means - mean(means))^2) / (conditions - 1)
     return(n * omega2 / 2)
   }
-  if (test_key == "chisq") return(n * chisq_omega2(theta))
+  if (test_key == "chisq") {
+    return(chisq_tau2(
+      n,
+      chisq_omega2(theta),
+      unname(q_by_test[test_key])
+    ))
+  }
   NA_real_
 }
 
@@ -1052,6 +1062,31 @@ critical_root <- function(log_bf_function) {
   )$root
 }
 
+estimated_omega_tsbf_critical <- function(q) {
+  target <- log(1 / bf01_threshold)
+  objective <- function(x) {
+    log_bff10_chisq(x, q, tau2 = x / q) - target
+  }
+
+  # With BF01 = 1, x = 0 is a measure-zero equality point. For positive x,
+  # the plug-in BFF first falls below 1 and then crosses back above 1. The
+  # rejection region is determined by this positive upper crossing.
+  lower <- sqrt(.Machine$double.eps)
+  if (!is.finite(objective(lower)) || objective(lower) >= 0) {
+    stop("Could not bracket the positive plug-in TSBF crossing.")
+  }
+
+  upper <- max(1, q)
+  value <- objective(upper)
+  while ((!is.finite(value) || value < 0) && upper < 1e7) {
+    upper <- upper * 2
+    value <- objective(upper)
+  }
+  if (!is.finite(value) || value < 0) return(Inf)
+
+  uniroot(objective, interval = c(lower, upper), tol = 1e-8)$root
+}
+
 dense_tau2 <- function(test_key, n, theta, data_theta = theta) {
   switch(
     test_key,
@@ -1065,7 +1100,11 @@ dense_tau2 <- function(test_key, n, theta, data_theta = theta) {
     cox = n_eff_dense("cox", n, data_theta) * theta^2 / 4,
     anova = n * theta^2 / 6,
     ranova = 2 * n * theta^2 / 3,
-    chisq = n * chisq_omega2(theta),
+    chisq = chisq_tau2(
+      n,
+      chisq_omega2(theta),
+      unname(q_by_test[test_key])
+    ),
     NA_real_
   )
 }
@@ -1491,6 +1530,11 @@ chisq_w_grid <- dense_theta_grid[
   dense_theta_grid <= chisq_w_max + sqrt(.Machine$double.eps)
 ]
 
+estimated_omega_tsbf_criticals <- setNames(
+  map_dbl(chisq_dimensions$q, estimated_omega_tsbf_critical),
+  chisq_dimensions$q
+)
+
 chisq_dimension_cell <- function(
     rows, columns, table_label, table_plot_label, q, n, w) {
   lambda <- n * w^2
@@ -1500,15 +1544,28 @@ chisq_dimension_cell <- function(
     log(n) - 2 * log(bf01_threshold)
   ) / (1 - n^(-1 / q))
 
-  tau2 <- n * w^2
+  tau2 <- chisq_tau2(n, w^2, q)
   critical_tsbf <- critical_root(
     function(x) log_bff10_chisq(x, q, tau2)
+  )
+  critical_tsbf_estimated_omega <- unname(
+    estimated_omega_tsbf_criticals[as.character(q)]
   )
 
   alpha_p05 <- pchisq(critical_p05, df = q, lower.tail = FALSE)
   alpha_ejab <- pchisq(critical_ejab, df = q, lower.tail = FALSE)
   alpha_tsbf <- if (is.finite(critical_tsbf)) {
     pchisq(critical_tsbf, df = q, lower.tail = FALSE)
+  } else {
+    0
+  }
+  alpha_tsbf_estimated_omega <- if (
+      is.finite(critical_tsbf_estimated_omega)) {
+    pchisq(
+      critical_tsbf_estimated_omega,
+      df = q,
+      lower.tail = FALSE
+    )
   } else {
     0
   }
@@ -1526,10 +1583,24 @@ chisq_dimension_cell <- function(
   } else {
     0
   }
+  power_tsbf_estimated_omega <- if (
+      is.finite(critical_tsbf_estimated_omega)) {
+    pchisq(
+      critical_tsbf_estimated_omega,
+      df = q,
+      ncp = lambda,
+      lower.tail = FALSE
+    )
+  } else {
+    0
+  }
 
   risk_p05 <- 0.5 * (alpha_p05 + 1 - power_p05)
   risk_ejab <- 0.5 * (alpha_ejab + 1 - power_ejab)
   risk_tsbf <- 0.5 * (alpha_tsbf + 1 - power_tsbf)
+  risk_tsbf_estimated_omega <- 0.5 * (
+    alpha_tsbf_estimated_omega + 1 - power_tsbf_estimated_omega
+  )
 
   tibble(
     rows = rows,
@@ -1539,20 +1610,27 @@ chisq_dimension_cell <- function(
     q = q,
     n = n,
     w = w,
+    critical_tsbf_estimated_omega = critical_tsbf_estimated_omega,
     alpha_p05 = alpha_p05,
     alpha_ejab = alpha_ejab,
     alpha_tsbf = alpha_tsbf,
+    alpha_tsbf_estimated_omega = alpha_tsbf_estimated_omega,
     power_p05 = power_p05,
     power_ejab = power_ejab,
     power_tsbf = power_tsbf,
+    power_tsbf_estimated_omega = power_tsbf_estimated_omega,
     beta_p05 = 1 - power_p05,
     beta_ejab = 1 - power_ejab,
     beta_tsbf = 1 - power_tsbf,
+    beta_tsbf_estimated_omega = 1 - power_tsbf_estimated_omega,
     risk_p05 = risk_p05,
     risk_ejab = risk_ejab,
     risk_tsbf = risk_tsbf,
+    risk_tsbf_estimated_omega = risk_tsbf_estimated_omega,
     delta_p05_minus_ejab = risk_p05 - risk_ejab,
-    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab
+    delta_tsbf_minus_ejab = risk_tsbf - risk_ejab,
+    delta_tsbf_estimated_omega_minus_ejab =
+      risk_tsbf_estimated_omega - risk_ejab
   )
 }
 
@@ -1575,6 +1653,30 @@ tsbf_dimension_plot_data <- chisq_dimension_risk |>
     n = n,
     theta = w,
     delta_tsbf_minus_ejab = delta_tsbf_minus_ejab,
+    log10_n = log10(n),
+    facet_label = factor(
+      table_plot_label,
+      levels = chisq_dimensions$table_plot_label
+    )
+  ) |>
+  left_join(
+    x_bounds |> transmute(log10_n = center, xmin = lower, xmax = upper),
+    by = "log10_n"
+  ) |>
+  left_join(
+    y_bounds |> transmute(theta = center, ymin = lower, ymax = upper),
+    by = "theta"
+  )
+
+tsbf_estimated_omega_dimension_plot_data <- chisq_dimension_risk |>
+  transmute(
+    test_key = table_label,
+    test = table_label,
+    q = q,
+    n = n,
+    theta = w,
+    delta_tsbf_estimated_omega_minus_ejab =
+      delta_tsbf_estimated_omega_minus_ejab,
     log10_n = log10(n),
     facet_label = factor(
       table_plot_label,
@@ -1622,6 +1724,11 @@ all_risk_panel_scaling_factors <- bind_rows(
     tsbf_dimension_plot_data,
     "delta_tsbf_minus_ejab",
     "TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5"
+  ),
+  panel_scaling_summary(
+    tsbf_estimated_omega_dimension_plot_data,
+    "delta_tsbf_estimated_omega_minus_ejab",
+    "TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5"
   )
 )
 
@@ -1708,6 +1815,74 @@ tsbf_vs_ejab <- plot_criticality_map(
 tsbf_vs_ejab
 ```
 
+## 5. Sensitivity analysis: TSBF using estimated effect size
+
+The primary TSBF map above evaluates the BFF at the population effect size
+used to generate each risk cell. As a plug-in sensitivity analysis, this
+version estimates Cohen's effect from each realized chi-square statistic:
+
+\[
+\widehat\omega=\sqrt{\frac{X^2}{n}},\qquad
+\widehat\tau^2=\frac{n}{q}\widehat\omega^2=\frac{X^2}{q}.
+\]
+
+Consequently, the BFF depends on the observed \(X^2\) both directly and through
+\(\widehat\tau^2\). With the threshold \(BF_{01}\leq1\), \(X^2=0\) is an exact
+equality point with probability zero under the continuous chi-square
+distribution. For positive \(X^2\), the BFF initially falls below the threshold
+and then crosses it from below. The risk calculation uses that positive upper
+crossing as the rejection boundary.
+
+This plug-in calculation is useful for the requested sensitivity check, but it
+is an empirical-Bayes-style use of the test statistic rather than integration
+over uncertainty in \(\omega\).
+
+```{r estimated-omega-tsbf-criticals}
+estimated_omega_tsbf_critical_table <- chisq_dimensions |>
+  transmute(
+    table_label,
+    q,
+    positive_chisq_critical = unname(
+      estimated_omega_tsbf_criticals[as.character(q)]
+    ),
+    alpha = pchisq(
+      positive_chisq_critical,
+      df = q,
+      lower.tail = FALSE
+    )
+  )
+
+write.csv(
+  estimated_omega_tsbf_critical_table,
+  file.path(output_dir, "estimated_omega_tsbf_critical_values.csv"),
+  row.names = FALSE
+)
+
+kable(
+  estimated_omega_tsbf_critical_table,
+  digits = 6,
+  caption = "Plug-in estimated-effect TSBF rejection boundaries"
+)
+```
+
+```{r plot-tsbf-estimated-omega, fig.height=5.5}
+tsbf_estimated_omega_vs_ejab <- plot_criticality_map(
+  tsbf_estimated_omega_dimension_plot_data,
+  "delta_tsbf_estimated_omega_minus_ejab",
+  expression(
+    "Large-sample Bayes-risk sensitivity map: " *
+      TSBF["01"](hat(omega)) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+  ),
+  "03b_ejab_vs_tsbf01_estimated_omega_three_table_sizes.png",
+  ncol = 3,
+  height = 5.5,
+  y_label = expression(
+    "Population effect size defining risk (" * omega * ")"
+  )
+)
+tsbf_estimated_omega_vs_ejab
+```
+
 ## Combined figure
 
 ```{r combined-figure, fig.height=30}
@@ -1756,12 +1931,12 @@ BFF_{10}(X^2\mid\tau^2)
 \left\{1+\frac{\tau^2X^2}{q(1+\tau^2)}\right\}
 \exp\left\{\frac{\tau^2X^2}{2(1+\tau^2)}\right\},
 \qquad
-\tau_\omega^2=n\omega^2.
+\tau_\omega^2=\frac{n}{q}\omega^2.
 \]
 
 The BFF is evaluated at the true standardized effect, so the implementation
-sets \(\tau^2=nw^2\). The risk calculations use equal prior model probabilities
-and equal error costs:
+sets \(\tau^2=(n/q)w^2\). The risk calculations use equal prior model
+probabilities and equal error costs:
 
 \[
 R_d(n,w)=\frac12\{\alpha_d(n,w)+1-\operatorname{power}_d(n,w)\}.

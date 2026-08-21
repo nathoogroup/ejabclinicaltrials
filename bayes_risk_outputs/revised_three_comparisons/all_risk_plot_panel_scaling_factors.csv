@@ -12,7 +12,7 @@
 "p < 0.05 versus eJAB","anova","One-way ANOVA",3,0.215339224219398
 "p < 0.05 versus eJAB","chisq","Chi-square independence",4,0.173354365507391
 "p < 0.05 versus eJAB","cox","Cox PH regression",1,0.316905540896916
-"p < 0.05 versus eJAB","kruskal","Kruskal-Wallis",4,0.1587172090125
+"p < 0.05 versus eJAB","kruskal","Kruskal-Wallis",4,0.158717209012501
 "p < 0.05 versus eJAB","lm","Linear regression",1,0.319229399792346
 "p < 0.05 versus eJAB","logistic","Logistic regression",1,0.319466734927217
 "p < 0.05 versus eJAB","mannwhitney","Mann-Whitney",1,0.316493261681171
@@ -26,5 +26,8 @@
 "BIC BF01 <= 1 versus eJAB","ranova","Repeated-measures ANOVA",3,0.34575
 "BIC BF01 <= 1 versus eJAB","ttest","Two-sample t-test",1,0.023
 "TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.314733024870209
-"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.107462431881528
-"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.394356109712702
+"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.201793560645627
+"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.168764666330525
+"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.326802425865855
+"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.204649151496453
+"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.1402725507799
