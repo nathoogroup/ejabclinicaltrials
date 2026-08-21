@@ -1,0 +1,2036 @@
+---
+title: "Generalized Jeffreys's Approximate Objective Bayes Factor"
+subtitle: "Part Six: Chi-Squared Test for Independence Simulation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(ks)) {install.packages("ks")}
+if(!require(mvtnorm)) {install.packages("mvtnorm")}
+if(!require(rstan)) {install.packages("rstan"); library(rstan)}
+#do not use "bridgesampling" CRAN version 1.1-2 or lower
+if(!require(devtools)) {install.packages("devtools")}
+if(!require(bridgesampling)) {devtools::install_github("quentingronau/bridgesampling@master"); library(bridgesampling)}
+if(!require(BayesFactor)) {install.packages("BayesFactor")}
+if(!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
+if(!require(plotly)) {install.packages("plotly"); library(plotly)}
+if(!require(remotes)) {install.packages("remotes")}
+if(!require(klippy)) {remotes::install_github("rlesur/klippy")}
+if(!require(kableExtra)) {install.packages("kableExtra"); library(kableExtra)}
+```
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy()
+```
+============================================================================================================ 
+
+Open Science Framework: <https://osf.io/qeprj/>
+
+&nbsp;
+
+# {.tabset .tabset-fade .tabset-pills}
+## 0. Getting Started {.tabset .tabset-fade}
+
+&nbsp;
+
+<!-- | **Test** | **Purpose** | **Variable Types** | **Null Hypothesis** | **Key Assumptions** | -->
+<!-- |:--------:|:---------------------------------------------------:|:--------------------------------------------------------------------------------------------:|:---------------------------------------------:|:------------------------------------------------------------------------------------------------------------------:| -->
+<!-- | $\chi^2$ | To test relationships between categorical variables | Categorical (nominal, ordinal) | No association between variables | Expected frequency in each cell $\geqslant5$;<br>Independent observations | -->
+<!-- | $t$ | To compare means between two groups | Continuous dependent variable;<br>Categorical independent variable (binary) | No difference in means between the two groups | Normally distributed dependent variable;<br>Equal variances (for two-sample $t$-test);<br>Independent observations | -->
+<!-- | ANOVA | To compare means among two or more groups | Continuous dependent variable;<br>Categorical independent variable <br>(with two or more levels) | No difference in means across groups | Normally distributed dependent variable;<br>Equal variances;<br>Independent observations | -->
+
+<!-- &nbsp; -->
+<!-- &nbsp; -->
+
+$\chi^2$-tests for
+
+* goodness of fit: &nbsp;&nbsp; <span style="color:gray">determine whether the data fits a specific distribution</span>
+
+```{r exp-1}
+# Is the die fair?
+rolls <- c(22, 23, 20, 25, 27, 33) # number of rolls for each face
+chisq.test(rolls)
+```
+
+&nbsp;
+&nbsp;
+
+* **independence**: &nbsp;&nbsp; <span style="color:gray">determine whether there is a significant association between two categorical variables</span>
+
+For each cell in the [contingency table](https://people.stat.sc.edu/hansont/stat705/categorical.pdf), calculate the expected frequency and, then, the test statistic as
+
+\begin{align}
+E_{ij}&=\frac{O_{i\centerdot}\cdot O_{\centerdot j}}{N},\quad\text{where }N=\sum_{i=1}^R\sum_{j=1}^C O_{ij},\quad O_{i\centerdot}=\sum_{j=1}^C O_{ij},\quad\text{and }O_{\centerdot j}=\sum_{i=1}^R O_{ij} \\
+\chi^2&=\sum_{i=1}^R\sum_{j=1}^C\frac{(O_{ij}-E_{ij})^2}{E_{ij}}\overset{\mathcal{H}_0}{\sim}\chi^2_{(R-1)(C-1)}
+\end{align}
+
+These calculations also apply to product multinomial sampling, where one variable's marginals are fixed.
+
+```{r exp-2}
+# Does the seat belt make a difference? (Jobson, 1982, p. 18)
+belt <- matrix(c(12813,  647,  359,  42,
+                 65963, 4000, 2642, 303), nrow=2, byrow=T,
+               dimnames=list(c("yesbelt", "nahbelt"), c("none", "minimal", "minor", "major")))
+chisq.test(belt)
+
+# https://richarddmorey.github.io/BayesFactor/#ctables
+BayesFactor::contingencyTableBF(belt, sampleType="jointMulti") # fixed total
+BayesFactor::contingencyTableBF(belt, sampleType="indepMulti", fixedMargin="rows") # fixed row sums
+```
+
+&nbsp;
+
+Assumption: Expected frequency in each cell $\geqslant5$
+
+<span style="color:red"><font size="3"> Warning Message </font></span>
+
+```{r WARN}
+mat <- matrix(c(12, 8, 11, 5, 5, 10, 16, 8, 15), nrow=3) # small cell sizes
+chisq.test(mat) # WARNING
+chisq.test(mat, simulate.p.value=T)
+fisher.test(mat) # Fisher's exact test
+```
+
+&nbsp;
+&nbsp;
+
+* homogeneity: &nbsp;&nbsp; <span style="color:gray">determine whether different populations have the same distribution</span>
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 1. Methods {.tabset .tabset-fade}
+
+&nbsp;
+
+### "*BayesFactor*" R Package
+
+&nbsp;
+
+Gûnel and Dickey ([1974](https://doi.org/10.2307/2334738)) proposed the symmetric Dirichlet prior for the cell probabilities ($\sum_{k=1}^K\pi_k=1$) under the alternative hypothesis of association, noting that it is conjugate to the multinomial distribution.
+
+\begin{equation} \tag{1}
+  (\pi_1,\dotsb,\pi_K)^\top\sim\operatorname{Dir}(a)=\frac{\Gamma(Ka)}{(\Gamma(a))^K}\prod_{k=1}^K\pi_k^{a-1}
+\end{equation}
+
+The key parameter is the shared concentration $a>0$.
+
+* A (default) value of $a=1$ specifies a uniform prior over the $(K-1)$-simplex.
+
+* Values $0<a<1$ lead to a prior that concentrates mass in the corners of the simplex (favoring extreme probabilities).
+
+* Values $a>1$ lead to a prior that concentrates mass in the center of the simplex (favoring equal probabilities). $\pi_k=1/K$ as $a\to\infty$.
+
+&nbsp;
+
+> Total Sum Fixed (Joint Multinomial)
+
+\begin{equation} \tag{2}
+  (O_{11},\dotsb,O_{RC})^\top\mid N,(\pi_{11},\dotsb,\pi_{RC})^\top\sim\operatorname{Multinomial}\left(N,(\pi_{11},\dotsb,\pi_{RC})^\top\right)
+\end{equation}
+
+\begin{equation} \tag{3}
+  \mathcal{H}_1:\ (\pi_{11},\dotsb,\pi_{RC})^\top\sim\operatorname{Dir}(a)
+\end{equation}
+
+\begin{align} \tag{4}
+  \text{versus}\quad\mathcal{H}_0:\ &(\pi_{1\centerdot},\dotsb,\pi_{R\centerdot})^\top\sim\operatorname{Dir}(Ca-C+1) \\
+  &(\pi_{\centerdot 1},\dotsb,\pi_{\centerdot C})^\top\sim\operatorname{Dir}(Ra-R+1) \\
+  &\pi_{ij}=\pi_{i\centerdot}\cdot\pi_{\centerdot j}
+\end{align}
+
+Under these priors, the conditional Bayes factor for independence given $N$ becomes a product/ratio of Dirichlet normalizing constants (beta functions) for the row and column margins versus the full $K$-dimensional Dirichlet (Good, [1950](https://doi.org/10.2307/2280518), p. 99).
+
+&nbsp;
+
+> Row Sums Fixed (Independent Multinomial Rows)
+
+For $i=1,\dotsb,R$,
+
+\begin{equation} \tag{5}
+  (O_{i1},\dotsb,O_{iC})^\top\mid O_{i\centerdot},(w_{1\mid i},\dotsb,w_{C\mid i})^\top\sim\operatorname{Multinomial}(O_{i\centerdot},(w_{1\mid i},\dotsb,w_{C\mid i})^\top)
+\end{equation}
+
+\begin{equation} \tag{6}
+  \mathcal{H}_1:\ (w_{1\mid i},\dotsb,w_{C\mid i})^\top\overset{\text{i.i.d.}}{\sim}\operatorname{Dir}(a)
+\end{equation}
+
+\begin{align} \tag{7}
+  \text{versus}\quad\mathcal{H}_0:\ &(\pi_{\centerdot 1},\dotsb,\pi_{\centerdot C})^\top\sim\operatorname{Dir}(Ra-R+1) \\
+  &(w_{1\mid i},\dotsb,w_{C\mid i})^\top=(\pi_{\centerdot 1},\dotsb,\pi_{\centerdot C})^\top
+\end{align}
+
+Under these priors, the conditional Bayes factor for independence given the row totals reduces to a product/ratio of Dirichlet normalizing constants across rows versus the shared column vector (Good, [1950](https://doi.org/10.2307/2280518), p. 100).
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### BIC Approximation {.tabset .tabset-fade}
+
+&nbsp;
+
+Approximating Bayes Factors from Bayesian Information Criterion (BIC)
+
+&nbsp;
+&nbsp;
+
+The BIC for model $i$ with the number of free parameters $k_i$ and the sample size $N$ is $\text{BIC}(\mathcal{M}_i)=-2\ln{\mathcal{L}_i}+k_i\ln{N}\quad$ for $N\gg k_i$,
+
+where $\mathcal{L}_i=p(\boldsymbol{y}\mid\hat{\boldsymbol{\theta}}_i,\mathcal{M}_i)$ is the maximum likelihood.
+
+&nbsp;
+
+Use the second-order Taylor approximation of log-marginal likelihood of each model.
+
+\begin{equation} \tag{8}
+\mathit{BF}_{10}\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_0)-\text{BIC}(\mathcal{M}_1)}{2}\right\}
+\end{equation}
+
+Derivation in Wagenmakers ([2007](https://dx.doi.org/10.3758/BF03194105), Appendix B).
+
+&nbsp;
+&nbsp;
+
+<!-- All three $\chi^2$-tests (for goodness of fit, independence, and homogeneity) are **nonparametric** because they do not assume an underlying parametric distribution for the data. Instead, they rely on comparing observed and expected frequencies. -->
+
+<!-- &nbsp; -->
+
+#### Assume a fixed total
+
+The maximum likelihood estimates for the proportions are $\hat{\pi}_{ij}=O_{ij}\ /\ N$ under $\mathcal{H}_1$ and $\hat{\pi}_{ij}=O_{i\centerdot}\cdot O_{\centerdot j}\ /\ N^2$ under $\mathcal{H}_0$.
+
+And the numbers of parameters are $k_1=R\cdot C-1$ under $\mathcal{H}_1$ and $k_0=R+C-2$ under $\mathcal{H}_0$, assuming a joint multinomial distribution.
+
+```{r BIC-jointMulti}
+total <- sum(belt) # grand total
+row_mar <- rowSums(belt) # row sums
+col_mar <- colSums(belt) # column sums
+expected <- outer(row_mar, col_mar) / total # outer product / grand total = expected frequency
+
+# `prob` normalization is not necessary        ↓
+logML_joint_H1 <- dmultinom(c(belt), total, c(belt), log=T) # log maximum likelihood under H₁
+logML_joint_H0 <- dmultinom(c(belt), total, c(expected), log=T) # log maximum likelihood under H₀
+
+BIC_joint_H1 <- -2 * logML_joint_H1 + (2*4-1) * log(total)
+BIC_joint_H0 <- -2 * logML_joint_H0 + (2+4-2) * log(total)
+
+exp((BIC_joint_H1 - BIC_joint_H0) / 2) # BF₀₁
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+#### Assume fixed row sums
+
+The maximum likelihood estimates for the proportions are $\hat{\pi}_{ij}=O_{ij}\ /\ O_{i\centerdot}$ under $\mathcal{H}_1$ and $\hat{\pi}_{ij}=O_{\centerdot j}\ /\ N$ under $\mathcal{H}_0$.
+
+And the numbers of parameters are $k_1=R\cdot(C-1)$ under $\mathcal{H}_1$ and $k_0=C-1$ under $\mathcal{H}_0$, assuming independent multinomial distributions.
+
+```{r BIC-indepMulti}
+logML_indep_H1 <- unname(dmultinom(belt[1,], row_mar[1], belt[1,], log=T) +
+                         dmultinom(belt[2,], row_mar[2], belt[2,], log=T)) # log maximum likelihood under H₁
+logML_indep_H0 <- unname(dmultinom(belt[1,], row_mar[1], col_mar, log=T) +
+                         dmultinom(belt[2,], row_mar[2], col_mar, log=T)) # log maximum likelihood under H₀
+
+BIC_indep_H1 <- -2 * logML_indep_H1 + (2*(4-1)) * log(total)
+BIC_indep_H0 <- -2 * logML_indep_H0 + (4-1) * log(total)
+
+exp((BIC_indep_H1 - BIC_indep_H0) / 2) # BF₀₁ (same)  <==
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Approximate Bayes Factor
+
+&nbsp;
+
+\begin{align}
+  \text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)&=-2\ln{\mathcal{L}_1}+k_1\ln{N}+2\ln{\mathcal{L}_0}-k_0\ln{N} \\
+  &=-2(\ln{\mathcal{L}_1}-\ln{\mathcal{L}_0})+(k_1-k_0)\ln{N} \\
+  &=-\Lambda+(k_1-k_0)\ln{N} \\
+  \\
+  \mathit{BF}_{01}&\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)}{2}\right\} \\
+  &=\exp\left\{\frac{-\Lambda+(k_1-k_0)\ln{N}}{2}\right\} \\
+  &=N^{\frac{(R-1)(C-1)}{2}}\!\cdot\exp\left\{-\frac{\Lambda}{2}\right\} \tag{$8^\prime$}
+\end{align}
+
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<font size="3"> Test on a Single Parameter </font>
+
+The test statistic in a Wald test is $W=\left(\frac{\hat{\theta}-\theta_0}{\text{se}(\hat{\theta})}\right)^2\sim\chi_1^2$ under $\mathcal{H}_0$, where $\hat{\theta}$ is the maximum likelihood estimate, and $\text{se}(\hat{\theta})$ is the standard error.
+
+Wagenmakers ([2022](https://doi.org/10.31234/osf.io/egydq); its Eq. 6) reviewed the Jeffreys-style approximate Bayes factor (JAB) and proposed a piecewise approximation (WAB) from $p$-value and effective sample size $N$ in Eq. 10.
+
+The complication with JAB is that the approximation is valid **only** when $\text{se}(\hat{\theta})\ll\sigma_g$, where $\sigma_g$ is the scale of the prior distribution $g(\theta)$. Note that with very small sample sizes, this assumption is not true and Eq. 9 is biased against $\mathcal{H}_0$.
+
+\begin{equation} \tag{9}
+\textit{JAB}_{01}=A\cdot\sqrt{N}\exp\left\{-\frac{1}{2}W\right\}
+\end{equation}
+
+A normal unit-information prior for $\theta$ yields $A=1$. Based on the Jeffreys prior, the general approximation specifies $A=\sqrt{\pi/2}\approx1.253$.
+
+&nbsp;
+
+Wagenmakers's piecewise approximation is
+
+\[
+\textit{WAB}_{01}\approx
+\begin{cases} \tag{10}
+  \text{$\ p^{\frac{1}{4}}\sqrt{N}$,} & \text{$p>0.5$} \\
+  \\
+  \text{$\ \sqrt{pN}$,} & \text{$0.1<p\leqslant0.5$ (simpler)} \\
+  \\
+  \text{$\ \frac{4}{3}p^{\frac{2}{3}}\sqrt{N}$,} & \text{$0.1<p\leqslant0.5$ (more precise)} \\
+  \\
+  \text{$\ 3p\sqrt{N}$,} & \text{$p\leqslant0.1$}
+\end{cases} 
+\]
+
+&nbsp;
+
+Wagenmakers ([2022](https://doi.org/10.31234/osf.io/egydq), p. 28-30) demonstrated how to compare two proportions in a $2\times2$ contingency table (odds ratio representation).
+
+<!-- The $\chi^2$-statistic divided by the degrees of freedom is often referred to as the **reduced** $\chi^2$-statistic or $\chi^2$ per degree of freedom. This value provides an estimate of how well the model fits the data, normalized by the degrees of freedom. A value close to 1 suggests a good fit, while values significantly greater than 1 or less than 1 indicate overdispersion or underdispersion, respectively. -->
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### <span style="color:red">Extended JAB</span>
+
+&nbsp;
+
+We have encountered an issue with BIC approximation-based methods in chi-squared tests for independence.
+
+Consider a scenario where the total number of observations is 200, and the contingency table is $3\times4$. A $p$-value of 0.01 corresponds to an original $\mathit{JAB}_{01}$ value of 1865 in favor of the null hypothesis, while a $p$-value of 0.0001 corresponds to an original $\mathit{JAB}_{01}$ value of 7.66, also in favor of the null. These results seem paradoxical.
+
+&nbsp;
+
+```{r Cloud-2}
+pVal <- .0001; N <- 200; R <- 3; C <- 4; df <- (R-1) * (C-1)
+
+N^(df/2) * exp(-0.5 * qchisq(1-pVal, df) * (N-1) / N) # original JAB₀₁
+
+sqrt(N) * exp(-0.5 * qchisq(1-pVal, df) * (N^(1/df)-1) / N^(1/df)) # extended JAB₀₁
+```
+
+&nbsp;
+
+$\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$
+
+To reduce the extreme bias towards the null hypothesis, we assume the prior $\boldsymbol{\theta}\sim\boldsymbol{\mathcal{N}}_q\!\left(\hat{\boldsymbol{\theta}},\ N^{1/q}\cdot I^{-1}(\hat{\boldsymbol{\theta}})\right)$, which, for $q=1$, corresponds to the normal unit-information prior. For $q>1$, the prior becomes more informative, placing more weight on the maximum likelihood estimate.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Test-Based Bayes Factor {.tabset .tabset-fade}
+
+&nbsp;
+
+Bayes Factors Based on the Sampling Distributions of Test Statistics
+
+&nbsp;
+&nbsp;
+
+Johnson ([2005](https://doi.org/10.1111/j.1467-9868.2005.00521.x)) developed an approach to computing Bayes factors based on test statistics. These Bayes factors are derived by modeling the test statistic and considering its distribution under both the null and alternative hypotheses. The resulting Bayes factor is an approximation of a full Bayes factor. Additionally, priors for the parameter under test are chosen to maximize the marginal density of the data (the test statistic in this context) under the alternative hypothesis, thereby making the test statistic Bayes factor (TSBF) an upper bound on the weight of evidence against the null hypothesis.
+
+Unlike JAB/WAB, the proposed TSBFs are also unable to find evidence in favor of the null hypothesis. That is to say, the range of these measures of evidence is $1\leqslant\textit{BF}_{10}<\infty$.
+
+* <span style="color:gray">Dirichlet prior <https://github.com/zhengxiaoUVic/Bayesian></span>
+
+* TSBFs provide the least conservative measure of evidence against the null hypothesis, yielding relatively larger values of $\mathit{TSBF}_{10}$.
+
+* TSBFs may lack the property of **coherence** ($\textit{BF}_{12}=\textit{BF}_{10}\cdot\textit{BF}_{02}$) due to the different transformations applied to the data.
+
+&nbsp;
+
+#### TSBFs for goodness of fit
+
+\[\mathit{TSBF}_{10}=
+\begin{cases}\ \tag{14a} \left(\frac{K-1}{\chi^2}\right)^{\frac{K-1}{2}}\!\cdot\exp\left\{\frac{\chi^2-K+1}{2}\right\}, & \text{if } \chi^2 > K-1 \\ \\ \ 1, & \text{otherwise}\end{cases} \]
+
+```{r chisq-goodness-of-fit}
+TSBF10a <- function(K, chisq) {
+  #' Input -
+  #' K:       number of mutually exclusive events (integer)
+  #' chisq:   chi-squared test statistic
+  #' Output - test-based Bayes factor in favor of the alternative
+  
+  ifelse(chisq > K-1,
+         ((K-1) / chisq)^((K-1)/2) * exp((chisq-K+1)/2),
+         1) # TSBF₁₀ (Johnson, 2005, p. 693)
+}
+curve(TSBF10a(K=3, x), xlab=expression(italic(χ)^2), ylab=expression(italic(TSBF)[10]), 
+      main="Test-Based Bayes Factors for Goodness of Fit", from=0, to=8, lwd=2,
+      sub=bquote(italic(K)==3))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+#### TSBFs for independence
+
+\[\mathit{TSBF}_{10}=
+\begin{cases}\ \tag{14b} \left(\frac{(R-1)(C-1)}{\chi^2}\right)^{\frac{(R-1)(C-1)}{2}}\!\cdot\exp\left\{\frac{\chi^2-(R-1)(C-1)}{2}\right\}, & \text{if } \chi^2 > (R-1)(C-1) \\ \\ \ 1, & \text{otherwise}\end{cases} \]
+
+Assume two factors with $R$ and $C$ levels, respectively. The data are organized in an $R\times C$ table, representing the number of sampled units falling into each category of the row and column factors.
+
+The null hypothesis is that the two factors are independent. In other words, the occurrence of one factor does not affect the occurrence of the other. $\mathcal{H}_0:\pi_{ij}=\pi_{i\centerdot}\cdot\pi_{\centerdot j}$
+
+The alternative hypothesis is that the two factors are not independent. This means there is some association between the two factors.
+
+```{r chisq-indep}
+TSBF10b <- function(R, C, chisq) {
+  #' Input -
+  #' R:       number of levels in the row factor
+  #' C:       number of levels in the column factor
+  #' chisq:   chi-squared test statistic
+  #' Output - test-based Bayes factor in favor of the alternative
+  
+  ifelse(chisq > (R-1)*(C-1),
+         ((R-1)*(C-1) / chisq)^((R-1)*(C-1)/2) * exp((chisq-(R-1)*(C-1))/2),
+         1) # TSBF₁₀ (Johnson, 2005, p. 694)
+}
+curve(TSBF10b(R=3, C=3, x), xlab=expression(italic(χ)^2), ylab=expression(italic(TSBF)[10]), 
+      main="Test-Based Bayes Factors for Independence", from=0, to=10, lwd=2,
+      sub=bquote(italic(R)==3~~"&"~~italic(C)==3))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Log-Linear Model {.tabset .tabset-fade}
+
+#### GLM
+
+&nbsp;
+
+We can fit a generalized linear model (GLM) on contingency table data using the Poisson family (and the log link). This approach treats the counts in the contingency table as the response variable and models them as Poisson-distributed. A Poisson regression model is sometimes referred to as a log-linear model, particularly when used to model contingency tables.
+
+We test for independence by comparing full (saturated) and null (independence) models.
+
+\begin{align}
+  O_{ij}&\overset{\text{ind.}}{\sim}\operatorname{Pois}(\mu_{ij}) \\
+  \mathcal{M}_1:\ \ln{\mu_{ij}}&=\mu+\alpha_i+\beta_j+(\alpha\beta)_{ij} \\
+  \text{versus}\quad\mathcal{M}_0:\ \ln{\mu_{ij}}&=\mu+\alpha_i+\beta_j\qquad\text{for}\ i=1,\dotsb,R\ \text{and}\ j=1,\dotsb,C
+\end{align}
+
+&nbsp;
+
+```{r PoisReg}
+belt_long <- data.frame("fasten"=rep(c("yesbelt", "nahbelt"), 4),
+                        "injure"=rep(c("none", "minimal", "minor", "major"), each=2),
+                        # "count"=c(12813, 65963, 647, 4000, 359, 2642, 42, 303), # (Jobson, 1982, p. 18)
+                        "count"=c(100, 100, 100, 100, 100, 100, 100, 100),
+                        stringsAsFactors=T) # long format
+
+#                   ↓ row    ↓ column
+fit1 <- glm(count ~ fasten * injure, belt_long, family=poisson(link="log")) # full model fit
+fit0 <- glm(count ~ fasten + injure, belt_long, family=poisson(link="log")) # null model fit
+
+anova(fit0, fit1, test="Chisq") # likelihood ratio test
+pchisq(fit0$deviance, fit0$df.residual, lower.tail=F) # examining the deviance of the null model
+
+summary(fit1)
+summary(fit0)
+```
+
+* Both approaches assume that the Poisson model is appropriate for the data (equidispersion, i.e., variance equals the mean).
+
+* If the data exhibit overdispersion (variance greater than the mean), consider using a quasi-Poisson or negative binomial model.
+
+* If the data exhibit underdispersion (variance less than the mean), a binomial model may be more suitable.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Dummy Variables
+
+&nbsp;
+
+Both the row and column factors are categorical, so the regression model uses dummy variables. In this example `belt_long`, the row factor $A$ has two levels, while the column factor $B$ has four levels.
+
+\begin{align}
+\ln{\mu_{ij}}=b_0& \\
++b_1&\cdot D_{A_2} \\
++b_2&\cdot D_{B_2}+b_3\cdot D_{B_3}+b_4\cdot D_{B_4} \\
++b_5&\cdot D_{A_2B_2}+b_6\cdot D_{A_2B_3}+b_7\cdot D_{A_2B_4}
+\end{align}
+
+* $b_0$ is the intercept (when both factors are at their reference levels $A_1$ and $B_1$).
+
+* $b_1$ is the effect of being at level $A_2$ (relative to $A_1$), adjusting for the column factor.
+
+* $b_2$ is the effect of being at level $B_2$ (relative to $B_1$), adjusting for the row factor.
+
+* ...
+
+* $b_5$ is the effect of the interaction between $A_2$ and $B_2$.
+
+* ...
+
+Thus, the test-relevant parameters are $\boldsymbol{\theta}=(b_5,\ b_6,\ b_7)^\top$.
+
+&nbsp;
+
+The table below enumerates $\ln{\mu_{ij}}$ for each factor-level combination.
+
+|       |   |                             $B_1$                             |                                 $B_2$                                 |                                 $B_3$                                 |                                 $B_4$                                 |
+|:-----:|---|:-------------------------------------------------------------:|:---------------------------------------------------------------------:|:---------------------------------------------------------------------:|:---------------------------------------------------------------------:|
+| $A_1$ |   |   $\mu+\alpha_1+\beta_1+(\alpha\beta)_{11}$<br>$=$<br>$b_0$   |     $\mu+\alpha_1+\beta_2+(\alpha\beta)_{12}$<br>$=$<br>$b_0+b_2$     |     $\mu+\alpha_1+\beta_3+(\alpha\beta)_{13}$<br>$=$<br>$b_0+b_3$     |     $\mu+\alpha_1+\beta_4+(\alpha\beta)_{14}$<br>$=$<br>$b_0+b_4$     |
+| $A_2$ |   | $\mu+\alpha_2+\beta_1+(\alpha\beta)_{21}$<br>$=$<br>$b_0+b_1$ | $\mu+\alpha_2+\beta_2+(\alpha\beta)_{22}$<br>$=$<br>$b_0+b_1+b_2+b_5$ | $\mu+\alpha_2+\beta_3+(\alpha\beta)_{23}$<br>$=$<br>$b_0+b_1+b_3+b_6$ | $\mu+\alpha_2+\beta_4+(\alpha\beta)_{24}$<br>$=$<br>$b_0+b_1+b_4+b_7$ |
+
+&nbsp;
+
+```{r design-matrix}
+R <- 2; C <- 4
+mat <- matrix(0, nrow=R*C, ncol=R*C); i <- 1; j <- 0
+for (c in 1:C) {
+  for (r in 1:R) {
+    if(r > 1) mat[i, r] <- 1
+    if(c > 1) mat[i, R+c-1] <- 1
+    if(r > 1 & c > 1) {
+      mat[i, R+C+j] <- 1
+      j <- j + 1
+    }
+    i <- i + 1
+  }
+}
+mat[, 1] <- 1 # design matrix
+```
+
+\[
+(\ln{\mu_{11}},\ \ln{\mu_{21}},\ \ln{\mu_{12}},\ \ln{\mu_{22}},\ \ln{\mu_{13}},\ \ln{\mu_{23}},\ \ln{\mu_{14}},\ \ln{\mu_{24}})^\top=
+\begin{pmatrix}
+1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+1 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+1 & 1 & 1 & 0 & 0 & 1 & 0 & 0 \\
+1 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
+1 & 1 & 0 & 1 & 0 & 0 & 1 & 0 \\
+1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+1 & 1 & 0 & 0 & 1 & 0 & 0 & 1
+\end{pmatrix}
+\cdot(b_0,\ b_1,\ b_2,\ b_3,\ b_4,\ b_5,\ b_6,\ b_7)^\top
+\]
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Stan
+
+&nbsp;
+
+**Note**: In Poisson regression, the sample size corresponds to the number of cells $K=R\times C$.
+
+&nbsp;
+
+```{r rstan+22sec}
+stancode6M <- "
+data {
+  int<lower=4> K;                       // number of cells, R * C
+  int<lower=0> Y[K];                    // observed counts by column
+  int<lower=1> S;                       // number of parameters (size of coefficient vector)
+  matrix[K,S] X;                        // design matrix for the log-linear model
+  vector[S] mu;                         // mean vector for the multivariate normal prior
+  matrix[S,S] Sigma;                    // covariance matrix for the multivariate normal prior
+}
+
+parameters {
+  vector[S] b;                          // coefficient vector for the log-linear model
+}
+
+model {
+  // Prior on coefficients
+  target += multi_normal_lpdf(b | mu, Sigma);
+
+  // Likelihood (Poisson model with log-linear mean)
+  target += poisson_lpmf(Y | exp(X * b));
+}"
+
+stanmodel6M <- stan_model(model_code=stancode6M)
+
+datalist1 <- list(K=R*C, Y=belt_long$count, S=R*C, X=mat, 
+                  mu=coef(fit1), # MLE for the coefficients
+                  Sigma=vcov(fit1) * (R*C)^(1/((R-1)*(C-1)))) 
+                        # inverse of the observed Fisher information × number of cells
+
+stanfitM1 <- sampling(stanmodel6M, data=datalist1,
+                      iter=15000, warmup=5000, chains=3, seed=277, refresh=0)
+
+rstan::summary(stanfitM1)[[1]] %>% kable(digits=4) %>% kable_classic(full_width=F)
+
+
+datalist0 <- list(K=R*C, Y=belt_long$count, S=R+C-1, X=mat[, 1:(R+C-1)], 
+                  mu=coef(fit0),
+                  Sigma=vcov(fit0) * (R*C)^(1/((R-1)*(C-1))))
+
+stanfitM0 <- sampling(stanmodel6M, data=datalist0,
+                      iter=15000, warmup=5000, chains=3, seed=277, refresh=0)
+
+rstan::summary(stanfitM0)[[1]] %>% kable(digits=4) %>% kable_classic(full_width=F)
+```
+
+&nbsp;
+&nbsp;
+
+Note that to compute the (log) marginal likelihood for a Stan model, we need to specify the model in a certain way. Instead of using "~" signs for specifying distributions, we need to directly use the (log) density functions. The reason for this is that when using the "~" sign, constant terms are dropped which are not needed for sampling from the posterior. However, for computing the marginal likelihood, these constants need to be retained. For instance, instead of writing `y ~ normal(mu, sigma);` we would need to write `target += normal_lpdf(y | mu, sigma);` ([Gronau, 2021](https://cran.r-project.org/web/packages/bridgesampling/vignettes/bridgesampling_stan_ttest.html)).
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Savage–Dickey Density Ratio
+
+&nbsp;
+
+**The Savage–Dickey density ratio** is a special form of the Bayes factor for **nested** models by dividing the value of <br><span style="color:#0055A4">the posterior density over the parameters for the alternative model evaluated at the hypothesized value</span> by <br><span style="color:#EF4135">the prior for the same model evaluated at the same point</span>.
+
+\begin{equation} \tag{11}
+    \textit{BF}_{01}:=\frac{p(\boldsymbol{y}\mid \mathcal{M}_0)}{p(\boldsymbol{y}\mid \mathcal{M}_1)}=\frac{\color{#0055A4}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{M}_1)}}{\color{#EF4135}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{M}_1)}}
+\end{equation}
+
+&nbsp;
+
+```{r SDdr+3sec_orVarying}
+thetaS <- extract(stanfitM1, pars="b")$b[,-c(1:(R+C-1))] # posterior samples
+dPost <- predict(ks::kde(thetaS), x=rep(0, (R-1)*(C-1))) # estimated posterior density
+dPrior <- mvtnorm::dmvnorm(rep(0, (R-1)*(C-1)), 
+                           datalist1$mu[-c(1:(R+C-1))], 
+                           datalist1$Sigma[-c(1:(R+C-1)),-c(1:(R+C-1))])
+c("Numerator"=dPost, "Denominator"=dPrior, "BF₀₁"=dPost / dPrior) # Savage–Dickey density ratio
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Bridge Sampling
+
+&nbsp;
+
+**Bridge Sampling** `devtools::install_github("quentingronau/bridgesampling@master")`
+
+All terms are conditional on $\mathcal{M}_i$.
+
+\begin{align} \tag{12}
+    \color{#EE1C25}{p(\boldsymbol{y})}=&\frac{\mathbb{E}_{g(\boldsymbol{\theta})}[\hspace{0.1em}p(\boldsymbol{y}\mid\boldsymbol{\theta})\cdot p(\boldsymbol{\theta})\cdot h(\boldsymbol{\theta})]}{\mathbb{E}_\text{post}[\hspace{0.1em}g(\boldsymbol{\theta})\cdot h(\boldsymbol{\theta})]} \\
+    \\
+    \approx&\frac{\frac{1}{N_2}\sum_{r=1}^{N_2}p(\boldsymbol{y}\mid\boldsymbol{\theta}_r^{\text{prop}})\cdot p(\boldsymbol{\theta}_r^{\text{prop}})\cdot h(\boldsymbol{\theta}_r^{\text{prop}})}{\frac{1}{N_1}\sum_{s=1}^{N_1}g(\boldsymbol{\theta}_s^\text{post})\cdot h(\boldsymbol{\theta}_s^\text{post})}, \\
+    \\
+    &\hspace{15em}\boldsymbol{\theta}_r^{\text{prop}}\sim g(\boldsymbol{\theta}), \\
+    &\hspace{15em}\boldsymbol{\theta}_s^\text{post}\sim p(\boldsymbol{\theta}\mid\boldsymbol{y}),
+\end{align}
+
+where $g(\boldsymbol{\theta})$ is the proposal distribution
+
+and $h(\boldsymbol{\theta})$ is the bridge function, $h(\boldsymbol{\theta})=\frac{C}{s_1\cdot p(\boldsymbol{y}\mid\boldsymbol{\theta})\cdot p(\boldsymbol{\theta})+s_2\cdot \color{#EE1C25}{p(\boldsymbol{y})}\cdot g(\boldsymbol{\theta})}$ and $s_j=\frac{N_j}{N_1+N_2}$ for $j\in\{1,2\}$.
+
+&nbsp;
+
+```{r BS}
+M1 <- bridge_sampler(stanfitM1, silent=T)
+M0 <- bridge_sampler(stanfitM0, silent=T)
+bf(M0, M1) # BF₀₁ via bridge sampling, exp(M0$logml - M1$logml)
+
+summary(M1)
+summary(M0)
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Monte Carlo Error
+
+&nbsp;
+
+```{r BFBS-2, echo=F, fig.height=4, fig.width=8}
+BF <- c(5.19205326398364,5.18890502990993,5.18206281085669,5.1897886105679,5.18152440634647,5.19803189379843,5.1986695273958,5.20547598516342,5.18173824670742,5.19667825227356,5.19388026426433,5.1867575410256,5.1882054876435,5.18497313738893,5.20517349053088,5.1821131367614,5.18581337234327,5.19872486532314,5.17610901830495,5.1801804853583,5.17142612329452,5.18372150168289,5.20103716356317,5.1912591939377,5.18667451062479,5.19457944431966,5.17993152878373,5.19934973616447,5.21880019188474,5.19186050139404,5.19153947758848,5.19051924917867,5.19543812527838,5.19004581430843,5.18781466359904,5.18102674157202,5.19204832365695,5.18869158798456,5.18106749083641,5.18749318238971,5.18982408015218,5.18209327026909,5.18708895954543,5.20099475595525,5.17341168352443,5.19016588419125,5.18540126149262,5.19643655319167,5.19735071560616,5.20047308471873,5.19241882948844,5.19691325601606,5.19148523683703,5.19630369410087,5.20272215689001,5.20433687131419,5.18804682604488,5.18527082976026,5.17651389506929,5.17927310935244,5.20605464173842,5.1939092737035,5.19424740946969,5.18722091178895,5.1894627832156,5.20376304447775,5.18183995663522,5.18110576149054,5.19463561396212,5.19712713868594,5.19205614523468,5.20662295561458,5.19449353478722,5.18533809611914,5.19755354183292,5.19270726908162,5.20084151940322,5.20896282278323,5.19352182535297,5.19174797490537,5.17261124285348,5.1934671220766,5.18894498108872,5.18064702661374,5.1882336488728,5.18332460348722,5.20234608324451,5.19019551202409,5.17999272608766,5.18954317197531,5.17104773352553,5.18693737274402,5.20233352917217,5.18506389477097,5.19402820205108,5.19894984456475,5.18632347594761,5.18698194172146,5.19444017034936,5.19602977665602)
+SDdr <- c(3.73586776817161,3.8450208151626,4.10233418176182,4.08050826885632,3.7682951948882,4.63705770337262,4.24836870370016,4.2915692437862,3.86429072299223,4.29735127667308,4.17412524664937,4.21435940778998,4.30190547659091,3.85336537721091,4.02061290896541,4.23363441136387,4.17383383046542,4.26419252419249,3.96957374126896,4.06623257524946,4.20306278842365,4.07841310362818,3.83935690048107,4.08895194703997,4.22602749068495,4.47277289390578,4.2463433949217,4.46866965460084,4.34423594747351,4.09389580043355,4.12276933212775,4.28352075635169,3.84759530679706,4.60454782134942,4.23385967232967,3.93083127152433,4.4819074160788,3.8707582636872,4.10680872637383,4.26645262110839,4.19840582176536,3.51609286513259,4.43038084307995,4.20027009719521,4.19292849060478,4.2959525717558,3.99536132441787,3.94261868107391,4.0643916057188,3.76647705432451,4.12707389330529,3.98315560481634,4.37049831918273,4.34011329110738,4.66864692154159,4.32414578205426,3.62991247758736,4.12730921259765,4.27623375193627,4.05889974374851,4.3053733469228,4.6504896425161,3.9387692297176,3.96240722817336,4.16603011407575,4.19312001081237,4.13246912329574,3.93145784559218,4.29701932799371,3.68216364993125,4.54827332992514,4.06307190360346,4.01761655762855,4.11161683313915,3.80434836083986,4.22670163565164,4.3455837296934,4.13503774434347,4.00837072072982,3.81202162386823,3.93891530653851,4.58784380030697,4.15612049585111,4.09483491946456,4.40692990184606,5.03370799940976,3.67864317344747,4.53646523208864,4.07304191110745,4.3950440319589,3.70011944333787,4.03675693249344,3.87925744539139,3.82308156076344,4.1728028853016,3.87183758671325,4.17853600006095,4.23681472608818,4.14508794117766,4.24400572775692)
+
+par(mfrow=c(1,2))
+hist(BF, prob=T, col="white", yaxt="n", ylab="", main="rstan + BS",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Bayes Factor Estimates Supporting the Null") # BF₀₁: rstan + BS
+lines(density(BF), col="blue", lwd=2)
+hist(SDdr, prob=T, col="white", yaxt="n", ylab="", main="rstan + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Savage–Dickey Density Ratio Supporting the Null") # BF₀₁: rstan + SD
+lines(density(SDdr), col="red", lwd=2)
+
+rm(list=ls())
+runthis <- T # whether to run chunks 23-44, 46-47
+```
+```{r BFBS-1, eval=F}
+BFBS <- function(seed=277, diagnostics=F) {
+  stanfitM0 <- sampling(stanmodel6M, data=datalist0,
+                        iter=15000, warmup=5000, chains=1, seed=seed, refresh=0)
+  
+  stanfitM1 <- sampling(stanmodel6M, data=datalist1,
+                        iter=15000, warmup=5000, chains=1, seed=seed, refresh=0)
+  
+  thetaS <- extract(stanfitM1, pars="b")$b[,-c(1:(R+C-1))] # posterior samples
+  dPost <- predict(ks::kde(thetaS), x=rep(0, (R-1)*(C-1))) # estimated posterior density
+  dPrior <- mvtnorm::dmvnorm(rep(0, (R-1)*(C-1)), 
+                             datalist1$mu[-c(1:(R+C-1))], 
+                             datalist1$Sigma[-c(1:(R+C-1)),-c(1:(R+C-1))])
+  SDdr <- dPost / dPrior # Savage–Dickey density ratio (BF₀₁)
+  
+  set.seed(seed)
+  M0 <- bridge_sampler(stanfitM0, silent=T)
+  
+  set.seed(seed)
+  M1 <- bridge_sampler(stanfitM1, silent=T)
+  
+  if (diagnostics) {
+    list("bf"=exp(M0$logml - M1$logml),
+         "pererr.M1"=error_measures(M1)$cv,
+         "pererr.M0"=error_measures(M0)$cv,
+         "stan.M1"=stanfitM1, "stan.M0"=stanfitM0,
+         "savage.dickey"=SD)
+  } else {
+    list("bf"=exp(M0$logml - M1$logml),
+         "pererr.M1"=error_measures(M1)$cv,
+         "pererr.M0"=error_measures(M0)$cv,
+         "savage.dickey"=SDdr)
+  }
+}
+
+num <- 100; BF <- PerErr.M1 <- PerErr.M0 <- SDdr <- numeric(num)
+system.time(
+for (i in 1:num) { # roughly 411 seconds of run time
+  result <- BFBS(seed=i)
+  BF[i] <- result$bf
+  PerErr.M1[i] <- result$pererr.M1
+  PerErr.M0[i] <- result$pererr.M0
+  SDdr[i] <- result$savage.dickey
+})
+
+# range(PerErr.M1); range(PerErr.M0)
+
+par(mfrow=c(1,2))
+hist(BF, prob=T, col="white", yaxt="n", ylab="", main="rstan + BS",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Bayes Factor Estimates Supporting the Null") # BF₀₁: rstan + BS
+lines(density(BF), col="blue", lwd=2)
+hist(SDdr, prob=T, col="white", yaxt="n", ylab="", main="rstan + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Savage–Dickey Density Ratio Supporting the Null") # BF₀₁: rstan + SD
+lines(density(SDdr), col="red", lwd=2)
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Non-Centrality Parameter
+
+&nbsp;
+
+The distribution of the chi-squared statistic under the alternative hypothesis follows a non-central chi-squared distribution. The non-centrality parameter can be consistently estimated using the chi-squared statistic itself.
+
+```{r ncp}
+cat("chisq =",  qchisq(1-0.05, df=4), " <  chisq_ncp =", qchisq(1-0.05, df=4, ncp=qchisq(1-0.05, df=4)))
+```
+
+In the expression for eJAB, what would happen if we replaced the chi-squared quantile function with the quantile function of the non-central chi-squared distribution, using the non-centrality parameter estimated by the chi-squared statistic? Would this provide a more accurate eJAB for chi-squared tests?
+
+&nbsp;
+&nbsp;
+
+
+## 2. Simulation
+
+&nbsp;
+
+<font size="4"> Experimental Design </font>
+
+When simulating a contingency table, understanding the context of the [experimental design](https://www.graphpad.com/guides/prism/latest/statistics/stat_simulating_a_contingency_table.htm) is crucial because it determines how the data are generated and interpreted. Consider two factors: *<span style="color:#FFB200">exposure</span>* (e.g., smoking or not) and *<span style="color:#C11900">outcome</span>* (e.g., lung cancer or not).
+
+`rmultinom(n, size, prob)`
+
+&nbsp;
+
+* Cross-Sectional: &nbsp;&nbsp; Both factor are measured simultaneously. <br>The **total** sample size is fixed. Draw subjects with certain probabilities of having each combination of <span style="color:#FFB200">exposure</span> and <span style="color:#C11900">outcome</span>. <br>Check the `sampleType="jointMulti"` argument in `?BayesFactor::contingencyTableBF`
+
+&nbsp;
+
+* Prospective: &nbsp;&nbsp; Start with a cohort of subjects classified by their <span style="color:#FFB200">exposure</span> status. Then, follow over time to see who develops the <span style="color:#C11900">outcome</span>.
+
+* Experimental: &nbsp;&nbsp; Assign subjects to different interventions (rows) and then measure the <span style="color:#C11900">outcome</span>. Clinical trial. <br>Fix **row** totals (<span style="color:#FFB200">exposure</span> groups) and simulate the <span style="color:#C11900">outcomes</span> (columns). <br>Check the `sampleType="indepMulti"` and `fixedMargin="rows"` arguments in `?BayesFactor::contingencyTableBF`
+
+&nbsp;
+
+* Retrospective: &nbsp;&nbsp; Start by selecting subjects based on the <span style="color:#C11900">outcome</span>. The rows represent <span style="color:#FFB200">exposure</span> status, and the columns represent the case/control status. Look back in time to determine <span style="color:#FFB200">exposure</span>. <br>First fix the **column** totals (cases and controls) and then simulate the distribution of <span style="color:#FFB200">exposure</span> (rows) within these groups.
+
+&nbsp;
+
+[Further reading](https://www.ma.imperial.ac.uk/~das01/MyWeb/M3S12/Handouts/Notes/Chap6.pdf): The equivalence between Poisson and multinomial sampling models for contingency tables.
+
+&nbsp;
+&nbsp;
+
+<font size="4"> Effect Size </font>
+
+One measure of effect size for $\chi^2$-tests is Cohen's omega, $\omega=\sqrt{\sum_{i=1}^R\sum_{j=1}^C\frac{(\pi_{1ij}-\pi_{0ij})^2}{\pi_{0ij}}}$, <br>where $\pi_{0ij}$ and $\pi_{1ij}$ are the proportions of the $(i,j)$ cell in an $R\times C$ contingency table under $\mathcal{H}_0$ and $\mathcal{H}_1$, respectively.
+
+* Cohen ([1988](https://doi.org/10.4324/9780203771587), p. 224-226) suggests that the effect sizes are *generally* small, medium, and large for $\omega\in\{0.1,\ 0.3,\ 0.5\}$, respectively.
+
+&nbsp;
+
+We consider the uniform proportion $\pi_{0ij}=\frac{1}{RC}$ under $\mathcal{H}_0$.
+
+Under $\mathcal{H}_1$, we set the proportion $p_{1ij}=\frac{1}{RC}+(-1)^{i+j}\cdot\delta\cdot(1-\boldsymbol{1}_{i=R,\ R\mod2=1})\cdot(1-\boldsymbol{1}_{j=C,\ C\mod2=1})$ for $i\leqslant R$ and $j\leqslant C$.
+<!-- \[p_{1ij}= -->
+<!-- \begin{cases}\ \frac{1}{RC}+(-1)^{i+j}\cdot\delta, & \text{for } i<R\text{ and }j<C \\ \\  -->
+<!-- \ \frac{1}{RC}+(-1)^{i+j}\cdot\delta\cdot(1-R\mod2)\cdot(1-C\mod2), & \text{for } i=R\text{ or }j=C -->
+<!-- \end{cases} \] -->
+
+Thus, Cohen's $\omega=2\delta\sqrt{RC\left\lfloor\frac{R}{2}\right\rfloor\left\lfloor\frac{C}{2}\right\rfloor}$.
+
+&nbsp;
+
+Design (Note that each row may not have been normalized if `sampleType="indepMulti"`.)
+
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-zme7{background-color:#ffce93;border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-5w3z{background-color:#ecf4ff;border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-bolj{background-color:#ffccc9;border-color:inherit;text-align:center;vertical-align:top}
+</style>
+<table class="tg"><thead>
+  <tr>
+    <td class="tg-c3ow" rowspan="5"><span style="font-weight:400;font-style:normal">$\mathcal{H}_1$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}+\delta$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}-\delta$</span></td>
+    <td class="tg-5w3z">$\dotsb$</td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+    <td class="tg-c3ow" rowspan="5"><span style="font-weight:400;font-style:normal">$\mathcal{H}_0$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-5w3z">$\dotsb$</td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+  </tr>
+  <tr>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}-\delta$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}+\delta$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+  </tr>
+  <tr>
+    <td class="tg-5w3z">$\vdots$</td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+    <td class="tg-5w3z">$\ddots$</td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+    <td class="tg-5w3z">$\vdots$</td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+    <td class="tg-5w3z"><span style="font-weight:400;font-style:normal">$\ddots$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\vdots$</span></td>
+  </tr>
+  <tr>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\frac{1}{RC}$</span></td>
+    <td class="tg-zme7"><span style="font-weight:400;font-style:normal">$\frac{1}{R}$</span></td>
+  </tr>
+  <tr>
+    <td class="tg-bolj">$\frac{1}{C}$</td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\frac{1}{C}$</span></td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\frac{1}{C}$</span></td>
+    <td class="tg-c3ow">1</td>
+    <td class="tg-bolj">$\frac{1}{C}$</td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\frac{1}{C}$</span></td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\dotsb$</span></td>
+    <td class="tg-bolj"><span style="font-weight:400;font-style:normal">$\frac{1}{C}$</span></td>
+    <td class="tg-c3ow">1</td>
+  </tr></thead></table>
+
+&nbsp;
+&nbsp;
+
+<font size="4"> Data </font>
+
+```{r data}
+simData6 <- function(size, R, C, omega=NULL, simType=c("jointMulti", "indepMulti")) {
+  #' Input - 
+  #' size:            total number of objects;
+  #'                  the number of objects per row is assumed to be balanced if `simType="indepMulti"`
+  #' R:               number of rows in a contingency table
+  #' C:               number of columns in a contingency table
+  #' omega:           Cohen's effect size
+  #' simType:         simulation plan;
+  #'                  "jointMulti" (joint multinomial), total number is fixed；
+  #'                  "indepMulti" (independent multinomial), each row margin is fixed
+  #' 
+  #' Output - R × C contingency table matrix
+  
+  K <- R * C # number of cells
+  delta <- .5 * omega / sqrt(K * floor(R/2) * floor(C/2)) # designated proportion difference
+  if (1/K + delta > 1 | 1/K - delta < 0) stop("Bad input!")
+  
+  prob_delta <- outer(1:R, 1:C, function(i,j) (-1)^(i+j)) # effect size design matrix
+  if (R %% 2 == 1) prob_delta[R,] <- 0 # when the number of rows is not even
+  if (C %% 2 == 1) prob_delta[,C] <- 0 # when the number of columns is not even
+  prob_H1 <- matrix(1/K, nrow=R, ncol=C) + delta * prob_delta # probabilities for the classes under an effect
+ 
+  # no random seed
+  if (simType == "indepMulti") {
+    # normalization not necessary for generation
+    t(apply(prob_H1, 1, function(p) stats::rmultinom(1, size/R, p))) # can take in non-integer size
+    
+  } else if (simType == "jointMulti") {
+    matrix(stats::rmultinom(1, size, prob_H1), ncol=C, byrow=T)
+    
+  } else {stop("Bad input!")}
+}
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> The Bayes Factors </font>
+
+**Note**: All the Bayes factors are $\textit{BF}_{01}$.
+
+```{r BFs}
+computeBFs6 <- function(data, sampleType=c("jointMulti", "indepMulti"), ...) {
+  #' Input -
+  #' data:            R × C contingency table matrix
+  #' sampleType:      sampling plan;
+  #'                  "jointMulti" (joint multinomial), total number is fixed;
+  #'                  "indepMulti" (independent multinomial), each row (or column) margin is fixed
+  #' ...              more esoteric options, such as `fixedMargin`, in BayesFactor::contingencyTableBF
+  #' 
+  #' Dependency - BayesFactor (v0.9.12-4.7)
+  #' Output -  a vector of the Bayes factors in favor of the null
+  #'           1. contingencyTableBF function
+  #'           2. BIC approximation to the Bayes factor in Eq. 8
+  #'           3. Jeffreys approximate Bayes factor in Eq. 9 using the normal unit-information prior
+  #'           4. Jeffreys approximate Bayes factor in Eq. 9* using the extended normal unit-information prior
+  #'           5. Test statistic Bayes factor based on the chi-squared statistic and df in Eq. 14b
+  #'           6. Jeffreys approximate Bayes factor in 4 using the non-central chi-squared statistic
+  
+  R <- nrow(data) # number of levels in the row factor
+  C <- ncol(data) # number of levels in the column factor
+  
+  # bf <- BayesFactor::contingencyTableBF(data, sampleType="jointMulti")
+  # bf <- BayesFactor::contingencyTableBF(data, sampleType="indepMulti", fixedMargin="rows")
+  bf <- BayesFactor::contingencyTableBF(data, sampleType=sampleType, posterior=F, ...)
+  BF01 <- 1 / BayesFactor::extractBF(bf)$bf
+  
+  total <- sum(data) # grand total
+  row_mar <- rowSums(data) # row sums
+  col_mar <- colSums(data) # column sums
+  
+  logML_H1 <- stats::dmultinom(c(data), total, c(data), log=T) # log ML under H₁
+  logML_H0 <- stats::dmultinom(c(data), total, c(outer(row_mar, col_mar)), log=T) # log ML under H₀
+
+  BIC_H1 <- -2 * logML_H1 + (R*C-1) * log(total)
+  BIC_H0 <- -2 * logML_H0 + (R+C-2) * log(total)
+  BICB01 <- exp((BIC_H1 - BIC_H0) / 2) # Eq. 8
+  
+  chisq <- unname(stats::chisq.test(data)$statistic) # chi-squared statistic
+  df <- (R-1) * (C-1) # degrees of freedom
+  TSBF01 <- ifelse(chisq > df,
+                   (chisq / (df))^(df/2) * exp((df-chisq)/2),
+                   1) # the reciprocal of Eq. 14b
+  
+  JAB01_UI <- total^(df/2) * exp(-0.5 * chisq * (total-1) / total) # Eq. 8' with the finite sample correction
+  JAB01_EXT <- sqrt(total) * exp(-0.5 * chisq * (total^(1/df)-1) / (total^(1/df))) # Eq. 9*
+  
+  pVal <- stats::chisq.test(data)$p.value # p-value
+  chisq_ncp <- stats::qchisq(1-pVal, df, ncp=stats::qchisq(1-pVal, df)) # non-central chi-squared statistic
+  JAB01_NCP <- sqrt(total) * exp(-0.5 * chisq_ncp * (total^(1/df)-1) / (total^(1/df)))
+  
+  c("ctBF"=BF01, "BIC_approx"=BICB01, "JAB"=JAB01_UI, "eJAB"=JAB01_EXT, "TSBF"=TSBF01, "ncJAB"=JAB01_NCP)
+}
+
+# set.seed(277)
+# (test6 <- simData6(240, R=2, C=4, omega=0.2, simType="indepMulti"))
+# computeBFs6(test6, sampleType="indepMulti", fixedMargin="rows")
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> Simulation Study </font>
+
+We aim to conduct several simulation studies to evaluate the accuracy of approximate objective Bayes factors in their ability to convert $p$-values and $N$ reported in scientific articles to Bayesian measures of evidence.
+
+```{r sim, eval=F, warning=F}
+design <- "jointMulti"
+# design <- "indepMulti"
+
+nSim <- 1000 # number of simulation runs for each setting
+nObs <- c(45, 90, 300, 750, 1500) # total number of objects in a contingency table
+OMEGA <- c("Null"=0, "Small"=0.1, "Medium"=0.3, "Large"=0.5) # Cohen's effect size
+nR <- 3; nC <- 3 # numbers of rows and columns in a contingency table
+
+reportBF <- reportBF_avg <- reportBF_sd <- reportERR <- reportERR_avg <- reportERR_sd <- 
+  reportRULE <- reportRULE_H1 <- reportRULE_H0 <- reportRULE_inc <-
+  setNames(vector(mode="list", length=length(nObs) * length(OMEGA)), # pre-allocation
+           apply(expand.grid(names(OMEGA), nObs), 1, function(r) paste0("n = ", r[2], ", omega = ", r[1])))
+
+index <- 1 # initial list index
+
+for (n in nObs) {
+    
+  for (omega in OMEGA) {
+    set.seed(n+omega+277)
+    temp <- t(replicate(nSim, computeBFs6(simData6(n, R=nR, C=nC, omega=omega, simType=design),
+                                          sampleType=design, 
+                                          fixedMargin=ifelse(design=="indepMulti", "rows", NULL))))
+    reportBF[[index]] <- temp
+    reportBF_avg[[index]] <- colMeans(temp, na.rm=T) # mean Bayes factors in favor of the null
+    reportBF_sd[[index]] <- apply(na.omit(temp), 2, sd) # sample standard deviations of them
+        
+    tempERR <- 100* (temp - temp[,1]) / temp[,1] # percent errors; the first column should be all 0
+    reportERR[[index]] <- tempERR # (can take in NA)
+    reportERR_avg[[index]] <- colMeans(tempERR, na.rm=T) # mean percent errors
+    reportERR_sd[[index]] <- apply(na.omit(tempERR), 2, sd) # sample standard deviations of the percent errors
+        
+    tempRULE_H1 <- temp < 1/3 # support H1
+    tempRULE_H0 <- temp > 3 # support H0
+    tempRULE_inc <- temp >= 1/3 & temp <= 3 # inconclusive
+        
+    # counts of matching decisions for H1
+    reportRULE_H1[[index]] <- colSums(tempRULE_H1 * tempRULE_H1[,1], na.rm=T)
+        
+    # counts of matching decisions for H0
+    reportRULE_H0[[index]] <- colSums(tempRULE_H0 * tempRULE_H0[,1], na.rm=T)
+        
+    # counts of matching inconclusiveness
+    reportRULE_inc[[index]] <- colSums(tempRULE_inc * tempRULE_inc[,1], na.rm=T)
+        
+    tempRULE <- 1*(temp < 1/3) - 1*(temp > 3) # 1: support H1;  0: inconclusive;  -1: support H0
+    reportRULE[[index]] <- colSums(tempRULE[,1] == tempRULE, na.rm=T) # counts of matching decisions
+    # colMeans(); a value near 1 suggests matching results; the first column should be all 1
+        
+    index <- index + 1
+  }
+} # roughly 28 seconds of run time
+
+# Warning messages:
+# In chisq.test(data) : Chi-squared approximation may be incorrect
+```
+
+&nbsp;
+
+```{r prep}
+reshapeW2L4 <- function(list, prob=T, lab=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB")) {
+  #' Input -
+  #' list:    a list of size length(nObs) * length(OMEGA);
+  #'          reportERR (unaggregated),
+  #'          reportRULE, reportRULE_H1, reportRULE_H0, or reportRULE_inc (aggregated)
+  #' prob:    logical; if TRUE (default), return the proportions;
+  #'                           otherwise, return the original values
+  #' lab:     a vector of characters representing the Bayes factor methods
+  #' 
+  #' Global -
+  #' nSim:    number of simulation runs for each setting
+  #' nObs:    average number of objects per row in a contingency table
+  #' OMEGA:   designated proportion difference
+  #' 
+  #' Output - unlist the report and reshape the wide into the long
+  
+  len <- length(lab) # six methods
+  nRep <- ifelse(!prob, nSim, 1) # nSim if unaggregated; 1 if aggregated
+  long <- data.frame("value"=unname(unlist(list)),
+                     "method"=factor(rep(rep(1:len, each=nRep), length(list)), labels=lab),
+                     "n"=rep(nObs, each=nRep*len*length(OMEGA)),
+                     "omega"=rep(rep(unname(OMEGA), each=nRep*len), length(nObs)))
+  
+  if (prob) {
+    list2 <- lapply(list, function(vec) {
+      if (vec[1] == 0) {
+        vec * NA
+      } else {
+        vec / vec[1] # convert counts to proportions
+      }
+    })
+    list3 <- lapply(list, function(vec) rep(vec[1], length(vec))) # denominator
+    long$total <- unname(unlist(list3))
+    long$prop <- unname(unlist(list2))
+  }
+  long
+}
+
+
+formatting <- function(val) {
+  #' format the value using scientific notation
+  if (abs(val) >= 10) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e\\+0*(\\d+)", "%*%10^\\1", sprintf("%.2e", val)))
+  } else if (abs(val) < 1) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e-0*(\\d+)", "%*%10^{-\\1}", sprintf("%.2e", val)))
+  } else {
+    paste("~italic(BF)[\"01\"] %~~%", sprintf("%.2f", val))
+  }
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 3A. Table $3\times3$ (`jointMulti`) {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Total) </font>
+
+### Boxplot ($\ln\textit{BF}_{01}$)
+
+```{r load-jointMulti-R3C3, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_jointMulti_R3C3.RData")
+```
+```{r viz-boxplot2-jointMulti-R3C3, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot (Percent Errors)
+
+```{r viz-boxplot-jointMulti-R3C3, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df6 <- reshapeW2L4(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (omega in OMEGA) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(OMEGA), length.out=length(nObs)) + index], 
+                     function(x) x[1]) # baseline is contingencyTableBF
+  baseBF01_lab <- sapply(baseBF01, formatting) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df6, method != "ctBF" & omega == omega) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=3, "y"=.4 * aggregate(value~n, sub, FUN=max)$value) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_text(data=anno, aes(label=label, x=x, y=y), parse=T, col="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y="Percent Error (%)\n",
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==omega]), " Proportion Difference")) +
+          geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line-jointMulti-R3C3, eval=runthis, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis6$omega <- paste0("ES = ", decis6$omega)
+decis6 <- decis6[!is.na(decis6[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis6$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis6$value * (decis6$total - decis6$value) / decis6$total^3) # 95% CI width
+  decis6$lwr <- max(0, decis6$value / decis6$total - decis6$half.len) # 95% CI lower bound
+  decis6$upr <- min(1, decis6$value / decis6$total + decis6$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis6$lwr <- qbeta(.05/2, decis6$value, decis6$total - decis6$value + 1) # 95% CI lower bound
+  decis6$upr <- qbeta(1-.05/2, decis6$value + 1, decis6$total - decis6$value) # 95% CI upper bound
+  decis6$half.len <- (decis6$upr - decis6$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis6, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                              labels=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+           facet_grid(result~omega) +
+           labs(x="Total Number of Observations", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(45, 300, 1500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis6$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2-jointMulti-R3C3, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis6$omega <- factor(decis6$omega, levels=unname(OMEGA),
+                       labels=paste0("italic(ω) == ", unname(OMEGA), "~(", names(OMEGA), ")"))
+set.seed(277)
+decis6_plot <- subset(decis6[sample(1:nrow(decis6), nrow(decis6)),], method != "ctBF") # shuffle to prevent overlapping
+
+title <- ifelse(design == "indepMulti",
+                "Chi-Squared Test for Independence (Fixed Row Sums)",
+                "Chi-Squared Test for Independence (Fixed Total)")
+
+ggplot(decis6_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  scale_shape_manual(values=c(8, 13, 18, 3, 17),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  facet_grid(result~omega, labeller=label_parsed) +
+  labs(x="\nTotal Number of Observations", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title=title, caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+  scale_x_continuous(breaks=c(300, 1500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) +
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 3B. Table $3\times3$ (`indepMulti`) {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Row Sums) </font>
+
+### Boxplot ($\ln\textit{BF}_{01}$)
+
+```{r load-indepMulti-R3C3, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_indepMulti_R3C3.RData")
+```
+```{r viz-boxplot2-indepMulti-R3C3, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot (Percent Errors)
+
+```{r viz-boxplot-indepMulti-R3C3, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df6 <- reshapeW2L4(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (omega in OMEGA) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(OMEGA), length.out=length(nObs)) + index], 
+                     function(x) x[1]) # baseline is contingencyTableBF
+  baseBF01_lab <- sapply(baseBF01, formatting) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df6, method != "ctBF" & omega == omega) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=3, "y"=.4 * aggregate(value~n, sub, FUN=max)$value) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_text(data=anno, aes(label=label, x=x, y=y), parse=T, col="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y="Percent Error (%)\n",
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==omega]), " Proportion Difference")) +
+          geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line-indepMulti-R3C3, eval=runthis, echo=F, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis6$omega <- paste0("ES = ", decis6$omega)
+decis6 <- decis6[!is.na(decis6[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis6$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis6$value * (decis6$total - decis6$value) / decis6$total^3) # 95% CI width
+  decis6$lwr <- max(0, decis6$value / decis6$total - decis6$half.len) # 95% CI lower bound
+  decis6$upr <- min(1, decis6$value / decis6$total + decis6$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis6$lwr <- qbeta(.05/2, decis6$value, decis6$total - decis6$value + 1) # 95% CI lower bound
+  decis6$upr <- qbeta(1-.05/2, decis6$value + 1, decis6$total - decis6$value) # 95% CI upper bound
+  decis6$half.len <- (decis6$upr - decis6$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis6, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                              labels=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+           facet_grid(result~omega) +
+           labs(x="Total Number of Observations", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(45, 300, 1500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis6$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2-indepMulti-R3C3, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis6$omega <- factor(decis6$omega, levels=unname(OMEGA),
+                       labels=paste0("italic(ω) == ", unname(OMEGA), "~(", names(OMEGA), ")"))
+set.seed(277)
+decis6_plot <- subset(decis6[sample(1:nrow(decis6), nrow(decis6)),], method != "ctBF") # shuffle to prevent overlapping
+
+title <- ifelse(design == "indepMulti",
+                "Chi-Squared Test for Independence (Fixed Row Sums)",
+                "Chi-Squared Test for Independence (Fixed Total)")
+
+ggplot(decis6_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  scale_shape_manual(values=c(8, 13, 18, 3, 17),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  facet_grid(result~omega, labeller=label_parsed) +
+  labs(x="\nTotal Number of Observations", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title=title, caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+  scale_x_continuous(breaks=c(300, 1500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) +
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 4A. Table $4\times5$ (`jointMulti`) {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Total) </font>
+
+### Boxplot ($\ln\textit{BF}_{01}$)
+
+```{r load-jointMulti-R4C5, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_jointMulti_R4C5.RData")
+```
+```{r viz-boxplot2-jointMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot (Percent Errors)
+
+```{r viz-boxplot-jointMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df6 <- reshapeW2L4(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (omega in OMEGA) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(OMEGA), length.out=length(nObs)) + index], 
+                     function(x) x[1]) # baseline is contingencyTableBF
+  baseBF01_lab <- sapply(baseBF01, formatting) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df6, method != "ctBF" & omega == omega) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=3, "y"=.4 * aggregate(value~n, sub, FUN=max)$value) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_text(data=anno, aes(label=label, x=x, y=y), parse=T, col="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y="Percent Error (%)\n",
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==omega]), " Proportion Difference")) +
+          geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line-jointMulti-R4C5, eval=runthis, echo=F, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis6$omega <- paste0("ES = ", decis6$omega)
+decis6 <- decis6[!is.na(decis6[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis6$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis6$value * (decis6$total - decis6$value) / decis6$total^3) # 95% CI width
+  decis6$lwr <- max(0, decis6$value / decis6$total - decis6$half.len) # 95% CI lower bound
+  decis6$upr <- min(1, decis6$value / decis6$total + decis6$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis6$lwr <- qbeta(.05/2, decis6$value, decis6$total - decis6$value + 1) # 95% CI lower bound
+  decis6$upr <- qbeta(1-.05/2, decis6$value + 1, decis6$total - decis6$value) # 95% CI upper bound
+  decis6$half.len <- (decis6$upr - decis6$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis6, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                              labels=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+           facet_grid(result~omega) +
+           labs(x="Total Number of Observations", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(135, 900, 4500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis6$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2-jointMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis6$omega <- factor(decis6$omega, levels=unname(OMEGA),
+                       labels=paste0("italic(ω) == ", unname(OMEGA), "~(", names(OMEGA), ")"))
+set.seed(277)
+decis6_plot <- subset(decis6[sample(1:nrow(decis6), nrow(decis6)),], method != "ctBF") # shuffle to prevent overlapping
+
+title <- ifelse(design == "indepMulti",
+                "Chi-Squared Test for Independence (Fixed Row Sums)",
+                "Chi-Squared Test for Independence (Fixed Total)")
+
+ggplot(decis6_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  scale_shape_manual(values=c(8, 13, 18, 3, 17),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  facet_grid(result~omega, labeller=label_parsed) +
+  labs(x="\nTotal Number of Observations", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title=title, caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+  scale_x_continuous(breaks=c(900, 4500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) +
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 4B. Table $4\times5$ (`indepMulti`) {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Row Sums) </font>
+
+### Boxplot ($\ln\textit{BF}_{01}$)
+
+```{r load-indepMulti-R4C5, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_indepMulti_R4C5.RData")
+```
+```{r viz-boxplot2-indepMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot (Percent Errors)
+
+```{r viz-boxplot-indepMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df6 <- reshapeW2L4(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (omega in OMEGA) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(OMEGA), length.out=length(nObs)) + index], 
+                     function(x) x[1]) # baseline is contingencyTableBF
+  baseBF01_lab <- sapply(baseBF01, formatting) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df6, method != "ctBF" & omega == omega) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=3, "y"=.4 * aggregate(value~n, sub, FUN=max)$value) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_text(data=anno, aes(label=label, x=x, y=y), parse=T, col="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y="Percent Error (%)\n",
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==omega]), " Proportion Difference")) +
+          geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line-indepMulti-R4C5, eval=runthis, echo=F, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis6$omega <- paste0("ES = ", decis6$omega)
+decis6 <- decis6[!is.na(decis6[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis6$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis6$value * (decis6$total - decis6$value) / decis6$total^3) # 95% CI width
+  decis6$lwr <- max(0, decis6$value / decis6$total - decis6$half.len) # 95% CI lower bound
+  decis6$upr <- min(1, decis6$value / decis6$total + decis6$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis6$lwr <- qbeta(.05/2, decis6$value, decis6$total - decis6$value + 1) # 95% CI lower bound
+  decis6$upr <- qbeta(1-.05/2, decis6$value + 1, decis6$total - decis6$value) # 95% CI upper bound
+  decis6$half.len <- (decis6$upr - decis6$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis6, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                              labels=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+           facet_grid(result~omega) +
+           labs(x="Total Number of Observations", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(135, 900, 4500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis6$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2-indepMulti-R4C5, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis6 <- rbind(reshapeW2L4(reportRULE),
+                reshapeW2L4(reportRULE_H1),
+                reshapeW2L4(reportRULE_H0),
+                reshapeW2L4(reportRULE_inc))
+decis6$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df6$method)) * length(nObs) * length(OMEGA)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis6$omega <- factor(decis6$omega, levels=unname(OMEGA),
+                       labels=paste0("italic(ω) == ", unname(OMEGA), "~(", names(OMEGA), ")"))
+set.seed(277)
+decis6_plot <- subset(decis6[sample(1:nrow(decis6), nrow(decis6)),], method != "ctBF") # shuffle to prevent overlapping
+
+title <- ifelse(design == "indepMulti",
+                "Chi-Squared Test for Independence (Fixed Row Sums)",
+                "Chi-Squared Test for Independence (Fixed Total)")
+
+ggplot(decis6_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("#E69F00", "#D55E00", "#CC79A7", "#EF4135", "#56B4E9"),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  scale_shape_manual(values=c(8, 13, 18, 3, 17),
+                     labels=c("BIC", "JAB", "eJAB", "TSBF", "ncJAB")) +
+  facet_grid(result~omega, labeller=label_parsed) +
+  labs(x="\nTotal Number of Observations", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title=title, caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+  scale_x_continuous(breaks=c(900, 4500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) +
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 5. Table $10\times10$ (`jointMulti`)
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Total) </font>
+
+We also conducted a $10\times10$ contingency table analysis.
+
+The extended JAB method may introduce a new issue: its values tend to fall within the inconclusive range when simulated under the null with large dimensions.
+
+However, it effectively resolves the original JAB's extreme bias towards the null when simulated under the alternative.
+
+&nbsp;
+
+```{r load-jointMulti-R10C10, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_jointMulti_R10C10.RData")
+```
+```{r viz-boxplot2-jointMulti-R10C10, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 6. Table $2\times2$ (`jointMulti`)
+
+&nbsp;
+
+<font size="4"> Visualization (Fixed Total) </font>
+
+If the table is $2\times2$ (which corresponds to 1 degree of freedom), there is a point null hypothesis for testing the odds ratio. This scenario is addressed in the original JAB and WAB methods (Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq), pp. 28–30; but the definition of effective sample size for logistic regression or contingency tables is more complicated than simply the total number of cases or counts).
+
+In this case, we can also implement the Markov chain Monte Carlo method and the Savage–Dickey density ratio method. 
+
+&nbsp;
+
+```{r function-body}
+body(computeBFs6) <- bquote({ # re‑assemble a new body
+  .(body(computeBFs6))
+  WAB01 <- ifelse(pVal <= .5,
+                  ifelse(pVal > .1,
+                        ifelse(F,
+                               4 * pVal^(2/3) * sqrt(total) / 3, # 0.1 < p <= 0.5 (more precise)
+                               sqrt(pVal * total)), # 0.1 < p <= 0.5 (simpler)
+                        3 * pVal * sqrt(total)), # p <= 0.1
+                  pVal^(1/4) * sqrt(total)) # p > 0.5, Eq. 10
+  c("ctBF"=BF01, "BIC_approx"=BICB01, "JAB"=JAB01_UI, "eJAB"=JAB01_EXT, "TSBF"=TSBF01, "ncJAB"=JAB01_NCP,
+    "WAB"=WAB01) # use the total number of objects
+})
+```
+```{r load-jointMulti-R2C2, eval=runthis, echo=F}
+load("~/Downloads/chisqSim_jointMulti_R2C2.RData")
+```
+```{r viz-boxplot2-jointMulti-R2C2, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df6_BF <- reshapeW2L4(reportBF, prob=F,
+                      lab=c("ctBF", "BIC", "JAB", "eJAB", "TSBF", "ncJAB", "WAB"))
+
+# boxplot of the BF₀₁
+for (es in OMEGA) {
+  sub <- subset(df6_BF, omega == es) # subset the long
+  print(ggplot(sub, aes(x=method, y=log(value))) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(-log(3), 0, log(3)), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(N)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression("ln("~italic("BF")["01"]~")"),
+               caption=paste0("Data: ", nR ," × ", nC, " Contingency Table")) +
+          ggtitle(paste0(names(OMEGA[OMEGA==es]), " Proportion Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+When simulated under the alternative, some methods produce extremely small values supporting the null, which are rounded down to zero. This results in their log values being reported as negative infinity, and consequently, no boxes are shown in the figure.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 7. eJAB
+
+&nbsp;
+
+To test the hypotheses $\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$, we define the extended Jeffreys approximate objective Bayes factor (eJAB) as
+\begin{equation}
+  \mathit{eJAB}_{01}=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\},
+\end{equation}
+
+where $q$ is the size of the parameter vector $\boldsymbol{\theta}$, $N$ is the sample size, $Q_{\chi^{2}_{q}}(\cdot)$ is the quantile function of the chi-squared distribution with $q$ degrees of freedom, and $p$ is the $p$-value from a null-hypothesis significance test. We further define $\mathit{eJAB}_{10}=1\ \!/\ \!\mathit{eJAB}_{01}$.
+
+&nbsp;
+
+The sample size $N$ is
+
+* the total number of observations for for $t$-tests, linear regression, logistic regression, one-way ANOVA, and chi-squared tests.
+
+* the number of events for Cox models.
+
+* the number of independent observations for one-way repeated-measures ANOVA (Nathoo & Masson, [2016](https://dx.doi.org/10.1016/j.jmp.2015.03.003)).
+
+&nbsp;
+
+The degrees of freedom are
+
+* $q=1$ for $t$-tests, linear regression, logistic regression, and Cox models, where $\mathcal{H}_0$ specifies a point-null hypothesis (Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq)).
+
+* $q=I-1$ for one-way ANOVA and one-way repeated-measures ANOVA, where $I$ is the number of conditions.
+
+* $q=(R-1)(C-1)$ for chi-squared tests, where $R$ and $C$ are the numbers of rows and columns, respectively.
+
+Since the Bayes factor is the ratio of the marginal likelihoods of two competing models, $q=p_1-p_0$ also represents the difference in the number of free parameters between the alternative and null models.
+
+&nbsp;
+
+For further reading, please visit <https://osf.io/qeprj/>.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## <span style="color:lightgray">8. Debugging</span>
+
+&nbsp;
+
+<span style="color:red"><font size="3"> Debugging </font></span>: There was a bug in plotting the boxplots of the Bayes factors for versions prior to (but not including) **0.9.9000** of this R markdown.
+
+```{r debug}
+DD <- c("Null"=0, "Small"=1, "Medium"=2, "Large"=3)
+
+myData <- data.frame("Index"=1:100,
+                     "dd"=rep(0:3, each=25)) # try also data.table::data.table()
+
+for (dd in DD) {
+  subData <- subset(myData, dd==dd)
+  print(range(subData$Index))
+} # WRONG!
+
+
+for (i in DD) {
+  subData <- subset(myData, dd==i)
+  print(range(subData$Index))
+} # correct
+
+for (dd in DD) {
+  subData <- subset(myData, dd==get("dd", 1L))
+  print(range(subData$Index))
+} # also works
+```
+
+&nbsp;
+
+Discussion: <https://stackoverflow.com/q/21658893>
+
+&nbsp;
+&nbsp;
+

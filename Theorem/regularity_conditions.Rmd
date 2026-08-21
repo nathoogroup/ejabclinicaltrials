@@ -1,0 +1,1586 @@
+---
+title: "Regularity Conditions for Consistency of <br>Jeffreys Approximate Objective Bayes Factor <br>in Seven or More Experiments"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+load("~/Downloads/regularity_conditions.RData")
+if(!require(BayesFactor)) {install.packages("BayesFactor")}
+if(!require(survival)) {install.packages("survival"); library(survival)}
+if(!require(LaplacesDemon)) {install.packages("LaplacesDemon")}
+if(!require(sn)) {install.packages("sn")}
+if(!require(remotes)) {install.packages("remotes")}
+if(!require(klippy)) {remotes::install_github("rlesur/klippy")}
+```
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy()
+```
+
+============================================================================================================
+
+Open Science Framework: <https://osf.io/qeprj/>
+
+&nbsp;
+
+# {.tabset .tabset-fade .tabset-pills}
+## 1. Introduction {.tabset .tabset-fade}
+
+&nbsp;
+
+To test the hypotheses $\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$, we define the extended Jeffreys approximate objective Bayes factor (eJAB) in Eq. 1.
+\begin{equation} \tag{1}
+  \mathit{eJAB}_{01}=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\},
+\end{equation}
+
+where $q$ is the size of the parameter vector $\boldsymbol{\theta}$, $N$ is the sample size, $Q_{\chi^{2}_{q}}(\cdot)$ is the quantile function of the chi-squared distribution with $q$ degrees of freedom, and $p$ is the $p$-value from a null-hypothesis significance test. We further define $\mathit{eJAB}_{10}=1\ \!/\ \!\mathit{eJAB}_{01}$.
+
+&nbsp;
+
+The sample size $N$ is
+
+* the total number of observations for for $t$-tests, linear regression, logistic regression, one-way ANOVA, and chi-squared tests.
+
+* the number of events for Cox models.
+
+* the number of independent observations for one-way repeated-measures ANOVA (Nathoo & Masson, [2016](https://dx.doi.org/10.1016/j.jmp.2015.03.003)).
+
+&nbsp;
+
+The degrees of freedom are
+
+* $q=1$ for $t$-tests, linear regression, logistic regression, and Cox models, where $\mathcal{H}_0$ specifies a point-null hypothesis (Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq)).
+
+* $q=I-1$ for one-way ANOVA and one-way repeated-measures ANOVA, where $I$ is the number of conditions.
+
+* $q=(R-1)(C-1)$ for chi-squared tests, where $R$ and $C$ are the numbers of rows and columns, respectively.
+
+Since the Bayes factor is the ratio of the marginal likelihoods of two competing models, $q=p_1-p_0$ also represents the difference in the number of free parameters between the alternative and null models. We will discuss the hypotheses and model specifications in Examples below and Section 5, particularly when $q>1$.
+
+&nbsp;
+&nbsp;
+
+### Derivation
+
+&nbsp;
+
+The Savage–Dickey density ratio is a special form of the Bayes factor for nested models by dividing the value of <br><span style="color:#0055A4">the posterior density over the parameters for the alternative model evaluated at the hypothesized value</span> by <br><span style="color:#EF4135">the prior for the same model evaluated at the same point</span>.
+
+\begin{equation} \tag{2}
+    \textit{BF}_{01}:=\frac{p(\boldsymbol{y}\mid \mathcal{H}_0)}{p(\boldsymbol{y}\mid \mathcal{H}_1)}=\frac{\color{#0055A4}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{H}_1)}}{\color{#EF4135}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{H}_1)}}
+\end{equation}
+
+&nbsp;
+
+Under standard regularity conditions and with a large sample size $N$, we can approximate $p(\boldsymbol{\theta}\mid\boldsymbol{y},\mathcal{H}_1)$ as a multivariate Gaussian distribution centered at the maximum likelihood estimate (MLE) $\hat{\boldsymbol{\theta}}$, with the observed Fisher information matrix $\left[\ I(\hat{\boldsymbol{\theta}})\ \right]_{ij}$ serving as the precision matrix (i.e., the inverse of the covariance matrix). $\lvert\ \!\cdot\ \!\rvert$ denotes the determinant. Thus,
+
+\begin{equation} \tag{3}
+  p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{H}_1)\approx(2\pi)^{-\frac{q}{2}}\cdot\lvert I(\hat{\boldsymbol{\theta}})\rvert^{\frac{1}{2}}\cdot\exp{\left\{-\frac{1}{2}(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})^\top\cdot I(\hat{\boldsymbol{\theta}})\cdot(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})\right\}}
+\end{equation}
+
+&nbsp;
+
+Next, we assume the prior $\boldsymbol{\theta}\sim\boldsymbol{\mathcal{N}}_q\!\left(\hat{\boldsymbol{\theta}},\ N^{1/q}\cdot I^{-1}(\hat{\boldsymbol{\theta}})\right)$, which, for $q=1$, corresponds to the normal unit-information prior. For $q>1$, the prior becomes more informative, placing more weight on the MLE.
+
+\begin{equation} \tag{4}
+  p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{H}_1)=(2\pi)^{-\frac{q}{2}}\cdot N^{-\frac{1}{2}}\cdot\lvert I(\hat{\boldsymbol{\theta}})\rvert^{\frac{1}{2}}\cdot\exp{\left\{-\frac{1}{2N^{1/q}}(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})^\top\cdot I(\hat{\boldsymbol{\theta}})\cdot(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})\right\}}
+\end{equation}
+
+The Wald test statistic is $W_N=(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})^\top\cdot I(\hat{\boldsymbol{\theta}})\cdot(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})\mathrel{\dot\sim}\chi_{q}^2\ $ under $\mathcal{H}_0$.
+
+&nbsp;
+&nbsp;
+
+Plugging Eq. 3 and 4 into Eq. 2, we obtain the following $\mathit{eJAB}_{01}$ expression.
+
+\begin{align}
+  \mathit{eJAB}_{01}&=\frac{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{H}_1)}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{H}_1)} \\
+  &=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot (\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})^\top\cdot I(\hat{\boldsymbol{\theta}})\cdot(\boldsymbol{\theta}_0-\hat{\boldsymbol{\theta}})\right\} \\
+  &=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot W_N\right\} \\
+  &=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\}
+\end{align}
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Remarks
+
+&nbsp;
+
+If, instead of a Wald test, the $p$-value is from a likelihood ratio test, then $Q_{\chi^{2}_{q}}(1-p)=\Lambda:=-2(\ln{\mathcal{L}_0}-\ln{\mathcal{L}_1})$.
+
+$\mathcal{L}_i=p(\boldsymbol{y}\mid\hat{\boldsymbol{\theta}}_i,\mathcal{M}_i)$ is the maximum likelihood, given model $i$ and $N\gg p_i$.
+
+\begin{align}
+  \text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)&=-2\ln{\mathcal{L}_1}+p_1\ln{N}+2\ln{\mathcal{L}_0}-p_0\ln{N} \\
+  &=-2(\ln{\mathcal{L}_1}-\ln{\mathcal{L}_0})+(p_1-p_0)\ln{N} \\
+  &=-\Lambda+q\ln{N} \\
+  \\
+  \mathit{BF}_{01}&\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)}{2}\right\} \\
+  &=\exp\left\{\frac{-\Lambda+q\ln{N}}{2}\right\} \\
+  &=N^{\frac{q}{2}}\exp\left\{-\frac{1}{2}\cdot Q_{\chi^{2}_{q}}(1-p)\right\} \tag{5}
+\end{align}
+
+For $q=1$ and large $N$, Eq. 1 is asymptotically equivalent to the BIC approximation of the Bayes factor in Eq. 5.
+
+&nbsp;
+&nbsp;
+
+> Assumptions
+
+We observe that $\mathit{eJAB}_{01}$ arises from the following assumptions:
+
+* The Savage–Dickey density ratio representation of the Bayes factor holds (Wagenmakers et al., [2010](https://doi.org/10.1016/j.cogpsych.2009.12.001); Heck, [2019](https://doi.org/10.1111/bmsp.12150)).
+
+* The posterior density is normal, centered at the MLE with precision given by the observed Fisher information. This assumption is justified by the Bayesian central limit theorem under standard regularity conditions.
+
+* A modified unit information prior is a normal distribution centered at the MLE, with precision given by the observed Fisher information divided by the $q$-th root of the sample size. The objective is to reduce the bias towards the null hypothesis (Section 6).
+
+* $\frac{N^{1/q}-1}{N^{1/q}}\approx1$. Though for small samples, it is advisable to retain the term.
+
+&nbsp;
+&nbsp;
+
+We will further examine the $p$-values from:
+
+* A nonparametric test
+
+* A one-sided test
+
+* Multiple comparisons
+
+* Testing random effects (as opposed to fixed effects)
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Example: Two-Way ANOVA
+
+&nbsp;
+
+In a two-way ANOVA, we compare an additive model, $\mathcal{M}_{\text{add}}$, to a model, $\mathcal{M}_{\text{omitA}}$, which omits the factor being tested, suppose factor $A$, in testing $\mathcal{H}_0:\alpha_i=0$ versus $\mathcal{H}_1:$ at least one $\alpha_i\neq0$.
+
+\begin{align}
+  \mathcal{M}_{\text{full}}:\ Y_{ijk}&=\mu+\alpha_i+\beta_j+(\alpha\beta)_{ij}+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{add}}:\ Y_{ijk}&=\mu+\alpha_i+\beta_j+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{omitA}}:\ Y_{ijk}&=\mu+\beta_j+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{omitB}}:\ Y_{ijk}&=\mu+\alpha_i+\epsilon_{ijk},\qquad\epsilon_{ijk}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_\epsilon^2) \\
+  &\qquad\text{for}\ i=1,\dotsb,I;\ j=1,\dotsb,J;\ \text{and}\ k=1,\dotsb,K\neq1
+\end{align}
+
+The sum-to-zero constraints impose that $\sum_{i=1}^I\alpha_i=0$, $\sum_{j=1}^J\beta_j=0$, and $\sum_{i=1}^I(\alpha\beta)_{ij}=\sum_{j=1}^J(\alpha\beta)_{ij}=0$.
+
+&nbsp;
+
+The number of free parameters in $\mathcal{M}_{\text{add}}$ is given by $p_1=1+(I-1)+(J-1)+1=I+J$.
+
+The number of free parameters in $\mathcal{M}_{\text{omitA}}$ is given by $p_0=1+(J-1)+1=J+1$.
+
+Thus, the difference in free parameters is $q=p_1-p_0=I-1$, which is equivalent to the number of free parameters in a one-way ANOVA.
+
+The sample size in this case is $N=IJK$.
+
+&nbsp;
+
+```{r two-way-ANOVA}
+ToothGrowth$dose <- factor(ToothGrowth$dose)
+
+fit_full <- aov(len ~ supp * dose, ToothGrowth) # 2×3 (between-subjects) ANOVA
+summary(fit_full) # full model  <== significant interaction
+
+fit_full <- aov(len ~ supp + dose, ToothGrowth)
+summary(fit_full) # additive model
+
+fit_add <- lm(len ~ supp + dose, ToothGrowth)
+fit_omitSupp <- lm(len ~ dose, ToothGrowth)
+anova(fit_add, fit_omitSupp) # testing the main effect `supp`
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Example: Contingency Table
+
+&nbsp;
+
+The chi-squared test for independence examines whether two categorical variables are independent. Under the null hypothesis of independence, the expected frequency $\mu_{ij}$ in each cell of a contingency table is calculated based on the assumption that the joint probability $\pi_{ij}$ equals the product of the marginal probabilities $\pi_{i\cdot}$ and $\pi_{\cdot j}$
+
+The numbers of parameters are $p_1=R\cdot C-1$ under $\mathcal{H}_1$ and $p_0=R+C-2$ under $\mathcal{H}_0$, assuming a fixed total and a joint multinomial distribution. And the numbers of parameters are $p_1=R\cdot(C-1)$ under $\mathcal{H}_1$ and $p_0=C-1$ under $\mathcal{H}_0$, assuming fixed row sums and independent multinomial distributions.
+
+$q=p_1-p_0=(R-1)(C-1)$
+
+&nbsp;
+&nbsp;
+
+\begin{align}
+  Y_{ij}&\overset{\text{ind.}}{\sim}\operatorname{Pois}(\mu_{ij}) \\
+  \ln{\mu_{ij}}&=\mu+\alpha_i+\beta_j+(\alpha\beta)_{ij}\qquad\text{for}\ i=1,\dotsb,R\ \text{and}\ j=1,\dotsb,C
+\end{align}
+
+Alternatively, using [log-linear models](https://www.ma.imperial.ac.uk/~das01/MyWeb/M3S12/Handouts/Notes/Chap6.pdf), the null hypothesis of independence can be expressed by setting the interaction terms to zero, $\mathcal{H}_0:(\alpha\beta)_{ij}=0$.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 2. Lemma
+
+&nbsp;
+
+> Lemma
+
+For $x\to1^-$,
+\begin{equation} \tag{6}
+  g(x)=-2\ln(1-x)-2\ln(-\ln(1-x))-Q_{\chi^{2}_{1}}(x)<0
+\end{equation}
+
+*Proof:*
+
+Let $F_{\chi_1^2}(x)=2\Phi(\sqrt{x})-1$ for $x>0$, where $\Phi(x)$ denotes the cumulative distribution function of the standard normal distribution. Then, the probability density function is $f_{\chi_1^2}(x):=F_{\chi_1^2}^\prime(x)=\varphi(\sqrt{x})\ /\ \sqrt{x}=\frac{1}{\sqrt{2\pi x}}\cdot\exp\{-x/2\}$, where $\varphi(x)=\Phi^\prime(x)$.
+
+The quantile function $Q_{\chi^{2}_{1}}(x):=F_{\chi_1^2}^{-1}(x)$—and therefore $g(x)$—is continuous on the domain $(0,1)$.
+
+&nbsp;
+
+Using the [inverse function rule](https://en.wikipedia.org/wiki/Inverse_function_rule), $Q_{\chi_1^2}^\prime(x)=\left(F_{\chi_1^2}^{-1}(x)\right)^\prime=\frac{1}{F_{\chi_1^2}^\prime\ \!(F_{\chi_1^2}^{-1}(x))}=\frac{1}{f_{\chi_1^2}\ \!(Q_{\chi_1^2}(x))}=\sqrt{2\pi Q_{\chi_1^2}(x)}\cdot\exp\left\{ Q_{\chi_1^2}(x)\ \!/\ \! 2 \right\}>0$.
+
+&nbsp;
+
+\begin{align}
+  g^\prime(x)&=\frac{2+2\ln{(1-x)}}{(1-x)\ln{(1-x)}}-\sqrt{2\pi Q_{\chi^{2}_{1}}(x)}\cdot\exp\left\{Q_{\chi^{2}_{1}}(x)\ /\ 2\right\} \\
+  
+  &<\frac{2+2\ln{(1-x)}}{(1-x)\ln{(1-x)}}=\frac{2-2\left(\sum_{m=1}^\infty\frac{x^m}{m}\right)}{(1-x)\ln{(1-x)}} \\
+  
+  &<\frac{2-2x}{(1-x)\ln{(1-x)}}=\frac{2}{\ln{(1-x)}}<0
+\end{align}
+
+$g^\prime(x)<0$ implies that $g(x)$ is a monotonically decreasing function.
+
+We note that $g(.9)>0$ and $g(.99)<0$, indicating that $g(x^*)=0$ for only one $x^*\in(.9,.99)$.
+
+Thus, $-2\ln(1-x)-2\ln(-\ln(1-x))<Q_{\chi^{2}_{1}}(x)$ for $x^*<x<1$.
+
+$\hspace{56em}\blacksquare$
+
+&nbsp;
+
+```{r inequality, fig.width=5.5, fig.height=5}
+curve(-2*log(1-x)-2*log(-log(1-x)), 0.9, 1, 
+      ylab="", xlab=expression(italic(x)), main="Inequality")
+curve(qchisq(x, 1), 0.9, 1, add=T, col="red", lty=2)
+curve(qchisq(x, 2), 0.9, 1, add=T, col="blue", lty=3)
+curve(qchisq(x, 3), 0.9, 1, add=T, col="blue", lty=4)
+legend("topleft", c("LHS", "RHS (df=1)", "RHS (df=2)", "RHS (df=3)"),
+       col=c("black", "red", "blue", "blue"), lty=1:4, lwd=2, bty="n")
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 3. Regularity Conditions
+
+&nbsp;
+
+> Theorem
+
+**R1**: Assume that $p\text{-value}\overset{D}{\to}\text{Unif}(0,1)$ under $\mathcal{H}_0$.
+
+<!-- the cumulative distribution function of the test statistic under the null hypothesis is continuous. -->
+
+**R2**: Assume that if $\mathcal{H}_1$ is true, then the $p$-value decreases to zero with increasing $N$ in such a way that
+\begin{equation} \tag{7}
+  D_{N}=\sqrt{N}\cdot p\text{-value}\cdot(-\ln{p\text{-value}})\overset{P}{\to}0\quad\text{as}\ N\to\infty.
+\end{equation}
+
+Then,
+\begin{equation} \tag{8}
+\DeclareMathOperator*{\plim}{plim}
+\plim_{N\to\infty}\mathit{eJAB}_{01}=
+\begin{cases}
+    \infty & \text{under}\ \mathcal{H}_0 \\
+    0 & \text{under}\ \mathcal{H}_1
+\end{cases}
+\end{equation}
+
+&nbsp;
+
+Note that **R1** is weaker than the assumption that the $p$-value is distributed as $\text{Unif}(0,1)$, and it is this stronger assumption that is violated by some permutation tests.
+
+The stronger condition for **R2** also holds:
+\begin{align} \tag{$7^*$}
+  D_{N}^*&=\sqrt{N}\cdot\left(p\text{-value}\cdot(-\ln{p\text{-value}})\right)^{\frac{N^{1/q}-1}{N^{1/q}}} \\
+  &=N^{\frac{1}{2N^{1/q}}}\cdot D_N^{1-\frac{1}{N^{1/q}}}\overset{P}{\to}0,
+\end{align}
+by the continuous mapping theorem, noting that $N^{\frac{1}{2N^{1/q}}}\to1$ and $1-\frac{1}{N^{1/q}}\to1$ as $N\to\infty$.
+
+&nbsp;
+&nbsp;
+
+Here, we investigate the regularity conditions **R1** and **R2** for each of the seven tests considered in our simulations.
+
+* [Link 1](https://rpubs.com/sherloconan/1203268) &nbsp;&nbsp; two-sample $t$-test <span style="color:lightgray">(balanced group sizes with equal variance)</span>
+
+* [Link 2](https://rpubs.com/sherloconan/1206246) &nbsp;&nbsp; simple linear regression
+
+* [Link 3](https://rpubs.com/sherloconan/1206247) &nbsp;&nbsp; simple logistic regression <span style="color:lightgray">(binomial family)</span>
+
+* [Link 4](https://rpubs.com/sherloconan/1208326) &nbsp;&nbsp; one-way analysis of variance <span style="color:lightgray">(ANOVA, balanced group sizes among four groups)</span>
+
+* [Link 5](https://rpubs.com/sherloconan/1208327) &nbsp;&nbsp; one-way repeated-measures ANOVA <span style="color:lightgray">(four conditions with high intraclass correlation)</span>
+
+* [Link 6](https://rpubs.com/sherloconan/1212352) &nbsp;&nbsp; chi-squared test for independence <span style="color:lightgray">($3\times3$ contingency table with a fixed total)</span>
+
+* [Link 7](https://rpubs.com/sherloconan/1216724) &nbsp;&nbsp; Cox proportional-hazards regression <span style="color:lightgray">(random right-censoring)</span>
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 4. Proof
+
+&nbsp;
+
+*Proof:*
+
+<u>Case 1</u>: Assume that $\mathcal{H}_0$ is true.
+
+From **R1**, we have that $1-p\overset{D}{\to}\text{Unif}(0,1)$.
+
+Then, by the continuous mapping theorem, $W_N=Q_{\chi^{2}_{q}}(1-p) \overset{D}{\to} \chi^{2}_{q}$.
+
+Let $B>0$ and $\delta\in(0,1)$ be arbitrary. Now, for $N\geqslant N^*=\lceil B^2\exp\{Q_{\chi^{2}_{q}}(1-\delta)\}\rceil$, we have
+
+\begin{align}
+  \mathbb{P}(\mathit{eJAB}_{01} > B)&=\mathbb{P}\left(\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}W_N\right\}>B\right) > \mathbb{P}\left(\sqrt{N}\exp\left\{-\frac{1}{2}W_N\right\}>B\right) \\
+  
+  &=\mathbb{P}\left(W_N < -2 \ln{\frac{B}{\sqrt{N}}}\right)\geqslant\mathbb{P}\left(W_N < -2 \ln{\frac{B}{\sqrt{N^*}}}\right)\geqslant\mathbb{P}\left(W_N < -2 \ln{\frac{B}{\sqrt{B^{2}\exp\{Q_{\chi^{2}_{q}}(1-\delta)\}}}}\right) \\
+  
+  &=\mathbb{P}\left(W_N < Q_{\chi^{2}_{q}}(1-\delta)\right)\to 1-\delta\ \text{as}\ N\to\infty.
+\end{align}
+
+As $B>0$ and $\delta\in(0,1)$ are arbitrary, this shows that, under $\mathcal{H}_0$, we can always find $N$ sufficiently large so that $\mathit{eJAB}_{01}$ will be arbitrarily large with probability arbitrarily close to 1.
+
+Thus, $\mathit{eJAB}_{01}\overset{P}{\to}\infty$ as $N\to\infty$ under $\mathcal{H}_0$.
+
+&nbsp;
+&nbsp;
+
+<u>Case 2</u>: Assume that $\mathcal{H}_1$ is true.
+
+Let $\epsilon>0$ and $\delta\in(0,1)$ be arbitrary.
+
+Noting that for $x\to1^{-}$ and $q>1$, we have $-2\ln(1-x)-2\ln(-\ln(1-x))<Q_{\chi^{2}_{1}}(x)<Q_{\chi^{2}_{q}}(x)$.
+
+\begin{align}
+  \mathbb{P}(\mathit{eJAB}_{01}<\epsilon)&=\mathbb{P}\left(\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\}<\epsilon\right) \\
+  
+  &>\mathbb{P}\left(\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}(-2\ln{p} -2\ln(-\ln{p)})\right\}<\epsilon\right) \\
+  
+  &=\mathbb{P}\left(\sqrt{N}\cdot p^{\frac{N^{1/q}-1}{N^{1/q}}}\cdot(-\ln{p})^{\frac{N^{1/q}-1}{N^{1/q}}}<\epsilon\right)>1-\delta.
+\end{align}
+
+The final inequality is true for $N$ sufficiently large by **R2**.
+
+Thus, under $\mathcal{H}_1$, for $N$ sufficiently large, $\mathit{eJAB}_{01}$ can be made arbitrarily small with probability arbitrarily close to 1.
+
+Thus, $\mathit{eJAB}_{01}\overset{P}{\to}0$ as $N\to\infty$ under $\mathcal{H}_1$.
+
+$\hspace{56em}\blacksquare$
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 5. Seven Simulations {.tabset .tabset-fade}
+
+&nbsp;
+
+### $t$-Test {.tabset .tabset-fade}
+
+&nbsp;
+
+In this case, we assume
+\begin{align}
+  X_{i} &\overset{\text{i.i.d.}}{\sim} \mathcal{N}(\mu_{1},\ \sigma_{1}^{2}), \\
+  
+  Y_{i} &\overset{\text{i.i.d.}}{\sim} \mathcal{N}(\mu_{2},\ \sigma_{2}^{2})\quad\text{for}\ i=1,\dotsb,n.
+\end{align}
+
+The sample size $N=n_1+n_2$ is the total number of observations. The degree of freedom is $q=1$.
+
+#### **R1**
+
+We set the model parameters to $\sigma_1=\sigma_2=\sigma=1$ and $\mu_1=\mu_2=0$, so that $\mathcal{H}_0:\theta=\mu_1-\mu_2=0$ is true.
+
+&nbsp;
+
+```{r ttest-R1-1.8sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of observations per balanced group
+```
+```{r, eval=F}
+computeDist1 <- function(n, mu1=0, mu2=0.5, sigma1=1, sigma2=1, loc.alt=F, kappa=0.5) {
+  #' Input -
+  #' n:           number of observations per balanced group
+  #' mu1:         population mean of the first group
+  #' mu2:         population mean of the second group
+  #' sigma1:      population standard deviation of the first group
+  #' sigma2:      population standard deviation of the second group
+  #' loc.alt:     whether to simulate under a local alternative
+  #' kappa:       the power of the denominator for `loc.alt`
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  if(loc.alt) mu2 <- mu1 + (mu2 - mu1) / (n^kappa)
+  pVal <- stats::t.test(stats::rnorm(n, mu1, sigma1),
+                        stats::rnorm(n, mu2, sigma2),
+                        var.equal=T)$p.value # p-value of the two-sample t-test
+  list("p"=pVal,
+       "D"=sqrt(n * 2) * pVal * -log(pVal) ) # use total number of observations
+}
+
+set.seed(277)
+pMat1 <- sapply(n, function(x) replicate(nSim, computeDist1(x, mu2=0)$p)) # roughly 1.8 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat1[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(2*n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for the $t$-test.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $\sigma_1=\sigma_2=\sigma=1$, $\mu_1=0$, and $\mu_2=0.5$, so that $\mathcal{H}_1:\theta=\mu_1-\mu_2\neq0$ is true.
+
+Cohen's $d=\frac{\lvert\mu_2-\mu_1\rvert}{\sigma}=0.5$ indicates a medium effect size.
+
+&nbsp;
+
+```{r ttest-R2-1.8sec, eval=F}
+set.seed(277)
+distMat1 <- sapply(n, function(x) replicate(nSim, computeDist1(x)$D)) # roughly 1.8 seconds of run time
+```
+```{r}
+boxplot(distMat1, names=n, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main=expression("Two-Sample " * italic(t) * "-Test")) # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for the $t$-test.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Local Alternative
+
+We simulate under $\mathcal{H}_1:\theta^*=\theta_0+\frac{c}{n^\kappa}$ for $\kappa\in\{0.5,\ 0.25\}$.
+
+&nbsp;
+
+```{r ttest-LA-35x2sec, eval=F}
+set.seed(277)
+distAlt1b <- sapply(n*100, function(x) replicate(nSim, computeDist1(x, loc.alt=T)$D))
+
+set.seed(277)
+distAlt1c <- sapply(n*100, function(x) replicate(nSim, computeDist1(x, loc.alt=T, kappa=0.25)$D))
+```
+```{r}
+boxplot(distAlt1b, names=n*100, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main=expression("Two-Sample " * italic(t) * "-Test"),
+        sub=expression(italic(κ)==0.5))
+
+boxplot(distAlt1c, names=n*100, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main=expression("Two-Sample " * italic(t) * "-Test"),
+        sub=expression(italic(κ)==0.25))
+```
+
+The regularity condition **R2** does not appear to hold for the $t$-test under the local alternative ($\kappa=0.5$). When sample size is extremely large and $\kappa=0.25$, **R2** shrinks to zero.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Linear Regression {.tabset .tabset-fade}
+
+&nbsp;
+
+In this case, we assume
+\begin{equation}
+  y_i=\beta_0+\beta_1 x_i+\epsilon_i,\quad\epsilon_i\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_\epsilon^2)\quad\text{for}\ i=1,\dotsb,N.
+\end{equation}
+
+The sample size $N$ is the total number of observations. The degree of freedom is $q=1$.
+
+#### **R1**
+
+We set the model parameters to $\beta_0=1$, $\beta_1=0$, and $\sigma_\epsilon=1$. The test is two-sided with null hypothesis $\mathcal{H}_0:\beta_1=0$.
+
+&nbsp;
+
+```{r lm-R1-7.8sec}
+nSim <- 5000 # number of simulation runs for each setting
+N <- c(10, 25, 50, 100, 250, 500) # numbers of observations
+```
+```{r, eval=F}
+computeDist2 <- function(N, intercept=1, slope=0.5, sigma=1) {
+  #' Input -
+  #' N:              number of observations
+  #' intercept:      true baseline at x = 0
+  #' slope:          true regression coefficient
+  #' sigma:          true error standard deviation
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  x <- stats::rnorm(N) # independent variable
+  y <- intercept + slope * x + stats::rnorm(N, 0, sigma) # dependent variable
+  pVal <- summary(stats::lm(y ~ x))$coefficients["x", "Pr(>|t|)"] # p-value of the regression coefficient
+  list("p"=pVal,
+       "D"=sqrt(N) * pVal * -log(pVal) )
+}
+
+set.seed(277)
+pMat2 <- sapply(N, function(x) replicate(nSim, computeDist2(x, slope=0)$p)) # roughly 7.8 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(N)) {
+  hist(pMat2[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(N[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for linear regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $\beta_0=1$, $\beta_1=0.5$, and $\sigma_\epsilon=1$.
+
+Cohen's $r=\beta_1\frac{\sigma_X}{\sqrt{\beta_1^2\sigma_X^2+\sigma_\epsilon^2}}=0.5\ /\ \sqrt{0.5^2 + 1}\approx0.45$ indicates a large effect size.
+
+&nbsp;
+
+```{r lm-R2-7.3sec, eval=F}
+set.seed(277)
+distMat2 <- sapply(N, function(x) replicate(nSim, computeDist2(x)$D)) # roughly 7.3 seconds of run time
+```
+```{r}
+boxplot(distMat2, names=N, ylab=expression(italic(D)[italic(N)]), xlab="Number of Observations",
+        main="Simple Linear Regression") # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for linear regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Logistic Regression {.tabset .tabset-fade}
+
+&nbsp;
+
+In this case, we assume
+\begin{align}
+  y_i&\overset{\text{i.i.d.}}{\sim}\operatorname{Bin}(10,\ p_i) \\
+  
+  &\ln{\frac{p_i}{1-p_i}}=\beta_0+\beta_1 x_i\quad\text{for}\ i=1,\dotsb,N.
+\end{align}
+
+The sample size $N$ is the total number of observations. The degree of freedom is $q=1$.
+
+#### **R1**
+
+We set the model parameters to $\beta_0=0$ and $\beta_1=0$. The test is two-sided with null hypothesis $\mathcal{H}_0:\beta_1=0$.
+
+&nbsp;
+
+```{r glm-R1-16sec}
+nSim <- 5000 # number of simulation runs for each setting
+N <- c(10, 25, 50, 100, 250, 500) # numbers of observations
+```
+```{r, eval=F}
+computeDist3 <- function(N, size=10, intercept=0, slope=0.5) {
+  #' Input -
+  #' N:              number of observations
+  #' size:           number of trials
+  #' intercept:      true intercept
+  #' slope:          true coefficient
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  x <- stats::rnorm(N) # predictor variable
+  p <- 1 / (1 + exp(-intercept - slope * x)) # success probability
+  y <- stats::rbinom(N, size, p) # outcome variable
+  pVal <- summary(stats::glm(cbind(y, size-y) ~ x, family=binomial))$coefficients["x", "Pr(>|z|)"]
+  list("p"=pVal,
+       "D"=sqrt(N) * pVal * -log(pVal) )
+}
+
+set.seed(277)
+pMat3 <- sapply(N, function(x) replicate(nSim, computeDist3(x, slope=0)$p)) # roughly 16 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(N)) {
+  hist(pMat3[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(N[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for logistic regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $\beta_0=0$ and $\beta_1=0.5$. The odds ratio is $e^{\beta_1}\approx1.65$.
+
+&nbsp;
+
+```{r glm-R2-17sec, eval=F}
+set.seed(277)
+distMat3 <- sapply(N, function(x) replicate(nSim, computeDist3(x)$D)) # roughly 17 seconds of run time
+```
+```{r}
+boxplot(distMat3, names=N, ylab=expression(italic(D)[italic(N)]), xlab="Number of Observations",
+        main="Simple Logistic Regression") # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for logistic regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### ANOVA {.tabset .tabset-fade}
+
+&nbsp;
+
+Let's assume a balanced one-way design with $I$ levels, where $Y_{ij}$ denotes the response obtained from the $j$-th subject in group $i$.
+\begin{equation}
+  Y_{ij}=\mu+\alpha_i+\epsilon_{ij},\quad\epsilon_{ij}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_\epsilon^2)\quad\text{for}\ i=1,\dotsb,I\ \text{and}\ j=1,\dotsb,n.
+\end{equation}
+
+The sample size $N=nI$ is the total number of observations. The degrees of freedom are $q=I-1$.
+
+#### **R1**
+
+We set the model parameters to $I=4$, $\mu=2$, $\alpha_1=\alpha_2=\alpha_3=\alpha_4=0$, and $\sigma_\epsilon=1$.
+
+$\mu_i=\mu+\alpha_i$ and $\mu_0=\frac{1}{I}\sum_{i=1}^I\mu_i$
+
+$\mathcal{H}_0:\boldsymbol{\theta}=(\mu_1-\mu_0,\ \mu_2-\mu_0,\ \mu_3-\mu_0)^\top=\boldsymbol{0}$
+
+&nbsp;
+
+```{r anova-R1-14sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of observations per balanced group
+```
+```{r, eval=F}
+computeDist4 <- function(n, m1=2, m2=2, m3=2.25, m4=2.5, sigma=1) {
+  #' Input -
+  #' n:              number of observations per balanced group
+  #' m1:             population mean for the first group
+  #' m2:             population mean for the second group
+  #' m3:             population mean for the third group
+  #' m4:             population mean for the fourth group
+  #' sigma:          true error standard deviation
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  y <- stats::rnorm(n * 4, c(m1, m2, m3, m4), sigma) # responses
+  pVal <- summary(stats::aov(y ~ factor(rep(1:4, n))))[[1]][1, "Pr(>F)"] # p-value in one-way ANOVA
+  list("p"=pVal,
+       "D"=sqrt(n * 4) * pVal * -log(pVal) ) # use total number of observations
+}
+
+set.seed(277)
+pMat4 <- sapply(n, function(x) replicate(nSim, computeDist4(x, m3=2, m4=2)$p)) # roughly 14 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat4[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(4*n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for one-way ANOVA.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $I=4$, $\mu=2$, $\alpha_1=0$, $\alpha_2=0$, $\alpha_3=0.25$, $\alpha_4=0.5$, and $\sigma_\epsilon=1$.
+
+$\mu_i=\mu+\alpha_i$ and $\mu_0=\frac{1}{I}\sum_{i=1}^I\mu_i$
+
+$\mathcal{H}_1:\boldsymbol{\theta}=(\mu_1-\mu_0,\ \mu_2-\mu_0,\ \mu_3-\mu_0)^\top\neq\boldsymbol{0}$
+
+Cohen's $f^2=\frac{\sigma_m^2}{\sigma_\epsilon^2}=\frac{1}{\sigma_\epsilon^2\cdot I}\sum_{i=1}^I (\mu_i-\mu_0)^2$ and $\eta^2=\frac{f^2}{1+f^2}\approx0.04$ indicate a medium effect size.
+
+&nbsp;
+
+```{r anova-R2-14sec, eval=F}
+set.seed(277)
+distMat4 <- sapply(n, function(x) replicate(nSim, computeDist4(x)$D)) # roughly 14 seconds of run time
+```
+```{r}
+boxplot(distMat4, names=n, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main="One-Way ANOVA with Four Groups") # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for one-way ANOVA.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Repeated-Measures ANOVA {.tabset .tabset-fade}
+
+&nbsp;
+
+Let's assume a single factor within-subject design with $I$ levels of the within-subject factor measured on each subject. Let $Y_{ij}$ denote the response collected at the $i$-th level of the within-subject factor for subject $j$.
+\begin{equation}
+  Y_{ij}=\mu+\alpha_i+s_j+\epsilon_{ij},\quad s_{j}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_s^2)\ \perp \!\!\! \perp\ \epsilon_{ij}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_\epsilon^2)\quad\text{for}\ i=1,\dotsb,I\ \text{and}\ j=1,\dotsb,n.
+\end{equation}
+
+The sample size $N=n(I-1)$ is the number of independent observations. The degrees of freedom are $q=I-1$.
+
+#### **R1**
+
+We set the model parameters to $I=4$, $\mu=2$, $\alpha_1=\alpha_2=\alpha_3=\alpha_4=0$, $\sigma_s=3$, and $\sigma_\epsilon=1$, resulting in a correlation of $\rho=\sigma_s^2\ /\ (\sigma_s^2+\sigma_\epsilon^2)=.9$ between any two observation collected on the same subject.
+
+$\mu_i=\mu+\alpha_i$ and $\mu_0=\frac{1}{I}\sum_{i=1}^I\mu_i$
+
+$\mathcal{H}_0:\boldsymbol{\theta}=(\mu_1-\mu_0,\ \mu_2-\mu_0,\ \mu_3-\mu_0)^\top=\boldsymbol{0}$
+
+&nbsp;
+
+```{r rmanova-R1-5.4h}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of subjects
+```
+```{r, eval=F}
+computeDist5 <- function(n, m1=2, m2=2, m3=2.25, m4=2.5, sigma_e=1, sigma_s=3) {
+  #' Input -
+  #' n:              number of subjects
+  #' m1:             population mean for the first condition
+  #' m2:             population mean for the second condition
+  #' m3:             population mean for the third condition
+  #' m4:             population mean for the fourth condition
+  #' sigma_e:        true error standard deviation
+  #' sigma_s:        standard deviation of the subject-specific random effects
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  df <- data.frame("resp"=stats::rnorm(n*4, c(m1, m2, m3, m4), sigma_e) + 
+                          rep(stats::rnorm(n, 0, sigma_s), each=4),
+                   "cond"=rep(paste0("cond", 1:4), n),
+                   "ID"=rep(paste0("s", 1:n), each=4), stringsAsFactors=T)
+  pVal <- summary(stats::aov(resp ~ cond + Error(ID/cond), df))[[2]][[1]]["cond", "Pr(>F)"]
+  # pVal <- summary(stats::aov(resp ~ cond + ID, df))[[1]][1, "Pr(>F)"] # same results but significantly faster
+  list("p"=pVal,
+       "D"=sqrt(n*3) * pVal * -log(pVal) ) # use total number of independent observations
+}
+
+set.seed(277)
+pMat5 <- sapply(n, function(x) replicate(nSim, computeDist5(x, m3=2, m4=2)$p)) # roughly 5.4 hours of run time
+```
+```{r rmanova-R1, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat5[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(4*n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for one-way repeated-measures ANOVA.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $I=4$, $\mu=2$, $\alpha_1=0$, $\alpha_2=0$, $\alpha_3=0.25$, $\alpha_4=0.5$, $\sigma_s=3$, and $\sigma_\epsilon=1$, resulting in a correlation of $\rho=\sigma_s^2\ /\ (\sigma_s^2+\sigma_\epsilon^2)=.9$ between any two observation collected on the same subject.
+
+$\mu_i=\mu+\alpha_i$ and $\mu_0=\frac{1}{I}\sum_{i=1}^I\mu_i$
+
+$\mathcal{H}_1:\boldsymbol{\theta}=(\mu_1-\mu_0,\ \mu_2-\mu_0,\ \mu_3-\mu_0)^\top\neq\boldsymbol{0}$
+
+For examining the regularity conditions, the sample size in $D_N$ is taken to be $n(I-1)$ to account for repeated-measures correlation. This simple choice is made primarily for convenience and should not effect the results as they pertain to behavior of $D_N$ since it is the number of subjects tending to infinity while the number of conditions is fixed to $I=4$. 
+
+&nbsp;
+
+```{r rmanova-R2-5.5h, eval=F}
+set.seed(277)
+distMat5 <- sapply(n, function(x) replicate(nSim, computeDist5(x)$D)) # roughly 5.5 hours of run time
+```
+```{r rmanova-R2}
+boxplot(distMat5, names=n, ylab=expression(italic(D)[italic(N)]), xlab="Number of Subjects",
+        main="One-Way RMANOVA with Four Conditions") # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for one-way repeated-measures ANOVA.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### $\chi^{2}$-Test {.tabset .tabset-fade}
+
+&nbsp;
+
+Design (Note that each row may not have been normalized.)
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-7g0g{background-color:#FFCCC9;text-align:center;vertical-align:top}
+.tg .tg-1hbn{background-color:#FFCB2F;text-align:center;vertical-align:top}
+.tg .tg-baqh{text-align:center;vertical-align:top}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0lax{text-align:left;vertical-align:top}
+.tg .tg-ngei{background-color:#ffcb2f;border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-bolj{background-color:#ffccc9;border-color:inherit;text-align:center;vertical-align:top}
+</style>
+<table class="tg"><thead>
+  <tr>
+    <td class="tg-0lax" rowspan="4"><span style="font-weight:400;font-style:normal">$\mathcal{H}_1$</span></td>
+    <td class="tg-c3ow">$\pi_1$</td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\pi_2$</span></td>
+    <td class="tg-c3ow">$1-\pi_1-\pi_2$</td>
+    <td class="tg-ngei">1</td>
+    <td class="tg-baqh" rowspan="4">$\mathcal{H}_0$</td>
+    <td class="tg-baqh">$\pi_1$</td>
+    <td class="tg-baqh"><span style="font-weight:400;font-style:normal">$\pi_2$</span></td>
+    <td class="tg-baqh">$1-\pi_1-\pi_2$</td>
+    <td class="tg-1hbn">1</td>
+  </tr>
+  <tr>
+    <td class="tg-c3ow">$\pi_1-\delta$</td>
+    <td class="tg-c3ow">$\pi_2+\delta$</td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$1-\pi_1-\pi_2$</span></td>
+    <td class="tg-ngei">1</td>
+    <td class="tg-baqh">$\pi_1$</td>
+    <td class="tg-baqh"><span style="font-weight:400;font-style:normal">$\pi_2$</span></td>
+    <td class="tg-baqh">$1-\pi_1-\pi_2$</td>
+    <td class="tg-1hbn">1</td>
+  </tr>
+  <tr>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\pi_1+\delta$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$\pi_2-\delta$</span></td>
+    <td class="tg-c3ow"><span style="font-weight:400;font-style:normal">$1-\pi_1-\pi_2$</span></td>
+    <td class="tg-ngei">1</td>
+    <td class="tg-baqh">$\pi_1$</td>
+    <td class="tg-baqh"><span style="font-weight:400;font-style:normal">$\pi_2$</span></td>
+    <td class="tg-baqh">$1-\pi_1-\pi_2$</td>
+    <td class="tg-1hbn">1</td>
+  </tr>
+  <tr>
+    <td class="tg-bolj">$3\pi_1$</td>
+    <td class="tg-bolj">$3\pi_2$</td>
+    <td class="tg-bolj">$3-3\pi_1-3\pi_2$</td>
+    <td class="tg-c3ow">3</td>
+    <td class="tg-7g0g">$3\pi_1$</td>
+    <td class="tg-7g0g">$3\pi_2$</td>
+    <td class="tg-7g0g">$3-3\pi_1-3\pi_2$</td>
+    <td class="tg-baqh">3</td>
+  </tr></thead></table>
+
+&nbsp;
+
+The sample size $N$ is the total number of observations. The degrees of freedom are $q=(R-1)(C-1)$.
+
+#### **R1**
+
+Let $\pi_1=\pi_2=.25$ and $\delta=0$. Assume that the total number is fixed (`jointMulti`).
+
+&nbsp;
+
+```{r chisq-R1-0.8sec}
+nSim <- 5000 # number of simulation runs for each setting
+size <- c(100, 250, 500, 1000, 2000, 3000) # average numbers of objects per row
+```
+```{r, eval=F}
+computeDist6 <- function(size, p1=.25, p2=.25, delta=0.075) {
+  #' Input -
+  #' size:            average number of objects per row
+  #' p1:              proportion in the first row and first column of a 3×3 contingency table
+  #' p2:              proportion in the first row and second column of a 3×3 contingency table
+  #' delta:           designated proportion difference
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  prob_H0 <- c(p1, p2, 1-p1-p2) # probabilities for the three column classes under the null
+  prob_delta <- c(-delta, delta, 0) # effect sizes
+  mat <- matrix(stats::rmultinom(1, size * 3, c(prob_H0,
+                                                prob_H0 + prob_delta,
+                                                prob_H0 - prob_delta)), ncol=3, byrow=T) # `jointMulti`
+  pVal <- stats::chisq.test(mat)$p.value # p-value of the chi-squared test
+  list("p"=pVal,
+       "D"=sqrt(size * 3) * pVal * -log(pVal) ) # use total number of objects
+}
+
+set.seed(277)
+pMat6 <- sapply(size, function(x) replicate(nSim, computeDist6(x, delta=0)$p)) # roughly 0.8 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(size)) {
+  hist(pMat6[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  Size = " * .(3*size[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** holds for the $\chi^2$-test.
+
+The smallest sample size is $3\times100$ to ensure accuracy of the $\chi^{2}$ test with no cells having an expected count lower than 5.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+Let $\pi_1=\pi_2=.25$ and $\delta=0.075$. Assume that the total number is fixed (`jointMulti`).
+
+Cohen's $\omega=\sqrt{\sum_{k=1}^K\frac{(p_{1k}-p_{0k})^2}{p_{0k}}}=\delta\sqrt{\frac{2}{\pi_1}+\frac{2}{\pi_2}}=0.3$ indicates a medium effect size in this case, where $p_{0k}$ and $p_{1k}$ are the proportions of the $k$-th cell under $\mathcal{H}_0$ and $\mathcal{H}_1$, respectively. $K$ is the number of cells.
+
+&nbsp;
+
+```{r chisq-R2-0.8sec, eval=F}
+set.seed(277)
+distMat6 <- sapply(size, function(x) replicate(nSim, computeDist6(x)$D)) # roughly 0.8 seconds of run time
+```
+```{r}
+boxplot(distMat6, names=size*3, ylab=expression(italic(D)[italic(N)]), xlab="Total Number of Objects",
+        main="Chi-Squared Test for Independence (Fixed Total)") # create the boxplot
+```
+
+The regularity condition **R2** holds for the $\chi^2$-test.
+
+The smallest sample size is $3\times100$ to ensure accuracy of the $\chi^{2}$ test with no cells having an expected count lower than 5.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Cox Model {.tabset .tabset-fade}
+
+&nbsp;
+
+We model the observed time $Y_i=\min(T_i,\ C_i)$ and event indicator $\delta_i=\mathbf{1}_{T_i\leqslant C_i}$, where $C_i\overset{\text{i.i.d.}}{\sim}\operatorname{Exp}(0.2)$ are random and independent right-censoring times. The fitted model is a Cox proportional-hazards regression, and the $p$-value is from the Wald test based on the partial likelihood.
+
+In this case, we assume
+\begin{align}
+  T_i&\overset{\text{ind.}}{\sim}\operatorname{Exp}(\lambda_i) \\
+  
+  &\ln{\lambda_i}=\beta_0+\beta_1 x_i\quad\text{for}\ i=1,\dotsb,N^*.
+\end{align}
+
+The sample size $N$ is the number of events. The degree of freedom is $q=1$.
+
+The expected censoring fraction is $\mathbb{E}[\mathbb{P}(C<T\mid X)]=\mathbb{E}_{X\sim\mathcal{N}(0,1)}\left[\frac{0.2}{0.2+\exp\{\beta_0+\beta_1X\}} \right]\approx\operatorname{logit}^{-1}\left(\frac{\ln0.2-\beta_0}{\sqrt{1+\pi\beta_1^2/8}} \right)$, where $\operatorname{logit}^{-1}(t)=\frac{1}{1+e^{-t}}$.
+
+#### **R1**
+
+We set the model parameters to $\beta_0=0$ and $\beta_1=0$. The test is two-sided with null hypothesis $\mathcal{H}_0:\beta_1=0$.
+
+&nbsp;
+
+```{r coxph-R1-27sec}
+nSim <- 5000 # number of simulation runs for each setting
+N <- c(25, 50, 100, 250, 500) # numbers of observations
+```
+```{r, eval=F}
+computeDist7 <- function(N, intercept=0, slope=0.5) {
+  #' Input -
+  #' N:              number of observations
+  #' intercept:      true intercept
+  #' slope:          true coefficient
+  #' 
+  #' Dependency - survival (3.8-3)
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  x <- stats::rnorm(N) # predictor variable
+  lambda <- exp(intercept + slope * x) # rate parameter
+  survTime <- stats::rexp(N, lambda) # survival time
+  cenTime <- stats::rexp(N, 0.2) # right-censoring time
+  dat <- list(time=pmin(survTime, cenTime),
+              status=as.numeric(survTime <= cenTime),
+              x=x)
+  pVal <- summary(survival::coxph(survival::Surv(time, status) ~ x, dat))$coefficients["x", "Pr(>|z|)"]
+  N <- sum(dat$status==1)
+  list("p"=pVal,
+       "D"=sqrt(N) * pVal * -log(pVal) ) # use number of events
+}
+
+set.seed(277)
+pMat7 <- sapply(N, function(x) replicate(nSim, computeDist7(x, slope=0)$p)) # roughly 27 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(N)) {
+  hist(pMat7[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N* = ") * .(N[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+Note that the smallest number of observations is $N^*=25$, because, with right censoring, the Cox model cannot estimate parameters when $N^*=10$.
+
+The regularity condition **R1** appears to hold for the Cox proportional-hazards model.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+We set the model parameters to $\beta_0=0$ and $\beta_1=0.5$. The hazard ratio is $e^{\beta_1}\approx1.65$.
+
+&nbsp;
+
+```{r coxph-R2-27sec, eval=F}
+set.seed(277)
+distMat7 <- sapply(N, function(x) replicate(nSim, computeDist7(x)$D)) # roughly 27 seconds of run time
+```
+```{r}
+boxplot(distMat7, names=N, ylab=expression(italic(D)[italic(N)]), xlab="Number of Observations",
+        main="Cox Proportional-Hazards Regression") # create the boxplot
+```
+
+Note that the smallest number of observations is $N^*=25$, because, with right censoring, the Cox model cannot estimate parameters when $N^*=10$.
+
+The regularity condition **R2** appears to hold for the Cox proportional-hazards model.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## <span style="color:gray">6. Unit-Information Prior</span> {.tabset .tabset-fade}
+
+&nbsp;
+
+### One-Way ANOVA with Large Number of Groups
+
+&nbsp;
+
+We obtained unexpected results from the BIC approximation-based methods in a one-way ANOVA, specifically when the number of groups is relatively large (e.g., up to five).
+
+In the analysis below, the $p$-value is around 0.04, and the *anovaBF* function returns a value around 1. However, the BIC approximation yields an extreme value of 143 in favor of the null hypothesis.
+
+&nbsp;
+
+```{r Cloud-1}
+n <- 30        # number of observations per balanced group
+a <- 5         # number of groups
+m1 <- 0        # population mean of the first group (suppose the lowest)
+delta <- 0.3   # evenly-spaced population mean difference, m2 - m1 = m3 - m2  = ···
+
+set.seed(277)
+data <- data.frame("resp" = rnorm(n * a, m1 + delta * (1:a - 1), 1),
+                   "grp" = rep(paste0("grp", 1:a), n), stringsAsFactors=T)
+summary(fit1 <- aov(resp ~ grp, data)) # full model fit
+FVal <- summary(fit1)[[1]]["grp", "F value"] # F-ratio
+
+1 / BayesFactor::anovaBF(resp ~ grp, data, progress=F) # JZS-BF₀₁
+
+# BIC approximation
+fit0 <- aov(resp ~ 1, data)    # null model fit
+exp((BIC(fit1) - BIC(fit0)) / 2) # BIC-BF₀₁
+
+# Jeffreys approximate Bayes factor (Λ → (a-1)⋅F)
+(n*a)^((a-1)/2) * exp(-0.5 * (a-1) * FVal) # original JAB₀₁
+
+sqrt(n*a) * exp(-0.5 * (a-1) * FVal * ((n*a)^(1/(a-1))-1) / (n*a)^(1/(a-1))) # extended JAB₀₁
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+&nbsp;
+
+### Chi-Squared Tests for Independence
+
+&nbsp;
+
+We have encountered a similar issue with BIC approximation-based methods in chi-squared tests for independence.
+
+Consider a scenario where the total number of observations is 200, and the contingency table is $3\times4$. A $p$-value of 0.01 corresponds to an original $\mathit{JAB}_{01}$ value of 1865 in favor of the null hypothesis, while a $p$-value of 0.0001 corresponds to an original $\mathit{JAB}_{01}$ value of 7.66, also in favor of the null. These results seem paradoxical.
+
+&nbsp;
+
+```{r Cloud-2}
+pVal <- .0001; N <- 200; R <- 3; C <- 4; df <- (R-1) * (C-1)
+
+N^(df/2) * exp(-0.5 * qchisq(1-pVal, df) * (N-1) / N) # original JAB₀₁
+
+sqrt(N) * exp(-0.5 * qchisq(1-pVal, df) * (N^(1/df)-1) / N^(1/df)) # extended JAB₀₁
+```
+
+&nbsp;
+&nbsp;
+
+
+## 7. Nonparametric {.tabset .tabset-fade}
+
+&nbsp;
+
+### Wilcoxon Signed-Rank Test {.tabset .tabset-fade}
+
+&nbsp;
+
+The Wilcoxon signed-rank test is a nonparametric alternative to the one-sample or paired $t$-test. It tests hypotheses about the median of differences.
+
+The sample size $N$ is the number of paired observations. The degree of freedom is $q=1$.
+
+#### **R1**
+
+```{r wilcox-R1-7.8sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of paired observations 
+```
+```{r, eval=F}
+computeDist8 <- function(n, mu=c(0, 0.5), S=matrix(c(1, 0.9, 0.9, 1), 2), nu=3) {
+  #' Input -
+  #' n:           number of paired observations
+  #' mu:          population means
+  #' S:           scale matrix for paired observations
+  #' nu:          degrees of freedom of the multivariate t
+  #' 
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  Y <- LaplacesDemon::rmvt(n, mu, S, nu)
+  pVal <- stats::wilcox.test(Y[,1], Y[,2], paired=T)$p.value
+    
+  list("p"=pVal,
+       "D"=sqrt(n) * pVal * -log(pVal) )
+}
+
+set.seed(277)
+pMat8 <- sapply(n, function(x) replicate(nSim, computeDist8(x, c(0, 0))$p)) # roughly 7.8 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat8[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+```{r wilcox-R2-7.6sec, eval=F}
+set.seed(277)
+distMat8 <- sapply(n, function(x) replicate(nSim, computeDist8(x)$D)) # roughly 7.6 seconds of run time
+```
+```{r}
+boxplot(distMat8, names=n, ylab=expression(italic(D)[italic(N)]), xlab="Number of the Paired Observation",
+        main="Wilcoxon Signed-Rank Test") # create the boxplot
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Mann–Whitney $U$-Test {.tabset .tabset-fade}
+
+&nbsp;
+
+The Mann–Whitney $U$-test (also called the Wilcoxon rank-sum test) is a nonparametric alternative to the two-sample $t$-test. It tests the null hypothesis that two distributions are identical.
+
+The sample size $N=n_1+n_2$ is the total number of observations. The degree of freedom is $q=1$.
+
+#### **R1**
+
+```{r Utest-R1-12sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of observations per balanced group
+```
+```{r, eval=F}
+computeDist9 <- function(n, mu1=0, mu2=0.5, S1=1, S2=1, nu=3) {
+  #' Input -
+  #' n:           numbers of observations per balanced group
+  #' mu1:         population mean of the first group
+  #' mu2:         population mean of the second group
+  #' S1, S2:      scale parameters for the two population distributions
+  #' nu:          degrees of freedom of the t-distributions
+  #' 
+  #' Dependency - LaplacesDemon (v16.1.6)
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+
+  y1 <- LaplacesDemon::rmvt(n, mu1, S1, nu)
+  y2 <- LaplacesDemon::rmvt(n, mu2, S2, nu)
+  pVal <- stats::wilcox.test(y1, y2)$p.value
+  list("p"=pVal,
+       "D"=sqrt(n * 2) * pVal * -log(pVal) ) # use total number of observations
+}
+
+set.seed(277)
+pMat9 <- sapply(n, function(x) replicate(nSim, computeDist9(x, mu2=0)$p)) # roughly 12 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat9[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                      * italic("H")[0] * ",  " * italic("N = ") * .(2*n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+```{r Utest-R2-12sec, eval=F}
+set.seed(277)
+distMat9 <- sapply(n, function(x) replicate(nSim, computeDist9(x)$D)) # roughly 12 seconds of run time
+```
+```{r}
+boxplot(distMat9, names=n, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main=expression("Mann–Whitney " * italic(U) * "-Test")) # create the boxplot
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Kruskal–Wallis $H$-Test {.tabset .tabset-fade}
+
+&nbsp;
+
+The Kruskal–Wallis $H$-test is a nonparametric alternative to the one-way ANOVA. It tests the null hypothesis that all groups have identical distributions.
+
+The sample size $N=nI$ is the total number of observations. The degrees of freedom are $q=I-1$.
+
+#### **R1**
+
+```{r kruskal-R1-55sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(10, 25, 50, 100, 250, 500) # numbers of observations per balanced group
+```
+```{r, eval=F}
+computeDist10 <- function(n, a=5, delta=0.5, mu=0, sigma=1, alpha=0.5, nu=4) {
+  #' Input -
+  #' n:           number of observations per balanced group
+  #' a:           number of groups
+  #' delta:       population mean range
+  #' mu:          population mean of the first group (suppose the lowest)
+  #' sigma:       scale parameter for each population
+  #' alpha:       slant parameter for the skew-t distribution
+  #' nu:          degrees of freedom of the skew-t distribution
+  #' 
+  #' Dependency - sn (v2.1.1)
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  mu.vec <- seq(mu, mu+delta, length.out=a) # population means
+  df <- data.frame("resp"=sn::rst(n * a, mu.vec, sigma, alpha, nu),
+                   "grp"=rep(paste0("grp", 1:a), n),
+                   stringsAsFactors=T)
+  pVal <- stats::kruskal.test(resp ~ grp, df)$p.value
+  list("p"=pVal,
+       "D"=sqrt(n * a) * pVal * -log(pVal) ) # use total number of observations
+}
+
+set.seed(277)
+pMat10 <- sapply(n, function(x) replicate(nSim, computeDist10(x, delta=0)$p)) # roughly 55 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat10[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                       * italic("H")[0] * ",  " * italic("N = ") * .(5*n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### **R2**
+
+```{r kruskal-R2-56sec, eval=F}
+set.seed(277)
+distMat10 <- sapply(n, function(x) replicate(nSim, computeDist10(x)$D)) # roughly 56 seconds of run time
+```
+```{r}
+boxplot(distMat10, names=n, ylab=expression(italic(D)[italic(N)]),
+        xlab="Number of Observations per Balanced Group",
+        main=expression("Kruskal-Wallis " * italic(H) * "-Test with Five Groups")) # create the boxplot
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 8. *clogit* {.tabset .tabset-fade}
+
+&nbsp;
+
+In a 1:1 matched case–control study, we assume that the conditional likelihood is as follows
+
+\begin{align}
+  &\mathbb{P}\left(Y_{ij}=1\mid\mathbf{x}_{i1},\ \mathbf{x}_{i2},\ Y_{i1}+Y_{i2}=1\right)=\frac{\exp\left\{\boldsymbol{\beta}^\top\mathbf{x}_{ij}\right\}}{\exp\left\{\boldsymbol{\beta}^\top\mathbf{x}_{i1}\right\}+\exp\left\{\boldsymbol{\beta}^\top\mathbf{x}_{i2}\right\}} \\
+  
+  &\mathbf{x}_{ij}=(x_{1,ij},\ x_{2,ij})^\top\quad\text{for the observation}\ j\in\{1,2\}\ \text{of the stratum}\ i=1,\dotsb,N^*.
+\end{align}
+
+The sample size $N$ is the number of matched pairs in which the case and control have different exposure values. The degree of freedom is $q=1$.
+
+### **R1**
+
+We set the model parameters to $\beta_1=0$ and $\beta_2=0.25$. The test is two-sided with null hypothesis $\mathcal{H}_0:\beta_1=0$.
+
+&nbsp;
+
+```{r clogit-R1-112sec}
+nSim <- 5000 # number of simulation runs for each setting
+n <- c(100, 220, 340, 460, 580, 700) # number of pairs
+```
+```{r, eval=F}
+computeDist11 <- function(n, beta1=0.25, beta2=0.25) {
+  #' Input -
+  #' n:              number of pairs (>= number of matched pairs)
+  #' beta1:          true coefficient for the first predictor
+  #' beta2:          true coefficient for the second predictor
+  #' 
+  #' Dependency - survival (v3.8-3)
+  #' Output - 
+  #' a list of the p-value and $D_{N}=\sqrt{N}\cdot p\cdot(-\ln{p})$ in Eq. 7
+  
+  # two observations per stratum
+  x1 <- stats::rnorm(2 * n)
+  x2 <- stats::rbinom(2 * n, 1, .5)
+  logitP <- beta1 * x1 + beta2 * x2
+  strata <- rep(1:n, each=2)
+  y <- unlist(lapply(split(logitP, strata), function(x) stats::rbinom(2, 1, exp(x) / sum(exp(x)))))
+  
+  # one case and one control per stratum
+  valid <- rep(tapply(y, strata, sum)==1, each=2)
+  df <- data.frame(y, x1, x2, "s"=strata)[valid,]
+
+  fit <- survival::clogit(y ~ x1 + x2 + survival::strata(s), df)
+  pVal <- summary(fit)$coefficients[,"Pr(>|z|)"][1]
+  N <- nrow(df) / 2
+  list("p"=pVal,
+       "D"=sqrt(N) * pVal * -log(pVal) ) # use number of matched pairs
+}
+
+set.seed(277)
+pMat11 <- sapply(n, function(x) replicate(nSim, computeDist11(x, beta1=0)$p)) # roughly 112 seconds of run time
+```
+```{r, results="asis"}
+for (i in 1:length(n)) {
+  hist(pMat11[,i], prob=T, main=bquote("Distribution of " * italic("p") * "-Value under " 
+                                       * italic("H")[0] * ",  " * italic("N* = ") * .(n[i])),
+       xlab=expression(italic(p) * "-Value"), ylab="", col="lightblue")
+  cat("<br><br>")
+} # create the histograms
+```
+
+The regularity condition **R1** appears to hold for conditional logistic regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### **R2**
+
+We set the model parameters to $\beta_1=0.25$ and $\beta_2=0.25$. The odds ratio is $e^{\beta_1}\approx1.28$.
+
+&nbsp;
+
+```{r clogit-R2-104sec, eval=F}
+set.seed(277)
+distMat11 <- sapply(n, function(x) replicate(nSim, computeDist11(x)$D)) # roughly 104 seconds of run time
+```
+```{r}
+boxplot(distMat11, names=n, ylab=expression(italic(D)[italic(N)]), xlab="Number of Pairs (Including Unmatched)",
+        main="Conditional Logistic Regression") # create the boxplot
+```
+
+The regularity condition **R2** appears to hold for conditional logistic regression.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+

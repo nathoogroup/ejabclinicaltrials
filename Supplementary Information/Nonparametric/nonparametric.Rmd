@@ -1,0 +1,305 @@
+---
+title: "Supporting Information: <br>Nonparametric Bayes Factors and *eJAB*"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(LaplacesDemon)) {install.packages("LaplacesDemon")}
+if(!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
+if(!require(sn)) {install.packages("sn")}
+if(!require(remotes)) {install.packages("remotes")}
+if(!require(klippy)) {remotes::install_github("rlesur/klippy")}
+```
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy()
+```
+
+============================================================================================================
+
+Open Science Framework: <https://osf.io/qeprj/>
+
+&nbsp;
+
+# {.tabset .tabset-fade .tabset-pills}
+## 1. Bayesian Testing and Nonparametric Statistics  {.tabset .tabset-fade}
+
+&nbsp;
+
+In the case of a classical nonparametric test, a sampling distribution for the data is not specified. As a result, the marginal likelihood associated with the null and alternative hypotheses under the process generating the nonparametric test is not defined.
+
+&nbsp;
+
+Yuan and Johnson ([2008](https://www.jstor.org/stable/24308537)) consider Bayes factors based on nonparametric test statistics.
+
+\begin{equation} \tag{1}
+  \mathit{BF}_{01}(t) = \frac{p(t\mid\boldsymbol{\theta}_{0})}{\int p(t\mid\boldsymbol{\theta})\cdot p(\boldsymbol{\theta})\ \!\mathrm{d}\boldsymbol{\theta}},
+\end{equation}
+
+where $p(\boldsymbol{\theta})$ is the prior under the alternative, and the Bayes factor is defined in terms of the marginal likelihood of the test statistic for the nonparametric test. The usual interpretation of the Bayes factor continues to hold, but the posterior probabilities of the null and alternative hypotheses are conditional on the nonparametric statistic $t=T(\boldsymbol{y})$ rather than on the data $\boldsymbol{y}$.
+
+The authors base the Bayes factors on the asymptotic marginal distributions of the test statistic under the null and alternative hypotheses. Within this setup, Bayes factors for nonparametric statistics with asymptotic normal distributions can be obtained under a set of assumptions, such as a prior distribution centered on the null hypothesis with standard deviation $\tau$. Replacing $\tau$ with its maximum likelihood estimate under the alternative hypothesis yields the following approximate Bayes factor (p. 1190).
+
+\begin{equation} \tag{2}
+  \widetilde{\mathit{BF}}_{01}(T^{*})=\lvert T_{k}^{*}\rvert\cdot\exp\left\{\frac{1-{T^{*}_{k}}^{2}}{2}\right\},
+\end{equation}
+
+where $T^{*}_{k}$ denotes a sequence of standardized nonparametric test statistics, and the Bayes factor represents an upper bound on the weight of evidence against $\mathcal{H}_{0}$. The tests for which Bayes factors can be computed in this way are listed in their Table 1.
+
+Included are the Wilcoxon signed-rank test, which can be used for paired two-sample testing or one-sample testing of location parameters, and the Mann-Whitney test (also called the Wilcoxon rank-sum test), which can be used for nonparametric two-sample testing. The standardized test statistics take the form given in Eqs. 3.1 and 3.2.
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+> Wilcoxon Signed-Rank Test
+
+\begin{equation} \tag{3.1}
+  T^{*}_{k}=\frac{T-n(n+1)/4}{\sqrt{n(n+1)(2n+1)/24}},
+\end{equation}
+
+where $T=\sum_{i=1}^{n}R_{i}\psi_{i}$, &nbsp; $R_{i}=\operatorname{Rank}(\lvert Y_{1i}-Y_{2i}\rvert)$ is the rank of the $i$-th within-pair absolute difference, &nbsp; and $\psi_{i}=\mathbf{1}_{\{Y_{1i}-Y_{2i}>0\}}$.
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+
+> Mann–Whitney Test
+
+\begin{equation} \tag{3.2}
+  T^{*}_{k}=\frac{T-n_{1}(N+1)/2}{\sqrt{n_{1}n_{2}(N+1)/12}},
+\end{equation}
+
+where $N=n_{1}+n_{2}$, &nbsp; $T=\sum_{i=1}^{n_{1}}R_{i}$, &nbsp; and $R_{i}$ is the rank of $Y_{1i}$ in the combined sample $Y_{11},\dotsb,Y_{1n_{1}},Y_{21},\dotsb,Y_{2n_{2}}$.
+
+Note that `wilcox.test` returns $U=T-n_{1}(n_{1}+1)/2$.
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+> Kruskal–Wallis Test
+
+For testing with more than two samples (e.g., an ANOVA setting) in the nonparametric context, the Kruskal–Wallis test is applicable based on data $Y_{11},\dotsb,Y_{1n_{1}},\dotsb,Y_{k1},\dotsb,Y_{kn_{k}}$, representing independent observations obtained from $k$ groups with $N=\sum_{i=1}^{k}n_{i}$. Let $R_{ij}$ denote the rank of $Y_{ij}$ in the combined sample. The statistic is defined in Eq. 3.3.
+
+\begin{equation} \tag{3.3}
+  W=\frac{12}{N(N+1)}\sum_{i=1}^{k}n_{i}\left(\bar{R}_{i}-\frac{N+1}{2}\right)^2,
+\end{equation}
+
+where $\bar{R}_{i}=\sum_{j=1}^{n_{i}}R_{ij}\ /\ n_{i}$ is the average of the ranks in the $i$-th sample. Using this statistic, an approximate Bayes factor representing an upper bound on the evidence against $\mathcal{H}_{0}$ can be obtained (p. 1198), as shown in Eq. 4.
+
+\begin{equation} \tag{4}
+  \widetilde{\mathit{BF}}_{01}(W)=\left(\frac{W}{k-1}\right)^{\frac{k-1}{2}}\exp\left\{-\frac{W-(k-1)}{2}\right\}
+\end{equation}
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 2. Bayes Factors from Nonparametric Statistics {.tabset .tabset-fade}
+
+&nbsp;
+
+In the simulations, we compare these Bayes factors to our extended formulation of *JAB* in Eq. 5 for the three nonparametric tests in settings where the assumptions underlying the classical parametric tests do not hold.
+
+\begin{equation} \tag{5}
+  \mathit{eJAB}_{01}=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\},
+\end{equation}
+
+where $q$ is the size of the parameter vector $\boldsymbol{\theta}$, $N$ is the sample size, $p$ is now the $p$-value from the nonparametric test, and $Q_{\chi^{2}_{q}}(\cdot)$ represents the quantile function of the chi-squared distribution with $q$ degrees of freedom.
+
+&nbsp;
+
+### 2.1. Wilcoxon Signed-Rank Test Simulations
+
+&nbsp;
+
+In this case, we generate paired non-Gaussian data from a bivariate $t$-distribution with 3 degrees of freedom, high within-pair correlation, and the null hypothesis stating that the distribution of the differences has location 0. Data are generated under both the null hypothesis and the alternative, for small, medium, and large effect sizes.
+
+&nbsp;
+
+```{r wilcox-22sec, fig.width=10, fig.height=5, results="asis"}
+nSim <- 1000 # number of simulation runs for each setting
+delta <- c(0, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2) # effect sizes
+nObs <- c(10, 20, 30, 100, 250, 500, 1000) # number of paired observations
+
+generateBF1 <- function(n, ES, S=matrix(c(1, 0.9, 0.9, 1), 2), nu=3) {
+  #' Input -
+  #' n:     number of paired observations
+  #' ES:    effect size
+  #' S:     scale matrix for paired observations
+  #' nu:    degrees of freedom of the multivariate t
+  #' 
+  #' Dependency - LaplacesDemon (v16.1.6)
+  #' Output - a vector of the nonparametric test statistic-based BF₀₁ and eJAB₀₁
+  
+  Y <- LaplacesDemon::rmvt(n, c(0, ES), S, nu)
+  wilcox <- stats::wilcox.test(Y[,1], Y[,2], paired=T) # Wilcoxon signed-rank test
+  Tstar <- (wilcox$statistic - n*(n+1)/4) / sqrt(n*(n+1)*(2*n+1)/24) # standardized test statistics
+  
+  c("TSBF"=unname(abs(Tstar) * exp(0.5*(1-Tstar*Tstar))),
+    "eJAB"=sqrt(n) * exp(-0.5 * (n-1) * stats::qchisq(1-wilcox$p.value, 1) / n))
+}
+
+for (es in delta) {
+  set.seed(277)
+  temp1 <- sapply(nObs, function(x) replicate(nSim, generateBF1(x, es)))
+  dat1 <- data.frame("BF01"=c(temp1),
+                     "Method"=factor(c("TSBF", "eJAB")),
+                     "n"=factor(rep(nObs, each=2*nSim)))
+  
+  print(ggplot(dat1, aes(x=n, y=BF01, fill=Method)) +
+          geom_boxplot(position=position_dodge(1), alpha=.7) +
+          labs(x="\nSample Size", y="Bayes Factor\n") +
+          ggtitle(paste0("Effect Size = ", es)) +
+          geom_hline(yintercept=c(1/3, 3), linetype="dashed", color="gray") +
+          theme_classic() +
+          theme(text=element_text(size=15)))
+  cat("<br><br><br><br>")
+} # roughly 22 seconds of run time
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### 2.2. Mann–Whitney Test Simulations
+
+&nbsp;
+
+In this case, we draw two independent samples from $t_{3}(\mu_{i},\sigma), i=1,2$, and use the Mann–Whitney test to compare the populations.
+
+&nbsp;
+
+```{r Utest-2min, fig.width=10, fig.height=5, results="asis"}
+nSim <- 1000 # number of simulation runs for each setting
+delta <- c(0, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2) # effect sizes
+nSubj <- c(5, 10, 15, 50, 125, 250, 500, 750, 1000, 1250, 1500, 2000) # sample sizes of the first group
+
+generateBF2 <- function(n1, n2, ES, S=1, nu=3) {
+  #' Input -
+  #' n1:    sample size of the first group
+  #' n2:    sample size of the second group
+  #' ES:    effect size
+  #' S:     scale parameter
+  #' nu:    degrees of freedom of the univariate t
+  #' 
+  #' Dependency - LaplacesDemon (v16.1.6)
+  #' Output - a vector of the nonparametric test statistic-based BF₀₁ and eJAB₀₁
+  
+  N <- n1 + n2
+  X1 <- LaplacesDemon::rmvt(n1, 0, S, nu)
+  X2 <- LaplacesDemon::rmvt(n2, ES, S, nu) # balanced groups
+  wilcox <- stats::wilcox.test(X1, X2) # Mann-Whitney test
+  Tstar <- (wilcox$statistic + n1*(n1+1)/2 - n1*(N+1)/2) / sqrt(n1*n2*(N+1)/12)
+  
+  c("TSBF"=unname(abs(Tstar) * exp(0.5*(1-Tstar*Tstar))),
+    "eJAB"=sqrt(N) * exp(-0.5 * (N-1) * stats::qchisq(1-wilcox$p.value, 1) / N))
+}
+
+for (es in delta) {
+  set.seed(277)
+  temp2 <- sapply(nSubj, function(x) replicate(nSim, generateBF2(x, x, es)))
+  dat2 <- data.frame("BF01"=c(temp2),
+                     "Method"=factor(c("TSBF", "eJAB")),
+                     "n"=factor(rep(2*nSubj, each=2*nSim)))
+  
+  print(ggplot(dat2, aes(x=n, y=BF01, fill=Method)) +
+          geom_boxplot(position=position_dodge(1), alpha=.7) +
+          labs(x="\nSample Size", y="Bayes Factor\n") +
+          ggtitle(paste0("Effect Size = ", es)) +
+          geom_hline(yintercept=c(1/3, 3), linetype="dashed", color="gray") +
+          theme_classic() +
+          theme(text=element_text(size=15),
+                axis.text.x=element_text(angle=45, vjust=0.5)))
+  cat("<br><br><br><br>")
+} # roughly 2 minutes of run time
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### 2.3. Kruskal–Wallis Test Simulations
+
+&nbsp;
+
+In this case, we draw five independent samples from skew-$t$ distributions, $Y_{ij} \overset{\text{ind.}}{\sim}\mathit{ST}(\mu_{i},\ \sigma=1,\ \alpha=0.5,\ \nu=4)$, where $\mu_{i}=\frac{i-1}{k-1}\delta$ for $i=1,\dotsb,k=5$ and $j=1,\dotsb,n$. These distributions represent positively skewed populations with heavier-than-Gaussian tails.
+
+&nbsp;
+
+```{r kruskal-4min, fig.width=10, fig.height=5, results="asis"}
+nSim <- 1000 # number of simulation runs for each setting
+delta <- c(0, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2) # population mean ranges
+nSubj <- c(5, 10, 15, 50, 125, 250, 500, 750, 1000) # sample sizes of the balanced group
+nGrp <- 5 # number of groups
+
+generateBF3 <- function(n, ES, k=5, sigma=1, alpha=0.5, nu=4) {
+  #' Input -
+  #' n:         number of observations per balanced group
+  #' ES:        population mean range
+  #' k:         number of groups
+  #' sigma:     scale parameter for each population
+  #' alpha:     slant parameter for the skew-t distribution
+  #' nu:        degrees of freedom of the skew-t distribution
+  #' 
+  #' Dependency - sn (v2.1.1)
+  #' Output - a vector of the nonparametric test statistic-based BF₀₁ and eJAB₀₁
+  
+  N <- n * k
+  mu.vec <- seq(0, ES, length.out=k) # population means
+  df <- data.frame("resp"=sn::rst(N, mu.vec, sigma, alpha, nu),
+                   "grp"=factor(rep(paste0("grp", 1:k), n)))
+  kruskal <- stats::kruskal.test(resp ~ grp, df) # Kruskal-Wallis test
+  W <- kruskal$statistic
+  
+  c("TSBF"=unname((W/(k-1))^(0.5*(k-1)) * exp(-0.5*(W - (k-1)))),
+    "eJAB"=sqrt(N) * exp(-0.5*(N^(1/(k-1))-1) * stats::qchisq(1-kruskal$p.value, k-1) / (N^(1/(k-1)))))
+}
+
+for (es in delta) {
+  set.seed(277)
+  temp3 <- sapply(nSubj, function(x) replicate(nSim, generateBF3(x, es, nGrp)))
+  dat3 <- data.frame("BF01"=c(temp3),
+                     "Method"=factor(c("TSBF", "eJAB")),
+                     "n"=factor(rep(nGrp*nSubj, each=2*nSim)))
+  
+  print(ggplot(dat3, aes(x=n, y=BF01, fill=Method)) +
+          geom_boxplot(position=position_dodge(1), alpha=.7) +
+          labs(x="\nSample Size", y="Bayes Factor\n") +
+          ggtitle(paste0("Effect Size = ", es)) +
+          geom_hline(yintercept=c(1/3, 3), linetype="dashed", color="gray") +
+          theme_classic() +
+          theme(text=element_text(size=15),
+                axis.text.x=element_text(angle=45, vjust=0.5)))
+  cat("<br><br><br><br>")
+} # roughly 4 minutes of run time
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+

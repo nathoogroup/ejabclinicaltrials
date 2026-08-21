@@ -1,0 +1,1459 @@
+---
+title: "Generalized Jeffreys's Approximate Objective Bayes Factor"
+subtitle: "Part Three: Simple Logistic Regression Simulation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+runthis <- T # whether to run chunks 18-22 & 24-25
+
+if(!require(BFpack)) {install.packages("BFpack")}
+if(!require(bain)) {install.packages("bain")}
+if(!require(BayesFactor)) {install.packages("BayesFactor")}
+#install JAGS at first: http://mcmc-jags.sourceforge.net/
+if(!require(rjags)) {install.packages("rjags"); library(rjags)}
+if(!require(polspline)) {install.packages("polspline"); library(polspline)}
+if(!require(rstan)) {install.packages("rstan"); library(rstan)}
+#do not use "bridgesampling" CRAN version 1.1-2 or lower
+if(!require(devtools)) {install.packages("devtools")}
+if(!require(bridgesampling)) {devtools::install_github("quentingronau/bridgesampling@master"); library(bridgesampling)}
+if(!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
+if(!require(plotly)) {install.packages("plotly"); library(plotly)}
+if(!require(remotes)) {install.packages("remotes")}
+if(!require(klippy)) {remotes::install_github("rlesur/klippy")}
+if(!require(kableExtra)) {install.packages("kableExtra"); library(kableExtra)}
+# if(!require(survival)) {install.packages("survival"); library(survival)}
+```
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy()
+```
+============================================================================================================ 
+
+Open Science Framework: <https://osf.io/qeprj/>
+
+&nbsp;
+
+# {.tabset .tabset-fade .tabset-pills}
+## 0. Getting Started {.tabset .tabset-fade}
+
+&nbsp;
+
+\begin{equation} \tag{1}
+    Y_i\mid x_i\sim\text{Bernoulli}(p_i)=p_i^{y}\cdot(1-p_i)^{1-y}\quad\text{for }y\in\{0,1\}\text{ and }i=1,\dotsb,n
+\end{equation}
+
+$\mathbb{E}[Y_i\mid x_i]=p_i$ and the most commonly used link function is the log-odds $\eta_i=\text{logit}(p_i)\equiv\ln\left(\frac{p_i}{1-p_i}\right)$ for $p_i\in(0,1)$.
+
+\begin{align} \tag{2}
+    \mathcal{M}_1:\ \eta_i&=\beta_0+\beta_1 x_i\\ \text{versus}\quad\mathcal{M}_0:\ \eta_i&=\beta_0
+\end{align}
+
+&nbsp;
+
+Recall that the logistic sigmoid function is invertible, and its inverse is the logit function.
+
+Thus, $p_i=\frac{\exp\{\eta_i\}}{\exp\{\eta_i\}+1}=\frac{1}{1+\exp\{-\beta_0-\beta_1 x_i\}}$, which maps any real-valued number into the range $(0,1)$.
+
+Other link functions that can be used include the probit link for modeling normal latent variables <br>and the complementary log-log link when the probability $p$ is close to 1 or 0.
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<font size="3"> Generalized Linear Model (GLM) </font>
+
+&nbsp;
+
+i) Stochastic part
+
+\begin{align}
+    Y_i\sim f(y_i;\boldsymbol{\theta}_i)&=\exp\left\{a(y_i)\cdot b(\boldsymbol{\theta}_i)+c(\boldsymbol{\theta}_i)+d(y_i)\right\} \\
+    a(y_i)&=y_i\quad\text{canonical form}\implies\text{exponential family} \\
+    b(\boldsymbol{\theta}_i)&\quad\text{natural parameter(s)}
+\end{align}
+
+ii) Systematic part: linear predictors
+
+\begin{equation}
+    \boldsymbol{\eta}=\mathbf{X}\boldsymbol{\beta}
+\end{equation}
+
+iii) Link function(s)
+
+\begin{equation}
+    \eta_i=g\left(\mu_i(\boldsymbol{\theta}_i)\right),\ \text{where }\mu_i(\boldsymbol{\theta}_i)=\mathbb{E}[Y_i\mid\boldsymbol{x}_i]
+\end{equation}
+
+&nbsp;
+
+$Y\sim\operatorname{Pois}(\lambda),\hspace{2.1em}\mathbb{E}[Y]=\text{Var}(Y),\hspace{2em}\text{equidispersion}$
+
+$Y\sim\textit{B}(n,p),\hspace{2.25em}\mathbb{E}[Y]>\text{Var}(Y),\hspace{2.02em}\text{underdispersion}$
+
+$Y\sim\textit{NB}(r,p),\hspace{1.7em}\mathbb{E}[Y]<\text{Var}(Y),\hspace{2em}\text{overdispersion}$
+
+&nbsp;
+&nbsp;
+
+GLM 101
+
+Why is there no error term in Eq. 2? See Wooldridge ([2010](https://www.jstor.org/stable/j.ctt5hhcfr), p. 565-567), "*Econometric Bible*".
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 1. Methods {.tabset .tabset-fade}
+
+&nbsp;
+
+### "*BFpack*" R Package {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="3"> Using the "*BFpack*" Package </font> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<https://github.com/jomulder/BFpack>
+
+* [Usage](https://www.datasciencemeta.com/rpackages) rank 5073 ("*BFpack*") and rank 818 ("*BayesFactor*")
+
+* The [fractional Bayes factor](https://github.com/zhengxiaoUVic/Bayesian/blob/main/Fractional%20Bayes%20Factors%20for%20Model%20Comparison%20(O%E2%80%99Hagan%2C%201995).pdf)
+
+* **Exploratory** hypothesis testing, e.g., $\theta=0$ versus $\theta<0$ versus $\theta>0$
+
+* **Confirmatory** hypothesis testing, e.g., $\theta_1=\theta_2=\theta_3$ versus $\theta_1<\theta_2<\theta_3$
+
+* Slightly different estimates. For a continuous dependent variable and binary independent variables, the Bayesian (1) two-sample $t$-test, (2) one-way analysis of variance (ANOVA) with two conditions, and (3) simple linear regression should yield the same Bayes factor estimates. However, this feature is not implemented in "*BFpack*".
+
+* Same methods. The Bayes factor estimate in "*BFpack*" appears to be the same as the Jeffreys-style approximate Bayes factor (JAB) using the unit-information prior when conducting (4) logistic regression.
+
+&nbsp;
+
+Toy Dataset `?mtcars`
+
+* mpg - [continuous] miles per gallon
+
+* <span style="color:lightgray">mpg_binary - [binary] (0 = mpg <= 20,&nbsp;&nbsp; 1 = mpg > 20)</span>
+
+* am - [binary] transmission (0 = automatic,&nbsp;&nbsp; 1 = manual)
+
+* wt - [continuous] weight (1000 lbs)
+
+32 observations
+
+&nbsp;
+
+#### $t$-Test
+
+&nbsp;
+
+The fractional Bayes factor (FBF; O'Hagan, [1995](https://doi.org/10.1111/j.2517-6161.1995.tb02017.x))
+
+The prior adjusted fractional Bayes factor (PAFBF; Mulder, [2014](https://doi.org/10.1016/j.csda.2013.07.017); Mulder & Gu, [2022](https://doi.org/10.1080/00273171.2021.1904809)) by default
+
+&nbsp;
+
+```{r very-t}
+test_t <- bain::t_test(mpg ~ am, data=mtcars, var.equal=T) # two-sample t-test
+test_aov <- aov(mpg ~ am, mtcars) # one-way ANOVA with two conditions
+test_lm <- lm(mpg ~ am, mtcars) # simple linear regression
+
+matrix(
+  c(BFpack::BF(test_t, BF.type="FBF")$BFtu_exploratory[1],
+    BFpack::BF(test_t, BF.type="AFBF")$BFtu_exploratory[1],
+    BFpack::BF(test_aov, BF.type="FBF")$BFtu_exploratory["am", "BF0u"],
+    BFpack::BF(test_aov, BF.type="AFBF")$BFtu_exploratory["am", "BF0u"],
+    BFpack::BF(test_lm, BF.type="FBF")$BFtu_exploratory["am", "BF0u"],
+    BFpack::BF(test_lm, BF.type="AFBF")$BFtu_exploratory["am", "BF0u"]), # BF₀₁
+  nrow=2, dimnames=list(c("FBF", "PAFBF"),
+                        c("t-Test", "ANOVA", "Regression")))
+
+# cf. ttestBF
+1 / c("γ=medium"=as.data.frame(BayesFactor::ttestBF(formula=mpg~am, data=mtcars, rscale="medium"))$bf, # default
+      "γ=wide"=as.data.frame(BayesFactor::ttestBF(formula=mpg~am, data=mtcars, rscale="wide"))$bf,
+      "γ=ultrawide"=as.data.frame(BayesFactor::ttestBF(formula=mpg~am, data=mtcars, rscale="ultrawide"))$bf)
+```
+
+&nbsp;
+
+$\mathbb{P}(\mathcal{H}_0)=\mathbb{P}(\mathcal{H}_-)=\mathbb{P}(\mathcal{H}_+)=\frac{1}{3}$
+
+$\textit{BF}_{01}:=\frac{\mathbb{P}(\mathcal{H}_0\mid\boldsymbol{y})\ /\ \left(1-\mathbb{P}(\mathcal{H}_0\mid\boldsymbol{y})\right)}{\mathbb{P}(\mathcal{H}_0)\ /\ \left(1-\mathbb{P}(\mathcal{H}_0)\right)}=2\cdot\frac{\mathbb{P}(\mathcal{H}_0\mid\boldsymbol{y})}{1-\mathbb{P}(\mathcal{H}_0\mid\boldsymbol{y})}$
+
+$\mathbb{P}(\mathcal{H}_0\mid\boldsymbol{y})+\mathbb{P}(\mathcal{H}_-\mid\boldsymbol{y})+\mathbb{P}(\mathcal{H}_+\mid\boldsymbol{y})=1$
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+#### Regression
+
+&nbsp;
+
+The FBF (O'Hagan, [1995](https://doi.org/10.1111/j.2517-6161.1995.tb02017.x))
+
+The PAFBF (Mulder, [2014](https://doi.org/10.1016/j.csda.2013.07.017); Mulder & Gu, [2022](https://doi.org/10.1080/00273171.2021.1904809))
+
+&nbsp;
+  
+```{r verify-lm}
+fit_lm <- lm(mpg ~ wt, mtcars) # simple linear regression
+N <- sum(summary(fit_lm)$df[1:2]) # number of observations, 32
+pVal <- summary(fit_lm)$coefficients["wt", "Pr(>|t|)"]
+tVal <- summary(fit_lm)$coefficients["wt", "t value"] # qt(pVal/2, N-2) # same
+
+c("BFpack"=BFpack::BF(fit_lm)$BFtu_exploratory["wt", "BF0u"], # prior adjusted fractional Bayes factor
+  "JAB_UI_t"=sqrt(N) * exp(-0.5 * tVal * tVal),
+  "JAB_UI_p"=sqrt(N) * exp(-0.5 * qchisq(1-pVal, 1)),
+  "JAB_t"=sqrt(N*pi/2) * exp(-0.5 * tVal * tVal),
+  "JAB_p"=sqrt(N*pi/2) * exp(-0.5 * qchisq(1-pVal, 1))) # BF₀₁
+```
+
+&nbsp;
+
+The approximated adjusted default Bayes factor (Gu et al., [2018](https://doi.org/10.1111/bmsp.12110))
+
+&nbsp;
+
+```{r verify-glm}
+mtcars$mpg_binary <- ifelse(mtcars$mpg > 20, 1, 0)
+fit_glm <- glm(mpg_binary ~ wt, mtcars, family="binomial") # simple logistic regression
+pVal2 <- summary(fit_glm)$coefficients["wt", "Pr(>|z|)"]
+zVal <- summary(fit_glm)$coefficients["wt", "z value"] # qnorm(pVal2/2) # same
+
+c("BFpack"=BFpack::BF(fit_glm)$BFtu_exploratory["wt", "H(=0)"], # approximated adjusted default Bayes factor
+  "JAB_UI_z"=sqrt(N) * exp(-0.5 * zVal * zVal),
+  "JAB_UI_p"=sqrt(N) * exp(-0.5 * qchisq(1-pVal2, 1)),
+  "JAB_z"=sqrt(N*pi/2) * exp(-0.5 * zVal * zVal),
+  "JAB_p"=sqrt(N*pi/2) * exp(-0.5 * qchisq(1-pVal2, 1))) # BF₀₁
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### BIC Approximation
+
+&nbsp;
+
+Approximating Bayes Factors from Bayesian Information Criterion (BIC)
+
+&nbsp;
+&nbsp;
+
+The BIC for model $i$ with the number of free parameters $k_i$ and the sample size $n$ is $\text{BIC}(\mathcal{M}_i)=-2\ln{\mathcal{L}_i}+k_i\ln{n}\quad$ for $n\gg k_i$,
+
+where $\mathcal{L}_i=p(\boldsymbol{y}\mid\hat{\boldsymbol{\theta}}_i,\mathcal{M}_i)$ is the maximum likelihood.
+
+&nbsp;
+
+Use the second-order Taylor approximation of log-marginal likelihood of each model.
+
+\begin{equation} \tag{8}
+\mathit{BF}_{10}\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_0)-\text{BIC}(\mathcal{M}_1)}{2}\right\}
+\end{equation}
+
+Derivation in Wagenmakers ([2007](https://dx.doi.org/10.3758/BF03194105), Appendix B).
+
+&nbsp;
+
+```{r SBC, eval=F}
+?BIC
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Approximate Bayes Factor
+
+&nbsp;
+
+The test statistic in a Wald test is $W=\left(\frac{\hat{\theta}-\theta_0}{\text{se}(\hat{\theta})}\right)^2\sim\chi_1^2$ under $\mathcal{H}_0$, where $\hat{\theta}$ is the maximum likelihood estimate, and $\text{se}(\hat{\theta})$ is the standard error.
+
+Wagenmakers ([2022](https://doi.org/10.31234/osf.io/egydq); its Eq. 6) reviewed the JAB and proposed a piecewise approximation (WAB) from $p$-value and effective sample size $N$ in Eq. 10.
+
+The complication with JAB is that the approximation is valid **only** when $\text{se}(\hat{\theta})\ll\sigma_g$, where $\sigma_g$ is the scale of the prior distribution $g(\theta)$. Note that with very small sample sizes, this assumption is not true and Eq. 9 is biased against $\mathcal{H}_0$.
+
+\begin{equation} \tag{9}
+\textit{JAB}_{01}=A\cdot\sqrt{N}\exp\left\{-\frac{1}{2}W\right\}
+\end{equation}
+
+A normal unit-information prior for $\theta$ yields $A=1$. Based on the Jeffreys prior, the general approximation specifies $A=\sqrt{\pi/2}\approx1.253$.
+
+&nbsp;
+
+Wagenmakers's piecewise approximation is
+
+\[
+\textit{WAB}_{01}\approx
+\begin{cases} \tag{10}
+  \text{$\ p^{\frac{1}{4}}\sqrt{N}$,} & \text{$p>0.5$} \\
+  \\
+  \text{$\ \sqrt{pN}$,} & \text{$0.1<p\leqslant0.5$ (simpler)} \\
+  \\
+  \text{$\ \frac{4}{3}p^{\frac{2}{3}}\sqrt{N}$,} & \text{$0.1<p\leqslant0.5$ (more precise)} \\
+  \\
+  \text{$\ 3p\sqrt{N}$,} & \text{$p\leqslant0.1$}
+\end{cases} 
+\]
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### <span style="color:red">JAGS</span>
+
+&nbsp;
+
+First, install the JAGS (just another Gibbs sampler) program <http://mcmc-jags.sourceforge.net/>
+
+Note `dnorm(mean, precision)` and `dgamma(shape, rate)` in JAGS
+
+&nbsp;
+
+Next, we implement the priors as considered in Gelman et al. ([2008](https://dx.doi.org/10.1214/08-AOAS191)).
+<!-- Moreover, we center the priors at their maximum likelihood estimates (MLE). -->
+
+* Scale $\boldsymbol{x}$ to have mean 0 and standard deviation 0.5
+
+* $\beta_0\sim\text{Cauchy}(0,\ 10)$
+
+* $\beta_1\sim\text{Cauchy}(0,\ 2.5)$
+
+&nbsp;
+&nbsp;
+
+**The Savage–Dickey density ratio** is a special form of the Bayes factor for **nested** models by dividing the value of <br><span style="color:#0055A4">the posterior density over the parameters for the alternative model evaluated at the hypothesized value</span> by <br><span style="color:#EF4135">the prior for the same model evaluated at the same point</span>.
+
+\begin{equation} \tag{11}
+    \textit{BF}_{01}:=\frac{p(\boldsymbol{y}\mid \mathcal{M}_0)}{p(\boldsymbol{y}\mid \mathcal{M}_1)}=\frac{\color{#0055A4}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{M}_1)}}{\color{#EF4135}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{M}_1)}}
+\end{equation}
+
+&nbsp;
+
+```{r JAGS}
+nObs <- 30  # number of observations
+beta0 <- -1  # true intercept
+beta1 <- 1   # true slope
+
+set.seed(277)
+x <- rnorm(nObs)  # predictor variable
+p <- 1 / (1 + exp(-beta0 - beta1 * x))  # the probability of y = 1
+y <- rbinom(nObs, 1, p)  # outcome variable
+
+x_scale <- c(scale(x)) * 0.5 # scale to have mean 0 and standard deviation 0.5
+dat <- data.frame(x_scale, y)
+datalist <- list(y=y, x=x_scale, n=nObs, 
+                 m0=0, # "m0"=summary(fit)$coefficients[1,1] # center at MLE
+                 m1=0) # "m1"=summary(fit)$coefficients[2,1]
+
+fit <- glm(y ~ x_scale, dat, family="binomial")
+summary(fit)
+
+model_JAGS <- "model {
+  for (i in 1:n) {
+    y[i] ~ dbern(p[i])
+    logit(p[i]) <- beta0 + beta1 * x[i]
+  }
+  
+  beta0 ~ dt(m0, pow(10, -2), 1)  #  <== precision;  no hyperpriors
+  beta1 ~ dt(m1, pow(2.5, -2), 1) # Cauchy (Gelman et al., 2008, p. 1366)
+}"
+
+fit_JAGS <- jags.model(textConnection(model_JAGS), data=datalist,
+                       # inits=function() {list("beta0"=rnorm(1), "beta1"=rnorm(1))},
+                       inits=list(list("beta0"=0, "beta1"=1),
+                                  list("beta0"=-0.48, "beta1"=1.97),
+                                  list("beta0"=1, "beta1"=0)),
+                       n.chains=3, n.adapt=5000, quiet=T) # initialize the model
+update(fit_JAGS, 5000, progress.bar="none") # run Markov chain to burn-in
+
+samples_JAGS <- coda.samples(fit_JAGS, variable.names=c("beta0", "beta1"), 
+                             n.iter=10000, progress.bar="none") # generate posterior samples
+beta1S1 <- samples_JAGS[[1]][,2]
+beta1S2 <- samples_JAGS[[2]][,2]
+beta1S3 <- samples_JAGS[[3]][,2] # posterior samples of β₁
+
+dPostS1 <- dlogspline(0, logspline(beta1S1)) # estimated posterior density from the first chain
+dPostS2 <- dlogspline(0, logspline(beta1S2)) # estimated posterior density from the second chain
+dPostS3 <- dlogspline(0, logspline(beta1S3)) # estimated posterior density from the third chain
+
+c(dPostS1, dPostS2, dPostS3) / dcauchy(0, datalist$m1, 2.5) # BF₀₁
+```
+
+&nbsp;
+&nbsp;
+
+Please verify if this method is not performing well on the real dataset `mtcars`.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<span style="color:red"><font size="3"> Check the Monte Carlo error of estimating the Bayes factor </font></span>
+
+```{r SDDR-2, echo=F}
+SD <- c(0.262507441046107,0.278976070317808,0.331620521479036,0.266663711486018,0.266129584904795,0.270494302132,0.281009041282343,0.318729367627186,0.273646139589711,0.260479742461315,0.261802303740681,0.285003650182941,0.30501349859155,0.304946168969758,0.258661304175419,0.307711848565583,0.298972408649271,0.305705749917161,0.303887345638475,0.298098442109455,0.307578902387382,0.320791200594271,0.339633126424412,0.31233725456223,0.294356575234306,0.310184447956994,0.319162514893198,0.281298276000766,0.303754844304246,0.269974699614415,0.30724477663955,0.339083521071755,0.303633566061268,0.319984166086195,0.292078751536448,0.319640393646047,0.303229267876574,0.302762363631741,0.300093085020192,0.313409446814833,0.257771735443726,0.271870959024483,0.239780177849892,0.28222204395093,0.277179027083287,0.306387190943226,0.256699605480936,0.278739238940564,0.312271915883244,0.328878045356105,0.297763204960353,0.260626332114048,0.283760519180234,0.25956858975,0.240937351036217,0.31100806334528,0.284904483877081,0.293404596271026,0.280364098460274,0.347082772206303,0.303268428196076,0.262577594942768,0.286172845321833,0.271278599142494,0.315102595751995,0.278669670180914,0.303279921887891,0.291420470305073,0.311154200609546,0.31488698558322,0.271181262520188,0.306794914358872,0.321076860733675,0.262790655390409,0.303613823389867,0.285769715230823,0.313417462292609,0.312206063678644,0.275530310347119,0.324909786124643,0.343803365983508,0.305396105757879,0.292741573052782,0.270630604135512,0.282233792445628,0.271092519387067,0.278385589143045,0.309678107175895,0.299032692340502,0.325336130766191,0.278243945390204,0.302274076711057,0.29026023896079,0.347704908874515,0.292207159197927,0.281685724906309,0.308834456587799,0.287483845992583,0.297167994543337,0.24393402492437)
+hist(SD, prob=T, col="white", yaxt="n", ylab="", main="rjags + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Savage–Dickey Density Ratio Estimates Supporting the Null") # BF₀₁
+lines(density(SD),col="red",lwd=2)
+```
+```{r SDDR, eval=F}
+num <- 100; SD <- numeric(num)
+
+for (i in 1:num) {
+  fit_JAGS <- jags.model(textConnection(model_JAGS), data=datalist,
+                         n.chains=1, n.adapt=5000, quiet=T) # initialize the model
+  update(fit_JAGS, 5000, progress.bar="none") # run Markov chain to burn-in
+
+  samples_JAGS <- coda.samples(fit_JAGS, variable.names="beta1", 
+                               n.iter=10000, progress.bar="none") # generate posterior samples
+  beta1S <- samples_JAGS[[1]][,"beta1"]
+  dPostS <- dlogspline(0, logspline(beta1S)) # estimated posterior density from one chain
+  SD[i] <- dPostS / dcauchy(0, datalist$m1, 2.5)
+}
+
+hist(SD, prob=T, col="white", yaxt="n", ylab="", main="rjags + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Bayes factor estimates supporting the null") # BF₀₁
+lines(density(SD),col="red",lwd=2)
+```
+
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### <span style="color:red">Stan</span>
+
+&nbsp;
+
+- Compile and fit the model in Stan.
+
+Note that to compute the (log) marginal likelihood for a Stan model, we need to specify the model in a certain way. Instead of using "~" signs for specifying distributions, we need to directly use the (log) density functions. The reason for this is that when using the "~" sign, constant terms are dropped which are not needed for sampling from the posterior. However, for computing the marginal likelihood, these constants need to be retained. For instance, instead of writing `y ~ normal(mu, sigma);` we would need to write `target += normal_lpdf(y | mu, sigma);` ([Gronau, 2021](https://cran.r-project.org/web/packages/bridgesampling/vignettes/bridgesampling_stan_ttest.html)).
+
+&nbsp;
+&nbsp;
+
+- Compute log marginal likelihoods for full and null models via bridge sampling. Then, $\textit{BF}_{01}:=\frac{p(\boldsymbol{y}\ \mid\ \mathcal{M}_0)}{p(\boldsymbol{y}\ \mid\ \mathcal{M}_1)}$.
+
+**Bridge Sampling** `devtools::install_github("quentingronau/bridgesampling@master")`
+
+All terms are conditional on $\mathcal{M}_i$.
+
+\begin{align} \tag{12}
+    \color{#EE1C25}{p(\boldsymbol{y})}=&\frac{\mathbb{E}_{g(\boldsymbol{\theta})}[\hspace{0.1em}p(\boldsymbol{y}\mid\boldsymbol{\theta})\cdot p(\boldsymbol{\theta})\cdot h(\boldsymbol{\theta})]}{\mathbb{E}_\text{post}[\hspace{0.1em}g(\boldsymbol{\theta})\cdot h(\boldsymbol{\theta})]} \\
+    \\
+    \approx&\frac{\frac{1}{N_2}\sum_{r=1}^{N_2}p(\boldsymbol{y}\mid\boldsymbol{\theta}_r^{\text{prop}})\cdot p(\boldsymbol{\theta}_r^{\text{prop}})\cdot h(\boldsymbol{\theta}_r^{\text{prop}})}{\frac{1}{N_1}\sum_{s=1}^{N_1}g(\boldsymbol{\theta}_s^\text{post})\cdot h(\boldsymbol{\theta}_s^\text{post})}, \\
+    \\
+    &\hspace{15em}\boldsymbol{\theta}_r^{\text{prop}}\sim g(\boldsymbol{\theta}), \\
+    &\hspace{15em}\boldsymbol{\theta}_s^\text{post}\sim p(\boldsymbol{\theta}\mid\boldsymbol{y}),
+\end{align}
+
+where $g(\boldsymbol{\theta})$ is the proposal distribution
+
+and $h(\boldsymbol{\theta})$ is the bridge function, $h(\boldsymbol{\theta})=\frac{C}{s_1\cdot p(\boldsymbol{y}\mid\boldsymbol{\theta})\cdot p(\boldsymbol{\theta})+s_2\cdot \color{#EE1C25}{p(\boldsymbol{y})}\cdot g(\boldsymbol{\theta})}$ and $s_j=\frac{N_j}{N_1+N_2}$ for $j\in\{1,2\}$.
+
+&nbsp;
+
+Check the `use_neff` argument in `bridgesampling::bridge_sampler`.
+
+&nbsp;
+
+```{r Stan-52sec-total-runtime}
+stancodeM1 <- "
+data {
+  int<lower=1> n;             // number of observations
+  vector[n] x;                // predictor variable
+  int<lower=0,upper=1> y[n];  // outcome variable
+  real m0;                    // center for beta0
+  real m1;                    // center for beta1
+}
+
+parameters {
+  real beta0;                 // intercept
+  real beta1;                 // slope
+}
+
+model {
+  target += cauchy_lpdf(beta0 | m0, 10);
+  target += cauchy_lpdf(beta1 | m1, 2.5);  // <== scale
+  
+  for (i in 1:n) {
+    target += bernoulli_logit_lpmf(y[i] | beta0 + beta1 * x[i]);
+  }
+}"
+
+stanmodelM1 <- stan_model(model_code=stancodeM1)
+stanfitM1 <- sampling(stanmodelM1, data=datalist,
+                      iter=15000, warmup=5000, chains=3, seed=277, refresh=0)
+
+rstan::summary(stanfitM1)[[1]] %>% kable(digits=4) %>% kable_classic(full_width=F)
+
+
+stancodeM0 <- "
+data {
+  int<lower=1> n;             // number of observations
+  int<lower=0,upper=1> y[n];  // outcome variable
+  real m0;                    // center for beta0
+}
+
+parameters {
+  real beta0;                 // intercept
+}
+
+model {
+  target += cauchy_lpdf(beta0 | m0, 10);
+
+  for (i in 1:n) {
+    target += bernoulli_logit_lpmf(y[i] | beta0);
+  }
+}"
+
+stanmodelM0 <- stan_model(model_code=stancodeM0)
+stanfitM0 <- sampling(stanmodelM0, data=datalist[-c(2, 5)],
+                      iter=15000, warmup=5000, chains=3, seed=277, refresh=0)
+
+rstan::summary(stanfitM0)[[1]] %>% kable(digits=4) %>% kable_classic(full_width=F)
+
+
+M1 <- bridge_sampler(stanfitM1, silent=T)
+M0 <- bridge_sampler(stanfitM0, silent=T) #  <== Warning
+bf(M0, M1) # BF₀₁ via bridge sampling, exp(M0$logml - M1$logml)
+
+summary(M0)
+summary(M1)
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<span style="color:red"><font size="3"> Check the Monte Carlo error of estimating the Bayes factor </font></span>
+
+```{r BFBS-2, echo=F, fig.height=4, fig.width=8}
+BF <- c(0.305356568968581,0.304641077694349,0.303889163517586,0.30430872261933,0.304198628941862,0.30408213548497,0.303603765190509,0.30445680651541,0.30526348819379,0.304825117457499,0.303524906916883,0.304663524025411,0.303411211313973,0.304274201707918,0.305897993070662,0.304298573440248,0.304704050715014,0.303699384754902,0.304200390383966,0.304715865818775,0.302899966532303,0.303907535556483,0.305042718531648,0.304419643935019,0.30501513728164,0.305134797878484,0.304298477258676,0.304448642938882,0.304106273294991,0.304002569310396,0.304529504383464,0.304494729382553,0.303543547850038,0.30402277389721,0.303791543279744,0.30456149984959,0.303666935064131,0.303761455667306,0.304894318639574,0.303729805436869,0.304443682975855,0.304522018198727,0.30354009352293,0.303787225346444,0.3049653877581,0.3036979993214,0.303793996541412,0.303581018953257,0.303852892247962,0.304356446806118,0.30477765449119,0.304697842067081,0.304837083978074,0.303259943849967,0.305180247003944,0.303639280024964,0.30408475568065,0.303354756187886,0.305171699204554,0.303672566944247,0.304908889781646,0.304460738760342,0.304175351912038,0.304377596810484,0.304943122821646,0.303848022564575,0.305613327666927,0.304485862364937,0.303471576628157,0.30403560095988,0.304412098679656,0.303669035453394,0.303999644738973,0.304206877310797,0.304212643922971,0.303017762533536,0.303751358164317,0.304661798465338,0.304125093373183,0.304252282545645,0.305111339923922,0.30377508545469,0.303620987751731,0.303217309141915,0.303846766117144,0.30426675622647,0.304796281548287,0.303440892581232,0.303741649697087,0.304576454036816,0.304125007167519,0.304425153325326,0.304923822101928,0.303404024810267,0.302985188278005,0.304318905739223,0.302496805167296,0.304012476899791,0.304548090290171,0.303117231160401)
+SDdr <- c(0.300974044997995,0.264685610552654,0.317251849189809,0.311962038124719,0.312460124114237,0.283435731239958,0.319165795104195,0.26931452522049,0.252545806533473,0.316385255442713,0.328511603878168,0.308209513358742,0.326041255339298,0.300632762074927,0.323234180199364,0.291167334520455,0.311151080717201,0.267785247885715,0.279953024690528,0.302627160977739,0.314598549352966,0.255191548379039,0.27989996869995,0.259583861231977,0.288528650501737,0.291287885806928,0.29523853135659,0.31489474639652,0.287136446789668,0.279088646528928,0.29961551291466,0.283629466448827,0.301397160553343,0.303213202963634,0.29065771769262,0.248233193020142,0.309156645246172,0.272818338613679,0.26908971336797,0.352964992225285,0.316374378829006,0.267204134305897,0.288700767205289,0.283211095652207,0.350511352436638,0.299846859341383,0.264449454900224,0.289484257360005,0.26851351015885,0.248525388942418,0.313735467536367,0.357952453728108,0.31083535258448,0.285995990733842,0.309314406589516,0.312816365800725,0.315815688361155,0.310380118005164,0.272975209599924,0.266707745751851,0.315268621851407,0.292278307919726,0.287143369893583,0.331739639066489,0.262927338121447,0.260411950375316,0.313182064420831,0.300855777447712,0.257720298454501,0.323282068770607,0.304700535873704,0.306171814377071,0.279388848583837,0.311424440620036,0.286358707742825,0.309761880391517,0.308790555075657,0.27267364829382,0.290076264072853,0.312575021676905,0.257828518031306,0.323925126876803,0.302406564171111,0.289255036822696,0.293216253410663,0.300465850051575,0.323576368169357,0.276745550336433,0.273181946274827,0.313095695868816,0.296200169656574,0.291442527908609,0.28266992546545,0.328817645945737,0.30684594678993,0.297357492112078,0.302223113262707,0.292863903868975,0.32986995128523,0.264210749019914)
+
+par(mfrow=c(1,2))
+hist(BF, prob=T, col="white", yaxt="n", ylab="", main="rstan + BS",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Bayes Factor Estimates Supporting the Null") # BF₀₁: rstan + BS
+lines(density(BF), col="blue", lwd=2)
+hist(SDdr, prob=T, col="white", yaxt="n", ylab="", main="rstan + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Savage–Dickey Density Ratio Supporting the Null") # BF₀₁: rstan + SD
+lines(density(SDdr), col="red", lwd=2)
+```
+```{r BFBS, eval=F}
+BFBS <- function(seed=277, diagnostics=F) {
+  stanfitM0 <- sampling(stanmodelM0, data=datalist[-c(2, 5)],
+                        iter=15000, warmup=5000, chains=1, seed=seed, refresh=0)
+  
+  stanfitM1 <- sampling(stanmodelM1, data=datalist,
+                        iter=15000, warmup=5000, chains=1, seed=seed, refresh=0)
+  
+  beta1S <- extract(stanfitM1, pars="beta1")$beta1
+  dPostS <- dlogspline(0, logspline(beta1S)) # estimated posterior density from one chain
+  SDdr <- dPostS / dcauchy(0, datalist$m1, 2.5) # Savage–Dickey density ratio (BF₀₁)
+  
+  set.seed(seed)
+  M0 <- bridge_sampler(stanfitM0, silent=T)
+  
+  set.seed(seed)
+  M1 <- bridge_sampler(stanfitM1, silent=T)
+  
+  if (diagnostics) {
+    list("bf"=exp(M0$logml - M1$logml),
+         "pererr.M1"=error_measures(M1)$cv,
+         "pererr.M0"=error_measures(M0)$cv,
+         "stan.M1"=stanfitM1, "stan.M0"=stanfitM0,
+         "savage.dickey"=SDdr)
+  } else {
+    list("bf"=exp(M0$logml - M1$logml),
+         "pererr.M1"=error_measures(M1)$cv,
+         "pererr.M0"=error_measures(M0)$cv,
+         "savage.dickey"=SDdr)
+  }
+}
+
+num <- 100; BF <- PerErr.M1 <- PerErr.M0 <- SDdr <- numeric(num)
+system.time(
+for (i in 1:num) { # roughly 139 seconds of run time
+  result <- BFBS(seed=i)
+  BF[i] <- result$bf
+  PerErr.M1[i] <- result$pererr.M1
+  PerErr.M0[i] <- result$pererr.M0
+  SDdr[i] <- result$savage.dickey
+})
+
+# range(PerErr.M1); range(PerErr.M0)
+
+par(mfrow=c(1,2))
+hist(BF, prob=T, col="white", yaxt="n", ylab="", main="rstan + BS",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Bayes Factor Estimates Supporting the Null") # BF₀₁: rstan + BS
+lines(density(BF), col="blue", lwd=2)
+hist(SDdr, prob=T, col="white", yaxt="n", ylab="", main="rstan + SD",
+     sub="100 runs of one chain with 10,000 iterations",
+     xlab="Savage–Dickey Density Ratio Supporting the Null") # BF₀₁: rstan + SD
+lines(density(SDdr), col="red", lwd=2)
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 2. Simulation
+
+&nbsp;
+
+As $x$ increases $\Delta x$ unit, the estimate of odds **ratio** is $\widehat{\textit{OR}}:=\frac{\hat{p}_2}{1-\hat{p}_2}\ /\ \frac{\hat{p}_1}{1-\hat{p}_1}=e^{\hat{\beta}_1\cdot\Delta x}$.
+
+* $\widehat{\textit{OR}}>1$: The event is more likely to occur as $x$ increases. The predictor is associated with higher odds of the outcome.
+
+* $\widehat{\textit{OR}}<1$: The event is less likely to occur as $x$ increases. The predictor is associated with lower odds of the outcome.
+
+* $\widehat{\textit{OR}}=1$: No association between the predictor and the outcome.
+
+The further $\widehat{\textit{OR}}$ is from 1, the stronger the effect. For example, $\widehat{\textit{OR}}=2$ indicates that the odds of the outcome double for each unit increase in the predictor.
+
+&nbsp;
+
+How big is a big odds ratio? (Chen, Cohen, & Chen, [2010](https://doi.org/10.1080/03610911003650383); Chinn, [2000](https://doi.org/10.1002/1097-0258(20001130)19:22%3C3127::AID-SIM784%3E3.0.CO;2-M))
+
+&nbsp;
+&nbsp;
+
+<span style="color:red"><font size="3"> Warning Messages </font></span>
+
+```{r WARN}
+set.seed(25)
+x <- rnorm(10) # predictor variable of insufficient sample size 10
+p <- 1 / (1 + exp(0.5 - 0.4 * x)) # the probability of y = 1
+(y <- rbinom(10, 1, p))
+
+summary(glm(y ~ x, family=binomial)) # WARNINGS
+```
+
+<!-- &nbsp; -->
+
+<!-- Warning messages: -->
+
+<!-- 1: glm.fit: algorithm did not converge -->
+
+<!-- <span style="color:gray">This typically occurs when the model has difficulty finding the optimal solution, often due to complete or quasi-complete separation in the data.</span> -->
+
+<!-- 2: glm.fit: fitted probabilities numerically 0 or 1 occurred -->
+
+<!-- <span style="color:gray">This suggests that for some data points, the model is predicting probabilities extremely close to 0 or 1, which can lead to numerical instability.</span> -->
+
+&nbsp;
+
+<font size="4"> Data </font>
+
+```{r data}
+simData3 <- function(n, beta0=NULL, beta1=NULL, sd.X=1) {
+  #' Input - 
+  #' n :             number of observations
+  #' beta0:          true intercept
+  #' beta1:          true coefficient for X
+  #' sd.X:           true standard deviation of X
+  #' 
+  #' Output - binary outcome and predictor variables, y and x
+  
+  repeat { # loop until the glm() function executes without warnings
+    # try-catch block to handle the function execution and capture warnings
+    warnings <- tryCatch({
+      
+      x <- stats::rnorm(n, 0, sd.X) # predictor variable
+      p <- 1 / (1 + exp(-beta0 - beta1 * x)) # the probability of y = 1
+      y <- stats::rbinom(n, 1, p) # outcome variable
+      
+      fit1 <- stats::glm(y ~ x, family=binomial) # full model fit
+      NULL # no warnings, return NULL
+      
+    }, warning = function(w) {
+      w # return the warning message
+    })
+    
+    # break the loop if there were no warnings
+    if (is.null(warnings)) {
+      break
+    }
+  }
+  
+  data.frame("Outcome"=y, "Predictor"=x)
+}
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> The Bayes Factors </font>
+
+**Note**: All the Bayes factors are $\textit{BF}_{01}$.
+
+```{r BFs}
+stancode2M1 <- "
+data {
+  int<lower=1> n;                       // number of observations
+  vector[n] x;                          // predictor variable
+  int<lower=0,upper=1> y[n];            // outcome variable
+  int<lower=0,upper=1> UI;              // prior option (1=unit information, 0=Gelman et al. (2008))
+  vector[2] mu;                         // mean vector for theta if UI==1
+  matrix[2,2] Sigma;                    // covariance matrix for theta if UI==1
+}
+
+parameters {
+  vector[2] theta;                      // combined vector for intercept and slope
+}
+
+transformed parameters {
+  real alpha = theta[1];                // intercept
+  real beta = theta[2];                 // slope
+}
+
+model {
+  // Priors (JAGS does not support direct if-else statements)
+  if (UI == 1) {
+    theta ~ multi_normal(mu, Sigma);    // unit information
+  } else {
+    alpha ~ cauchy(0, 10);
+    beta ~ cauchy(0, 2.5);              // <== scale (Gelman et al., 2008)
+  }
+  
+  // Likelihood
+  for (i in 1:n) {
+    target += bernoulli_logit_lpmf(y[i] | alpha + beta * x[i]);
+  }
+}"
+
+stanmodel2M1 <- rstan::stan_model(model_code=stancode2M1)
+
+computeBFs3 <- function(data, prior=1, precise=F) {
+  #' Input -
+  #' data:     long format data whose columns must be `Outcome` and `Predictor`
+  #' prior:    prior option (1=unit information, 0=Gelman et al. (2008))
+  #' precise:  logical; if FALSE (default), use the simpler form for Output 5;
+  #'                             otherwise, use the more precise form
+  #'
+  #' Global -  stanmodel2M1
+  #' Dependency - rstan (v2.32.6), polspline (v1.1.25)
+  #' 
+  #' Output -  a vector of the Bayes factors in favor of the null
+  #'           1. Savage–Dickey density ratio (Eq. 11) using the normal unit-information prior
+  #'           2. BIC approximation to the Bayes factor in Eq. 8; BIC(fit)
+  #'           3. Jeffreys approximate Bayes factor in Eq. 9 using the normal unit-information prior
+  #'           4. Jeffreys approximate Bayes factor in Eq. 9 using the Jeffreys prior
+  #'           5. Wagenmakers approximate Bayes factor based on the p-value and sample size in Eq. 10
+  
+  data <- stats::na.omit(data)
+  N <- nrow(data) # number of observations
+  
+  fit0 <- stats::glm(Outcome ~ 1, data, family=binomial) # null model fit
+  fit1 <- stats::glm(Outcome ~ Predictor, data, family=binomial) # full model fit
+  pVal <- summary(fit1)$coefficients["Predictor", "Pr(>|z|)"] # p-value of the regression coefficient
+  W <- stats::qchisq(pVal, 1, lower.tail=F) # Wald statistic, ["Predictor", "z value"]^2
+  
+  datalist <- list(n=N, x=data$Predictor, y=data$Outcome, UI=prior,
+                   mu=stats::coef(fit1), Sigma=stats::vcov(fit1)*N)
+  if(prior==0) datalist$x <- c(scale(datalist$x)) * 0.5 # scale to have mean 0 and standard deviation 0.5
+  stanfitM1 <- rstan::sampling(stanmodel2M1, data=datalist,
+                               iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+  betaS <- rstan::extract(stanfitM1, pars="beta")$beta
+  dPost <- polspline::dlogspline(0, polspline::logspline(betaS)) # estimated posterior density
+  dPrior <- ifelse(datalist$UI==1, 
+                   stats::dnorm(0, datalist$mu[2], sqrt(datalist$Sigma[2,2])), stats::dcauchy(0, 0, 2.5))
+  SDdr01 <- dPost / dPrior # Savage–Dickey density ratio
+  
+  BICB01 <- exp((stats::BIC(fit1) - stats::BIC(fit0)) / 2) # Eq. 8
+  
+  JAB01_UI <- sqrt(N) * exp(-0.5 * W) # Eq. 9, unit-information prior
+  
+  WAB01 <- ifelse(pVal <= .5,
+                  ifelse(pVal > .1,
+                         ifelse(precise,
+                                4 * pVal^(2/3) * sqrt(N) / 3, # 0.1 < p <= 0.5 (more precise)
+                                sqrt(pVal * N)), # 0.1 < p <= 0.5 (simpler)
+                         3 * pVal * sqrt(N)), # p <= 0.1
+                  pVal^(1/4) * sqrt(N)) # p > 0.5, Eq. 10
+  
+  c("SD"=SDdr01, "BIC_approx"=BICB01, "JAB"=JAB01_UI, "JAB_J"=sqrt(pi/2) * JAB01_UI, "WAB"=WAB01)
+}
+
+# set.seed(277)
+# test3 <- simData3(30, -0.5, 1.5)
+# computeBFs3(test3) # BFpack and JAB methods seem to be the same
+colnames(dat) <- c("Predictor", "Outcome")
+computeBFs3(dat)
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> Simulation Study </font>
+
+We aim to conduct several simulation studies to evaluate the accuracy of approximate objective Bayes factors in their ability to convert $p$-values and $n$ reported in scientific articles to Bayesian measures of evidence.
+
+&nbsp;
+
+```{r sim-not-run, eval=F}
+nSim <- 1000 # number of simulation runs for each setting
+nObs <- c(10, 20, 30, 100, 500) # number of observations
+BETA1 <- c("Null"=0, "Small"=0.4, "Medium"=1.1, "Large"=1.6) # regression coefficient (slope)
+# exp(BETA1) # odds ratio
+
+reportBF <- reportBF_avg <- reportBF_sd <- reportERR <- reportERR_avg <- reportERR_sd <- 
+  reportRULE <- reportRULE_H1 <- reportRULE_H0 <- reportRULE_inc <-
+  setNames(vector(mode="list", length=length(nObs) * length(BETA1)), # pre-allocation
+           apply(expand.grid(BETA1, nObs), 1, function(r) paste0("n = ", r[2], ", slope = ", r[1])))
+
+index <- 1 # initial list index
+
+for (n in nObs) {
+  
+  for (slope in BETA1) {
+    set.seed(n+slope+277)
+    temp <- t(replicate(nSim, computeBFs3(simData3(n, beta0=-0.5, beta1=slope)))) # replicate the Bayes factors
+    reportBF[[index]] <- temp
+    reportBF_avg[[index]] <- colMeans(temp, na.rm=T) # mean Bayes factors in favor of the null
+    reportBF_sd[[index]] <- apply(na.omit(temp), 2, sd) # sample standard deviations of them
+    
+    tempERR <- 100* (temp - temp[,1]) / temp[,1] # percent errors; the first column should be all 0
+    reportERR[[index]] <- tempERR # (can take in NA)
+    reportERR_avg[[index]] <- colMeans(tempERR, na.rm=T) # mean percent errors
+    reportERR_sd[[index]] <- apply(na.omit(tempERR), 2, sd) # sample standard deviations of the percent errors
+    
+    tempRULE_H1 <- temp < 1/3 # support H1
+    tempRULE_H0 <- temp > 3 # support H0
+    tempRULE_inc <- temp >= 1/3 & temp <= 3 # inconclusive
+    
+    # counts of matching decisions for H1
+    reportRULE_H1[[index]] <- colSums(tempRULE_H1 * tempRULE_H1[,1], na.rm=T)
+    
+    # counts of matching decisions for H0
+    reportRULE_H0[[index]] <- colSums(tempRULE_H0 * tempRULE_H0[,1], na.rm=T)
+    
+    # counts of matching inconclusiveness
+    reportRULE_inc[[index]] <- colSums(tempRULE_inc * tempRULE_inc[,1], na.rm=T)
+    
+    tempRULE <- 1*(temp < 1/3) - 1*(temp > 3) # 1: support H1;  0: inconclusive;  -1: support H0
+    reportRULE[[index]] <- colSums(tempRULE[,1] == tempRULE, na.rm=T) # counts of matching decisions
+    # colMeans(); a value near 1 suggests matching results; the first column should be all 1
+    
+    index <- index + 1
+  }
+} # roughly 13.4 hours of run time
+
+# There were 50 or more warnings:
+# 1: There were 17061 divergent transitions after warmup. See
+# https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
+# to find out why this is a problem and how to eliminate them.
+# 2: Examine the pairs() plot to diagnose sampling problems
+# ...
+```
+
+&nbsp;
+
+```{r prep}
+reshapeW2L2 <- function(list, prob=T, lab=c("SD", "BIC", "JAB", "JAB_J", "WAB")) {
+  #' Input -
+  #' list:    a list of size length(nObs) * length(BETA1);
+  #'          reportERR (unaggregated),
+  #'          reportRULE, reportRULE_H1, reportRULE_H0, or reportRULE_inc (aggregated)
+  #' prob:    logical; if TRUE (default), return the proportions;
+  #'                           otherwise, return the original values
+  #' lab:     a vector of characters representing the Bayes factor methods
+  #' 
+  #' Global -
+  #' nSim:    number of simulation runs for each setting
+  #' nObs:    number of observations
+  #' BETA1:   regression coefficient (slope)
+  #' 
+  #' Output - unlist the report and reshape the wide into the long
+  
+  len <- length(lab) # five methods
+  nRep <- ifelse(!prob, nSim, 1) # nSim if unaggregated; 1 if aggregated
+  long <- data.frame("value"=unname(unlist(list)),
+                     "method"=factor(rep(rep(1:len, each=nRep), length(list)), labels=lab),
+                     "n"=rep(nObs, each=nRep*len*length(BETA1)),
+                     "slope"=rep(rep(unname(BETA1), each=nRep*len), length(nObs)))
+  
+  if (prob) {
+    list2 <- lapply(list, function(vec) {
+      if (vec[1] == 0) {
+        vec * NA
+      } else {
+        vec / vec[1] # convert counts to proportions
+      }
+    })
+    list3 <- lapply(list, function(vec) rep(vec[1], length(vec))) # denominator
+    long$total <- unname(unlist(list3))
+    long$prop <- unname(unlist(list2))
+  }
+  long
+}
+
+
+formatting <- function(val) {
+  #' format the value using scientific notation
+  if (abs(val) >= 10) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e\\+0*(\\d+)", "%*%10^\\1", sprintf("%.2e", val)))
+  } else if (abs(val) < 1) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e-0*(\\d+)", "%*%10^{-\\1}", sprintf("%.2e", val)))
+  } else {
+    paste("~italic(BF)[\"01\"] %~~%", sprintf("%.2f", val))
+  }
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 3. Graphic Results {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization </font>
+
+Note: The Jeffreys approximate Bayes factor (`JAB_J`) in Eq. 9, using the Jeffreys prior, will not be plotted.
+
+### Boxplot (Percent Errors)
+
+```{r load, eval=runthis, echo=F}
+load("~/Downloads/glmSim.RData")
+```
+```{r viz-boxplot, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df3 <- reshapeW2L2(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (beta in BETA1) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(BETA1), length.out=length(nObs)) + index], 
+                     function(x) x[1]) # baseline is the Savage–Dickey density ratio
+  baseBF01_lab <- sapply(baseBF01, formatting) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df3, !(method %in% c("SD", "JAB_J")) & slope == beta) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=2, "y"=.8 * aggregate(value~n, sub, FUN=max)$value) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          # ylim(quantile(sub$value, probs=c(.01, .99))) + # restricted  <== CAUTION
+          geom_text(data=anno, aes(label=label, x=x, y=y), parse=T, col="red") +
+          # facet_grid(.~n, labeller=label_bquote(cols=italic(n)==.(n))) + # same scale on y-axis
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(n)==.(n))) +
+          labs(x="\nBayes Factor Methods", y="Percent Error (%)\n") +
+          ggtitle(paste0(names(BETA1[BETA1==beta]), " Odds Ratio")) +
+          geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+### Boxplot ($\textit{BF}_{01}$)
+
+```{r viz-boxplot2, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+df_BF <- reshapeW2L2(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (beta in BETA1) {
+  sub <- subset(df_BF, slope == beta & method != "JAB_J") # subset the long
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(n)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression(italic("BF")["01"])) +
+          ggtitle(paste0(names(BETA1[BETA1==beta]), " Odds Ratio")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line, eval=runthis, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis3 <- rbind(reshapeW2L2(reportRULE),
+                reshapeW2L2(reportRULE_H1),
+                reshapeW2L2(reportRULE_H0),
+                reshapeW2L2(reportRULE_inc))
+decis3$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df3$method)) * length(nObs) * length(BETA1)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis3$delta <- paste0("Slope = ", decis3$slope)
+decis3 <- decis3[!is.na(decis3[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis3$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis3$value * (decis3$total - decis3$value) / decis3$total^3) # 95% CI width
+  decis3$lwr <- max(0, decis3$value / decis3$total - decis3$half.len) # 95% CI lower bound
+  decis3$upr <- min(1, decis3$value / decis3$total + decis3$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis3$lwr <- qbeta(.05/2, decis3$value, decis3$total - decis3$value + 1) # 95% CI lower bound
+  decis3$upr <- qbeta(1-.05/2, decis3$value + 1, decis3$total - decis3$value) # 95% CI upper bound
+  decis3$half.len <- (decis3$upr - decis3$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis3, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "#E69F00", "#CC79A7", "#D55E00", "#0072B2"),
+                              labels=c("SD", "BIC", "JAB", "JAB_J", "WAB")) +
+           facet_grid(result~delta) +
+           labs(x="Number of Observations", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(10, 100, 500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis3$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis3 <- rbind(reshapeW2L2(reportRULE),
+                reshapeW2L2(reportRULE_H1),
+                reshapeW2L2(reportRULE_H0),
+                reshapeW2L2(reportRULE_inc))
+decis3$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df3$method)) * length(nObs) * length(BETA1)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis3$slope <- factor(decis3$slope, levels=unname(BETA1),
+                       labels=paste0("italic(OR) == ", unname(round(exp(BETA1),2)), "~(", names(BETA1), ")"))
+set.seed(277)
+decis3_plot <- subset(decis3[sample(1:nrow(decis3), nrow(decis3)),], 
+                      !(method %in% c("SD", "JAB_J"))) # shuffle to prevent overlapping
+
+ggplot(decis3_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("#E69F00", "#CC79A7", "#0072B2"),
+                     labels=c("BIC", "JAB", "WAB")) +
+  scale_shape_manual(values=c(8, 18, 15),
+                     labels=c("BIC", "JAB", "WAB")) +
+  facet_grid(result~slope, labeller=label_parsed) +
+  labs(x="\nNumber of Observations", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title="Simple Logistic Regression") +
+  scale_x_continuous(breaks=c(10, 100, 500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) + # the smallest is 0
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 4. Decision Rules
+
+&nbsp;
+
+<span style="color:red"><font size="3"> Debugging </font></span>
+
+```{r debug, error=T}
+(mat <- matrix(rep(c(0, -1), 5), nrow=2))
+(res <- mat[mat[,1] == -1, 1] == mat[mat[,1] == -1,]) # only one row ==> column vector
+
+colSums(res) #  ERROR!
+colSums(rbind(rep(F, 5), res)) # counts of matching decisions
+
+colSums((mat == -1) * (mat == -1)[,1]) # counts of matching decisions
+```
+
+&nbsp;
+
+The counts of matching Bayes factors between the gold standard and approximate methods.
+
+```{r rules, eval=runthis}
+reportRULE
+reportRULE_inc
+reportRULE_H1
+reportRULE_H0
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 5. Finite Sample Correction
+
+&nbsp;
+
+Centering the normal unit-information prior on the null hypothesized value $\theta_0$, the customary choice in objective Bayesian testing yields the following JAB* (its Eq. 4; Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq)).
+
+\begin{equation}
+  \textit{JAB}_{01}^*\approx\sqrt{N}\exp{\left\{-\frac{N-1}{2}\left(\frac{\hat{\theta}-\theta_0}{\sigma_g}\right)^2\right\}}
+\end{equation}
+
+Alternatively, the JAB in Eq. 9 centers the prior on the maximum likelihood estimate.
+
+\begin{equation}
+  \textit{JAB}_{01}\approx\sqrt{N}\exp{\left\{-\frac{N}{2}\left(\frac{\hat{\theta}-\theta_0}{\sigma_g}\right)^2\right\}}
+\end{equation}
+
+Using a power transformation, it can be shown that $\textit{JAB}_{01}^*=\textit{JAB}_{01}^{\frac{N-1}{N}}\cdot N^{\frac{1}{2N}}$.
+
+&nbsp;
+
+$N=10$
+
+```{r (N-1)/N, eval=runthis, fig.width=10, fig.height=5}
+par(mfrow=c(1, length(BETA1)))
+for (i in 1:length(BETA1)) {
+  reportBF[[i]][,4] <- reportBF[[i]][,3]^(9/10) * 10^(1/20) # number of observations is 10
+  boxplot(reportBF[[i]][,-2], names=c("SD", "JAB", "JAB*", "WAB"),
+          xlab="", ylab=expression(italic("BF")["01"]), main=paste0(names(BETA1)[i], " Slope"), las=2)
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 6. *clogit* {.tabset .tabset-fade}
+
+&nbsp;
+
+Simple Conditional Logistic Regression for a 1:1 Matched Case–Control Study
+
+\begin{align}
+&\mathbb{P}(Y_{i1}=1\mid x_{ij},\ Y_{i1}+Y_{i2}=1) \\
+=&\frac{\mathbb{P}(Y_{i1}=1,\ Y_{i2}=0\mid x_{ij})}{\mathbb{P}(Y_{i1}=1,\ Y_{i2}=0\mid x_{ij})+\mathbb{P}(Y_{i1}=0,\ Y_{i2}=1\mid x_{ij})} \\
+=&\frac{\mathbb{P}(Y_{i1}=1\mid x_{i1})\left(1-\mathbb{P}(Y_{i2}=1\mid x_{i2})\right)}{\mathbb{P}(Y_{i1}=1\mid x_{i1})\left(1-\mathbb{P}(Y_{i2}=1\mid x_{i2})\right)+\mathbb{P}(Y_{i2}=1\mid x_{i2})\left(1-\mathbb{P}(Y_{i1}=1\mid x_{i1})\right)} \\
+=&\frac{\operatorname{logistic}(\alpha+\beta x_{i1})\ \!\operatorname{logistic}(-\alpha-\beta x_{i2})}{\operatorname{logistic}(\alpha+\beta x_{i1})\ \!\operatorname{logistic}(-\alpha-\beta x_{i2})+\operatorname{logistic}(\alpha+\beta x_{i2})\ \!\operatorname{logistic}(-\alpha-\beta x_{i1})} \\
+=&\operatorname{logistic}\left(\beta (x_{i1}-x_{i2})\right)
+\end{align}
+
+Thus,
+
+\begin{equation}
+  \mathbb{P}(Y_{ij}=1\mid x_{ij},\ Y_{i1}+Y_{i2}=1)=\frac{\exp\{\beta x_{ij}\}}{\exp\{\beta x_{i1}\}+\exp\{\beta x_{i2}\}}
+\end{equation}
+
+for the observation $j\in\{1,2\}$ of the stratum $i=1,\dotsb,n$.
+
+In the "one case per pair" setting, the matching factors (i.e., a pair-specific intercept $\alpha$) are conditioned out — similar to how a baseline hazard is conditioned out in the Cox model. Conditional logistic for matched sets is mathematically equivalent to a stratified Cox model:
+
+* each matched set in a case–control study as a risk set in a survival study, and
+
+* each case as a failure (event) occurring in that risk set.
+
+<!-- $\mathcal{H}_0: \beta=0$ versus $\mathcal{H}_1: \beta\neq0$. -->
+
+&nbsp;
+
+### Stan
+
+&nbsp;
+
+Consider a single binary exposure, $x_{ij}\in\{0,1\}$.
+
+A pair is concordant if the case and control have the same exposure status. These pairs do not contribute to estimating the exposure effect (*matched odds ratio*) — because there is no difference in exposure within the pair, the exposure cannot explain why one is a case and the other is a control.
+
+A pair is **discordant** if the case and control differ in exposure status. Only these pairs contribute to the estimation of the exposure effect.
+
+> Pair-level (Bernoulli) modeling
+
+```{r Stan-clogit-Bernoulli, eval=F}
+stancodeCH1 <- "
+data {
+  int<lower=1> d;                          // number of discordant pairs
+  // int<lower=0, upper=1> y[d];              // y[i]=1 if CASE is exposed, 0 if CONTROL is exposed [removed]
+  array[d] int<lower=0, upper=1> y;        // [Stan 2.26+ syntax for array declarations]
+  real m;                                  // center for beta
+  real s;                                  // scale for beta
+}
+
+parameters {
+  real beta;                               // log matched odds ratio
+}
+
+model {
+  beta ~ normal(m, s);                     // unit information
+
+  // conditional likelihood for discordant pairs:
+  // Pr(case is exposed) = logistic(beta)
+  y ~ bernoulli_logit(beta);
+}"
+
+stanmodelCH1 <- rstan::stan_model(model_code=stancodeCH1)
+```
+
+Note: Drop concordant pairs before constructing `y[d]`.
+
+&nbsp;
+
+> Aggregated (binomial) modeling
+
+The estimated matched odds ratio can be shown to simplify to the ratio of pairs with an exposed case and unexposed control to those with an unexposed case and exposed control, `b` / `c` (McNemar's test).
+
+```{r Stan-clogit-binomial, eval=F}
+stancodeCM1 <- "
+data {
+  int<lower=0> b;                          // number of pairs with case exposed / control unexposed
+  int<lower=0> c;                          // number of pairs with case unexposed / control exposed
+  real m;                                  // center for beta
+  real s;                                  // scale for beta
+}
+parameters {
+  real beta;                               // log matched odds ratio
+}
+model {
+  beta ~ normal(m, s);                     // unit information
+  b ~ binomial_logit(b + c, beta);         // logistic(beta) is Pr(case exposed)
+}"
+
+stanmodelCM1 <- rstan::stan_model(model_code=stancodeCM1)
+```
+
+For a single binary exposure, both formulations are equivalent; the Bernoulli version `stancodeCH1` is just the unpooled form of the binomial version `stancodeCM1`. The binomial version is numerically stable and fastest when the linear predictor is constant across pairs.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+&nbsp;
+
+### Simulations
+
+&nbsp;
+
+<font size="4"> Data </font>
+
+```{r data-clogit, eval=F}
+simDataC <- function(n, beta=NULL) {
+  #' Input - 
+  #' n :             number of strata
+  #' beta:           true log matched odds ratio
+  #' 
+  #' Output - 1:1 matched case-control pairs with a binary exposure in the long format
+  
+  x1 <- stats::rbinom(n, 1, .5) # exposure for subject 1 in each pair
+  x2 <- stats::rbinom(n, 1, .5) # exposure for subject 2 in each pair (independent Bernoulli)
+  p1 <- stats::plogis(beta * (x1 - x2)) # conditional prob that subject 1 is the case
+  y1 <- stats::rbinom(n, 1, p1) # 1 if subject 1 is the case (subject 2 is the control)
+
+  data.frame("Case"=c(y1, 1-y1),
+             "Exposure"=c(x1, x2),
+             "ID"=rep(1:n, 2))
+}
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> The Bayes Factors </font>
+
+**Note**: All the Bayes factors are $\textit{BF}_{01}$.
+
+```{r BFs-clogit, eval=F}
+computeBFsC <- function(data, precise=F) {
+  #' Input -
+  #' data:     long format data whose columns must be `Case`, `Exposure`, and `ID`
+  #' precise:  logical; if FALSE (default), use the simpler form for Output 5;
+  #'                             otherwise, use the more precise form
+  #'
+  #' Global -  stanmodelCM1 (aggregated binomial modeling)
+  #' Dependency - survival (v3.8-3), rstan (v2.32.7), polspline (v1.1.25)
+  #' 
+  #' Output -  a vector of the Bayes factors in favor of the null
+  #'           1. Savage–Dickey density ratio (Eq. 11) using the normal unit-information prior
+  #'           2. BIC approximation to the Bayes factor in Eq. 8; BIC(fit)
+  #'           3. Jeffreys approximate Bayes factor in Eq. 9 using the normal unit-information prior
+  #'           4. Jeffreys approximate Bayes factor in Eq. 9 using the Jeffreys prior
+  #'           5. Wagenmakers approximate Bayes factor based on the p-value and sample size in Eq. 10
+  #'           6. number of discordant pairs
+  #'           7. number of pairs with case exposed / control unexposed
+  #'           8. number of pairs with case unexposed / control exposed
+  #'           9. p-value of the conditional logistic regression
+  
+  data <- stats::na.omit(data)
+  
+  N <- sum(tapply(data$Exposure, data$ID, function(v) length(unique(v))==2)) # number of discordant pairs
+  b <- sum(with(data, # number of pairs with case exposed / control unexposed
+                tapply(1:nrow(data), ID, 
+                       function(i) any(Case[i]==1 & Exposure[i]==1) && any(Case[i]==0 & Exposure[i]==0))))
+  c <- sum(with(data, # number of pairs with case unexposed / control exposed
+                tapply(1:nrow(data), ID, 
+                       function(i) any(Case[i]==1 & Exposure[i]==0) && any(Case[i]==0 & Exposure[i]==1))))
+  if (c==0 | b==0)  return(c("SD"=NA, "BIC_approx"=NA, "JAB"=NA, "JAB_J"=NA, "WAB"=NA, 
+                             "N"=N, "b"=b, "c"=c, "pVal"=NA))
+  
+  fit1 <- survival::clogit(Case ~ Exposure + survival::strata(ID), data) # full model fit
+  pVal <- summary(fit1)$coefficients[,"Pr(>|z|)"][1] # p-value of the regression coefficient
+  W <- stats::qchisq(pVal, 1, lower.tail=F) # Wald statistic, [,"z"]^2
+  
+  datalist <- list(b=b, c=c, m=fit1$coefficients, s=c(sqrt(fit1$var*N)))
+  stanfitH1 <- rstan::sampling(stanmodelCM1, data=datalist,
+                               iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+  betaS <- rstan::extract(stanfitH1, pars="beta")$beta
+  dPost <- polspline::dlogspline(0, polspline::logspline(betaS)) # estimated posterior density
+  dPrior <- stats::dnorm(0, datalist$m, datalist$s)
+  SDdr01 <- dPost / dPrior # Savage–Dickey density ratio
+  
+  BICB01 <- exp(-diff(fit1$loglik) + log(N)/2) # Eq. 8
+  
+  JAB01_UI <- sqrt(N) * exp(-0.5 * W) # Eq. 9, unit-information prior
+  
+  WAB01 <- ifelse(pVal <= .5,
+                  ifelse(pVal > .1,
+                         ifelse(precise,
+                                4 * pVal^(2/3) * sqrt(N) / 3, # 0.1 < p <= 0.5 (more precise)
+                                sqrt(pVal * N)), # 0.1 < p <= 0.5 (simpler)
+                         3 * pVal * sqrt(N)), # p <= 0.1
+                  pVal^(1/4) * sqrt(N)) # p > 0.5, Eq. 10
+  
+  c("SD"=SDdr01, "BIC_approx"=BICB01, "JAB"=JAB01_UI, "JAB_J"=sqrt(pi/2) * JAB01_UI, "WAB"=WAB01,
+    "N"=N, "b"=b, "c"=c, "pVal"=pVal)
+}
+
+# set.seed(277)
+# testC <- simDataC(100, 1)
+# computeBFsC(testC)
+```
+
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 7. eJAB
+
+&nbsp;
+
+To test the hypotheses $\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$, we define the extended Jeffreys approximate objective Bayes factor (eJAB) as
+\begin{equation}
+  \mathit{eJAB}_{01}=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\},
+\end{equation}
+
+where $q$ is the size of the parameter vector $\boldsymbol{\theta}$, $N$ is the sample size, $Q_{\chi^{2}_{q}}(\cdot)$ is the quantile function of the chi-squared distribution with $q$ degrees of freedom, and $p$ is the $p$-value from a null-hypothesis significance test. We further define $\mathit{eJAB}_{10}=1\ \!/\ \!\mathit{eJAB}_{01}$.
+
+&nbsp;
+
+The sample size $N$ is
+
+* the total number of observations for for $t$-tests, linear regression, logistic regression, one-way ANOVA, and chi-squared tests.
+
+* the number of events for Cox models.
+
+* the number of independent observations for one-way repeated-measures ANOVA (Nathoo & Masson, [2016](https://dx.doi.org/10.1016/j.jmp.2015.03.003)).
+
+&nbsp;
+
+The degrees of freedom are
+
+* $q=1$ for $t$-tests, linear regression, logistic regression, and Cox models, where $\mathcal{H}_0$ specifies a point-null hypothesis (Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq)).
+
+* $q=I-1$ for one-way ANOVA and one-way repeated-measures ANOVA, where $I$ is the number of conditions.
+
+* $q=(R-1)(C-1)$ for chi-squared tests, where $R$ and $C$ are the numbers of rows and columns, respectively.
+
+Since the Bayes factor is the ratio of the marginal likelihoods of two competing models, $q=p_1-p_0$ also represents the difference in the number of free parameters between the alternative and null models.
+
+&nbsp;
+
+For further reading, please visit <https://osf.io/qeprj/>.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+

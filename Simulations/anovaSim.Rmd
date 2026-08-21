@@ -1,0 +1,1844 @@
+---
+title: "Generalized Jeffreys's Approximate Objective Bayes Factor"
+subtitle: "Part Four: One-Way Analysis of Variance"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+runthis <- T # whether to run chunks 17-21 & 24-25 & 29-30 & 33-34
+
+if(!require(nlme)) {install.packages("nlme")}
+if(!require(pwr)) {install.packages("pwr")}
+if(!require(BayesFactor)) {install.packages("BayesFactor")}
+if(!require(rstan)) {install.packages("rstan")}
+if(!require(ks)) {install.packages("ks")}
+if(!require(mvtnorm)) {install.packages("mvtnorm")}
+if(!require(polspline)) {install.packages("polspline")}
+if(!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
+if(!require(plotly)) {install.packages("plotly"); library(plotly)}
+if(!require(remotes)) {install.packages("remotes")}
+if(!require(klippy)) {remotes::install_github("rlesur/klippy")}
+```
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy()
+```
+============================================================================================================ 
+
+Open Science Framework: <https://osf.io/qeprj/>
+
+&nbsp;
+
+# {.tabset .tabset-fade .tabset-pills}
+## 0. Getting Started {.tabset .tabset-fade}
+
+&nbsp;
+
+<div style="width:470px">
+| Source | Sum of Squares | Degrees of Freedom | Mean Square | $F$-Ratio |
+|-----:|-----:|-----:|-----:|-----:|
+| Conditions | $\textit{SS}_{\ \text{between}}$ | $a-1$ | $\textit{MS}_{\ \text{between}}$ | $\frac{ \textit{MS}_{\ \text{between}}}{\textit{MS}_{\ \text{within}}}$ |
+| Error | $\textit{SS}_{\ \text{within}}$ | $N-a$ | $\textit{MS}_{\ \text{within}}$ | |
+| Total | $\textit{SS}_{\ \text{total}}$ | $N-1$ | | |
+</div>
+
+The condition (between-groups) sum of squares is $\textit{SS}_{\ \text{between}}=\sum_{i=1}^a n_i\left(\bar{Y}_{i\centerdot}-\bar{Y}_{\centerdot\centerdot}\right)^2=\sum_{i=1}^a n_i\bar{Y}_{i\centerdot}^2-N\bar{Y}_{\centerdot\centerdot}^2$
+
+The error (within-groups) sum of squares is $\textit{SS}_{\ \text{within}}=\sum_{i=1}^a\sum_{j=1}^{n_i}\left(Y_{ij}-\bar{Y}_{i\centerdot}\right)^2$
+
+The total sum of squares is $\textit{SS}_{\ \text{total}}=\sum_{i=1}^a\sum_{j=1}^{n_i}\left(Y_{ij}-\bar{Y}_{\centerdot\centerdot}\right)^2=\sum_{i=1}^a\sum_{j=1}^{n_i} Y_{ij}^2-N\bar{Y}_{\centerdot\centerdot}^2$
+
+The total number of observations is $N=\sum_{i=1}^a n_i$
+
+The grand mean is $\bar{Y}_{\centerdot\centerdot}=\frac{1}{N}\sum_{i=1}^a\sum_{j=1}^{n_i} Y_{ij}$
+
+The condition means are $\bar{Y}_{i\centerdot}=\frac{1}{n_i}\sum_{j=1}^{n_i} Y_{ij}$
+
+&nbsp;
+&nbsp;
+
+
+## 1. Methods {.tabset .tabset-fade}
+
+&nbsp;
+
+### "*BayesFactor*" R Package
+
+&nbsp;
+
+**Exploratory** hypothesis testing: $\mathcal{H_0}:\mu_1=\dotsb=\mu_a$ versus $\mathcal{H_1}:$ not all means are equal, assuming fixed effects.
+
+$\hspace{12.43em}\mathcal{H_0}:\sigma_t^2=0$ versus $\mathcal{H_1}:\sigma_t^2\neq0$, assuming random effects.
+
+&nbsp;
+
+Reparametrization $\mu_i=\mu+t_i=\mu+\sigma_\epsilon d_i$ with $\sum_{i=1}^a d_i=0$
+
+&nbsp;
+
+\begin{align} \tag{1}
+    \mathcal{M}_1:\ Y_{ij}&=\mu+\sigma_\epsilon d_i+\epsilon_{ij}\\ \text{versus}\quad\mathcal{M}_0:\ Y_{ij}&=\mu+\epsilon_{ij},\\ \qquad\qquad&\epsilon_{ij}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\sigma_\epsilon^2)\quad\text{ for condition } i=1,\dotsb,a;\text{ (unbalanced) subject } j=1,\dotsb,n_i
+\end{align}
+
+\begin{equation} \tag{2}
+  \pi(\mu,\sigma_\epsilon^2)\propto 1/\ \sigma_\epsilon^{2}
+\end{equation}
+
+\begin{equation} \tag{3}
+  d_i^\star\mid g\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,g)
+\end{equation}
+
+\begin{equation} \tag{4}
+  g\sim\text{Scale-inv-}\chi^2(1,h^2)
+\end{equation}
+
+\begin{equation} \tag{5}
+  (d_1^\star,\dotsb,d_{a-1}^\star)=(d_1,\dotsb,d_a)\cdot\mathbf{Q}
+\end{equation}
+
+\begin{equation} \tag{6}
+  \mathbf{I}_a-\frac{1}{a}\mathbf{J}_a=\mathbf{Q}\cdot\mathbf{Q}^\top
+\end{equation}
+
+By default, $h=0.5$ for the fixed effects (in this case) and $h=1$ for the random effects in Eq. 4.
+
+$\mathbf{Q}$ is an $a\times(a-1)$ matrix of the $a-1$ eigenvectors of unit length corresponding to the nonzero eigenvalues of the left side term in Eq. 6. <br>For example, when $a=3$, the projected standardized effects are
+
+\[
+(d_1^\star,\ d_2^\star)=(d_1,\ d_2,\ d_3)\cdot
+\begin{pmatrix}
+\frac{\sqrt{6}}{3} & 0 \\
+-\frac{\sqrt{6}}{6} & \frac{\sqrt{2}}{2} \\
+-\frac{\sqrt{6}}{6} & -\frac{\sqrt{2}}{2}
+\end{pmatrix}
+\]
+
+In the other direction (given $d_1+d_2+d_3=0$),
+
+\[
+(d_1,\ d_2,\ d_3)^\top=
+\begin{pmatrix}
+\frac{\sqrt{6}}{3} & 0 \\
+-\frac{\sqrt{6}}{6} & \frac{\sqrt{2}}{2} \\
+-\frac{\sqrt{6}}{6} & -\frac{\sqrt{2}}{2}
+\end{pmatrix}\cdot(d_1^\star,\ d_2^\star)^\top
+\]
+
+Read more: <https://rpubs.com/sherloconan/1070217>.
+
+```{r Q}
+computeQ <- function(a) {
+  #' Implement Eq. 6
+  S <- diag(a) - matrix(1, nrow=a, ncol=a) / a
+  e <- qr(S)
+  Q <- qr.Q(e) %*% diag(sign(diag(qr.R(e))))
+  Q[, which(abs(e$qraux) > 1e-3), drop=F]
+}
+computeQ(3)
+```
+
+&nbsp;
+
+The Jeffreys–Zellner–Siow (JZS) Bayes factor for the Bayesian **balanced** one-way (between-subjects) analysis of variance (ANOVA) is computed by integrating across one dimension in Eq. 7 (corrigendum; Morey et al., [2011](https://doi.org/10.1016/j.jmp.2011.06.004), p. 374). $n_i=n$ for all $i$.
+
+\begin{equation} \tag{7}
+\textit{JZS-BF}_{10}=(2\pi)^{-\frac{1}{2}}h\cdot\int_0^\infty(1+ng)^{\frac{a(n-1)}{2}}\left(1+\frac{ng}{1+\frac{a-1}{a(n-1)}\cdot F}\right)^{-\frac{an-1}{2}}g^{-\frac{3}{2}}e^{-\frac{h^2}{2g}}\text{d}g,
+\end{equation}
+
+&nbsp;
+
+```{r verify}
+JZS2BF10 <- function(h=0.5, n, a, F_ratio) {
+  #' Input - 
+  #' h:            the prior scale on the variability of fixed effects, i.e.,
+  #'               `rscale="medium"` or `rscale=1/sqrt(2)` in BayesFactor::ttestBF, or
+  #'               `rscaleFixed="medium"` or `rscaleFixed=0.5` in BayesFactor::anovaBF
+  #' n:            number of observations per balanced group
+  #' a:            number of groups
+  #' F_ratio:      F-ratio
+  #' Output - the JZS Bayes factor for balanced one-way ANOVA claimed in Eq. 7
+
+  coef <- (2*pi)^(-0.5) * h
+  integrand <- function(g) {
+    K <- 1 + n*g / (1 + F_ratio * (a-1)/(a*n-a))
+    (1+n*g)^((a*n-a)/2) * K^((1-a*n)/2) * g^(-1.5) * exp(-h^2/(2*g))
+  }
+  unname(coef * integrate(integrand, lower=0, upper=Inf)$value)
+}
+
+test <- aov(weight ~ group, PlantGrowth) # one-way ANOVA with three balanced groups, n = 10
+F_ratio <- summary(test)[[1]]["group", "F value"] # F-ratio
+
+## https://forum.cogsci.nl/discussion/9448/verifying-jzs-bayes-factor-for-one-way-anova
+JZS2BF10(n=10, a=3, F_ratio=F_ratio) # verifying Eq. 7
+BayesFactor::anovaBF(weight ~ group, PlantGrowth, progress=F) # testing fixed effects
+```
+
+&nbsp;
+
+<span style="color:red"><font size="3"> Fixed or Random Effects</font></span>
+
+```{r rand}
+BayesFactor::anovaBF(weight ~ group, PlantGrowth, whichRandom="group", progress=F) # testing random effects
+```
+
+&nbsp;
+
+Fixed effects - assumed to be constant for all trials
+
+Random effects - a subset of the entire population of treatments
+
+&nbsp;
+
+```{r lme}
+fit1_fixed <- lm(weight ~ group, PlantGrowth)
+fit0_fixed <- lm(weight ~ 1, PlantGrowth)
+anova(fit1_fixed, fit0_fixed) # testing fixed effects
+summary(test)
+
+fit1_rand <- nlme::lme(weight ~ 1, PlantGrowth, ~1 | group, method="ML")
+fit0_rand <- nlme::gls(weight ~ 1, PlantGrowth, method="ML") # if `REML`, same as fit0_fixed
+anova(fit1_rand, fit0_rand) # testing random effects
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### BIC Approximation
+
+&nbsp;
+
+Approximating Bayes Factors from Bayesian Information Criterion (BIC)
+
+&nbsp;
+&nbsp;
+
+The BIC for model $i$ with the number of free parameters $k_i$ and the sample size $N$ is $\text{BIC}(\mathcal{M}_i)=-2\ln{\mathcal{L}_i}+k_i\ln{N}\quad$ for $N\gg k_i$,
+
+where $\mathcal{L}_i=p(\boldsymbol{y}\mid\hat{\boldsymbol{\theta}}_i,\mathcal{M}_i)$ is the maximum likelihood.
+
+&nbsp;
+
+Use the second-order Taylor approximation of log-marginal likelihood of each model.
+
+\begin{equation} \tag{8}
+  \mathit{BF}_{10}\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_0)-\text{BIC}(\mathcal{M}_1)}{2}\right\}
+\end{equation}
+
+Derivation in Wagenmakers ([2007](https://dx.doi.org/10.3758/BF03194105), Appendix B).
+
+&nbsp;
+
+```{r SBC}
+## https://github.com/tomfaulkenberry/anovaBFcalc/blob/master/R/bf_bic.R
+df1 <- 2; df2 <- 27; N <- df1 + df2 + 1 # total number of observations
+sqrt(N^df1 * (1 + F_ratio * df1 / df2)^(-N)) # BF₀₁
+
+null <- aov(weight ~ 1, PlantGrowth) # null model fit
+exp((BIC(test) - BIC(null)) / 2) # same BF₀₁
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Approximate Bayes Factor
+
+&nbsp;
+
+\begin{align}
+  \text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)&=-2\ln{\mathcal{L}_1}+k_1\ln{N}+2\ln{\mathcal{L}_0}-k_0\ln{N} \\
+  &=-2(\ln{\mathcal{L}_1}-\ln{\mathcal{L}_0})+(k_1-k_0)\ln{N} \\
+  &=-\Lambda+(k_1-k_0)\ln{N} \\
+  \\
+  \mathit{BF}_{01}&\approx\exp\left\{\frac{\text{BIC}(\mathcal{M}_1)-\text{BIC}(\mathcal{M}_0)}{2}\right\} \\
+  &=\exp\left\{\frac{-\Lambda+(k_1-k_0)\ln{N}}{2}\right\} \\
+  &=N^{\frac{k_1-k_0}{2}}\!\cdot\exp\left\{-\frac{\Lambda}{2}\right\} \tag{$8^\prime$}
+\end{align}
+
+&nbsp;
+
+$\mathcal{M}_1:\quad Y_{ij}=\beta_0+\mathbf{x}_{i}^\top\boldsymbol{\theta}+\epsilon_{ij},\qquad\epsilon_{ij}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\sigma_\epsilon^2)\quad\text{ for condition } i=1,\dotsb,a;\text{ (unbalanced) subject } j=1,\dotsb,n_i$ &nbsp;&nbsp; [Review](https://github.com/zhengxiaoUVic/Bayesian/blob/57dfce637516d211d44091cef0c1c6f7627857fc/The%20Importance%20of%20Random%20Slopes%20in%20Mixed%20Models%20for%20Bayesian%20Hypothesis%20Testing%20(Oberauer%2C%202022).pdf)
+
+The Wald test statistic is $\ W=(\hat{\boldsymbol{\theta}}-\boldsymbol{\theta}_0)^\top\cdot I(\hat{\boldsymbol{\theta}})\cdot(\hat{\boldsymbol{\theta}}-\boldsymbol{\theta}_0)\mathrel{\dot\sim}\chi_{q}^2\ $ under $\mathcal{H}_0$, where $q=a-1$ is the number of parameters in $\boldsymbol{\theta}$.
+
+The likelihood-ratio test statistic is $\ \Lambda:=-2(\ln{\mathcal{L}_0}-\ln{\mathcal{L}_1})\mathrel{\dot\sim}\chi_{k_1-k_0}^2\ $ under $\mathcal{H}_0$. <br><span style="color:lightgray">In some contexts, $\lambda_{\text{LR}}$ refers to the likelihood-ratio test statistic, while $\Lambda$ represents the likelihood ratio $\mathcal{L}_0/\mathcal{L}_1\in[0,1]$.</span>
+
+* If we plug in $\Lambda$ instead of $W$, the JAB becomes **identical** to the BIC approximation.
+
+* Otherwise, the JAB is asymptotically equivalent to the BIC approximation since $\lvert W-\Lambda\rvert\overset{p}{\to}0$ under $\mathcal{H}_0$, as $N\to\infty$.
+
+* $k_1-k_0=a-1$ in a one-way ANOVA with $a$ conditions. $\Lambda\equiv N\cdot\ln{\left(1+\frac{a-1}{N-a}\cdot F\right)}=(a-1)\cdot\ln{\left(1+\frac{F}{(N-a)\ /\ (a-1)}\right)^{N\ /\ (a-1)}}\to(a-1)\cdot F\quad$ as $N\to\infty$. &nbsp;&nbsp; [Derivation](http://users.stat.umn.edu/~sandy/courses/8311/handouts/nlme.pdf)
+
+&nbsp;
+
+```{r asym}
+null <- aov(weight ~ 1, PlantGrowth)
+LRS <- -2 * (logLik(null) - logLik(test))
+derivFS <- 30 * log(1 + F_ratio * (3-1) / (30-3))
+WS <- t(coef(test)[-1]) %*% solve(vcov(test)[-1,-1]) %*% coef(test)[-1]
+
+cat("The likelihood-ratio test statistic is", LRS, "and", derivFS, "(based on F(2,27))",
+    "\nThe Wald test statistic is", WS, "and", (3-1)*F_ratio, "(based on F(2,27))")
+```
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<font size="3"> Test on a Single Parameter </font>
+
+The test statistic in a Wald test is $W=\left(\frac{\hat{\theta}-\theta_0}{\text{se}(\hat{\theta})}\right)^2\sim\chi_1^2$ under $\mathcal{H}_0$, where $\hat{\theta}$ is the maximum likelihood estimate, and $\text{se}(\hat{\theta})$ is the standard error.
+
+Wagenmakers ([2022](https://doi.org/10.31234/osf.io/egydq); its Eq. 6) reviewed the Jeffreys-style approximate Bayes factor (JAB) and proposed a piecewise approximation (WAB) from $p$-value and effective sample size $N$ in Eq. 10.
+
+The complication with JAB is that the approximation is valid **only** when $\text{se}(\hat{\theta})\ll\sigma_g$, where $\sigma_g$ is the scale of the prior distribution $g(\theta)$. Note that with very small sample sizes, this assumption is not true and Eq. 9 is biased against $\mathcal{H}_0$.
+
+\begin{equation} \tag{9}
+\textit{JAB}_{01}=A\cdot\sqrt{N}\exp\left\{-\frac{1}{2}W\right\}
+\end{equation}
+
+A normal unit-information prior for $\theta$ yields $A=1$. Based on the Jeffreys prior, the general approximation specifies $A=\sqrt{\pi/2}\approx1.253$.
+
+&nbsp;
+
+Wagenmakers's piecewise approximation is
+
+\[
+\textit{WAB}_{01}\approx
+\begin{cases} \tag{10}
+  \text{$\ p^{\frac{1}{4}}\sqrt{N}$,} & \text{$p>0.5$} \\
+  \\
+  \text{$\ \sqrt{pN}$,} & \text{$0.1<p\leqslant0.5$ (simpler)} \\
+  \\
+  \text{$\ \frac{4}{3}p^{\frac{2}{3}}\sqrt{N}$,} & \text{$0.1<p\leqslant0.5$ (more precise)} \\
+  \\
+  \text{$\ 3p\sqrt{N}$,} & \text{$p\leqslant0.1$}
+\end{cases} 
+\]
+
+&nbsp;
+&nbsp;
+
+&nbsp;
+&nbsp;
+
+<u>Asymptotics 101</u>
+
+PDF $f_Y(y_i;\boldsymbol{\theta})$, &nbsp;&nbsp; joint likelihood $L(\boldsymbol{\theta};\boldsymbol{y})$, &nbsp;&nbsp; log likelihood $l(\boldsymbol{\theta};\boldsymbol{y})$, &nbsp;&nbsp; score $l^\prime(\boldsymbol{\theta};\boldsymbol{y})$
+
+<span style="color:gray">While $f(y_i\mid\boldsymbol{\theta})$ and $f(y_i;\boldsymbol{\theta})$ can represent the same mathematical relationship, the notation signals different interpretations and emphases in statistical analysis.</span>
+
+The expected Fisher information matrix, evaluated at $\boldsymbol{\theta}_0$, is $\left[\ \mathcal{I}(\boldsymbol{\theta}_0)\ \right]_{ij}:=\mathbb{E}\left[\left(\frac{\partial}{\partial\theta_i}\ln{f(Y;\boldsymbol{\theta})}\right)\left(\frac{\partial}{\partial\theta_j}\ln{f(Y;\boldsymbol{\theta})}\right)\ \bigg|\ \boldsymbol{\theta}_0\right]$.
+
+Under certain [regularity conditions](https://en.wikipedia.org/wiki/Fisher_information#Regularity_conditions), it is easier to compute $\left[\ \mathcal{I}(\boldsymbol{\theta}_0)\ \right]_{ij}=-\mathbb{E}\left[\left(\frac{\partial^2}{\partial\theta_i\partial\theta_j}\ln{f(Y;\boldsymbol{\theta})}\right)\ \bigg|\ \boldsymbol{\theta}_0\right]$.
+
+The observed Fisher information matrix is denoted as $\left[\ I(\hat{\boldsymbol{\theta}})\ \right]_{ij}$.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### <span style="color:red">Extended JAB</span>
+
+&nbsp;
+
+We obtained unexpected results from the BIC approximation-based methods in a one-way ANOVA, specifically when the number of groups is relatively large (e.g., up to five).
+
+In the analysis below, the $p$-value is around 0.04, and the *anovaBF* function returns a value around 1. However, the BIC approximation yields an extreme value of 143 in favor of the null hypothesis.
+
+&nbsp;
+
+```{r Cloud-1}
+n <- 30        # number of observations per balanced group
+a <- 5         # number of groups
+m1 <- 0        # population mean of the first group (suppose the lowest)
+delta <- 0.3   # evenly-spaced population mean difference, m2 - m1 = m3 - m2  = ···
+
+set.seed(277)
+data <- data.frame("resp" = rnorm(n * a, m1 + delta * (1:a - 1), 1),
+                   "grp" = rep(paste0("grp", 1:a), n), stringsAsFactors=T)
+summary(fit51 <- aov(resp ~ grp, data)) # full model fit
+FVal <- summary(fit51)[[1]]["grp", "F value"] # F-ratio
+
+1 / BayesFactor::anovaBF(resp ~ grp, data, progress=F) # JZS-BF₀₁
+
+# BIC approximation
+fit50 <- aov(resp ~ 1, data)       # null model fit
+exp((BIC(fit51) - BIC(fit50)) / 2) # BIC-BF₀₁
+
+# Jeffreys approximate Bayes factor (Λ → (a-1)⋅F)
+(n*a)^((a-1)/2) * exp(-0.5 * (a-1) * FVal) # original JAB₀₁
+
+sqrt(n*a) * exp(-0.5 * (a-1) * FVal * ((n*a)^(1/(a-1))-1) / (n*a)^(1/(a-1))) # modified JAB₀₁
+```
+
+&nbsp;
+
+$\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$
+
+To reduce the extreme bias towards the null hypothesis, we assume the prior $\boldsymbol{\theta}\sim\boldsymbol{\mathcal{N}}_q\!\left(\hat{\boldsymbol{\theta}},\ N^{1/q}\cdot I^{-1}(\hat{\boldsymbol{\theta}})\right)$, which, for $q=1$, corresponds to the normal unit-information prior. For $q>1$, the prior becomes more informative, placing more weight on the maximum likelihood estimate.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Pearson Type VI
+
+&nbsp;
+
+Faulkenberry ([2021](https://doi.org/10.2478/bile-2021-0001)) introduced the Pearson Bayes factor for the one-way between-subjects ANOVA and expressed it in an analytic form using the ANOVA $F$-statistic and its degrees of freedom, assuming the Pearson type VI distribution (a variant of the [beta prime distribution](https://en.wikipedia.org/wiki/Beta_prime_distribution#Generalization)) for the **ratio of variance components** $g=\sigma_t^2\ /\ \sigma_\epsilon^2\quad$ (Wei, Nathoo, & Masson, [2023](https://doi.org/10.3758/s13423-023-02295-1), p. 1763).
+
+\begin{equation} \tag{11}
+    \pi(g)=\frac{n\lambda\cdot(ng)^{\lambda\beta+\lambda-1}\cdot\left(1+(ng)^\lambda\right)^{-\zeta-\beta-2}}{\text{B}(\zeta+1,\ \beta+1)},
+\end{equation}
+
+where $\text{B}(\zeta+1,\ \beta+1)\equiv\text{B}(\beta+1,\ \zeta+1)$ is the beta function with $\zeta,\beta>-1$. The standard version reduces $\lambda=1$.
+
+Maruyama and George ([2011](https://doi.org/10.1214/11-AOS917), p. 2749) and Wang and Sun ([2014](https://doi.org/10.1080/03610926.2012.739252), p. 5078) imposed the shape parameters $\zeta\in[-\frac{1}{2},\ 0]$ and $\beta=\frac{N-a}{2}-\zeta-2$ to further simplify the prior specification. $N=an$.
+
+&nbsp;
+
+The resulting Pearson Bayes factor is given in Eq. 12, where $\Gamma(\cdot)$ is the gamma function. Despite their different $g$-prior assumptions (*cf.* Eq. 4), the Pearson Bayes factor matches the JZS Bayes factor, especially when $\zeta=0$ (Faulkenberry, [2021](https://doi.org/10.2478/bile-2021-0001); but see also <https://osf.io/7q6yk>).
+
+\begin{align} \tag{12}
+    \textit{P-BF}_{10}&=\frac{\Gamma\left(\frac{a+1}{2}+\zeta\right)\cdot\Gamma\left(\frac{N-a}{2}\right)}{\Gamma\left(\frac{N-1}{2}\right)\cdot\Gamma(1+\zeta)}\left(\frac{N-a}{N-a+(a-1)\cdot F}\right)^{-\frac{N-a}{2}+1+\zeta} \\
+    \\
+    &=\frac{\Gamma\left(\frac{\textit{df}_{\ \text{between}}}{2}+1+\zeta\right)\cdot\Gamma\left(\frac{\textit{df}_{\text{within}}}{2}\right)}{\Gamma\left(\frac{\textit{df}_{\ \text{total}}}{2}\right)\cdot\Gamma(1+\zeta)}\left(\frac{\textit{df}_{\text{within}}}{\textit{df}_{\text{within}}+\textit{df}_{\ \text{between}}\cdot F}\right)^{-\frac{\textit{df}_{\text{within}}}{2}+1+\zeta}
+\end{align}
+
+&nbsp;
+&nbsp;
+
+<a href="https://i.imgur.com/9FX8g7u.png" target="_blank">*Corrigendum*</a> (2022): As $\alpha$ <span style="color:lightgray">($\zeta$ in Eq. 11)</span> **decreases** ( *not increases* ), $\tau$ <span style="color:lightgray">($g$ in Eq. 11)</span> becomes more dispersed and less peaked around the mode (its Fig. 2, p. 16). This places more prior mass on larger treatment effects for values of $\alpha$ closer to 0 ( *not* $-\frac{1}{2}$).
+
+```{r Pearson, fig.width=9, fig.height=8}
+dbetaprime <- function(x, n, a, zeta, beta = a * (n-1) / 2 - zeta - 2) {
+  #' density of the Pearson type VI distribution in Eq. 11 with lambda = 1
+  #' alternatively, the generalized beta prime distribution
+  n * (n*x)^beta * (1+n*x)^(-zeta-beta-2) / beta(zeta+1, beta+1)
+}
+
+dinvchisq <- function(x, nu, h) {
+  #' density of the scaled inverse chi-squared distribution
+  (h^2 * nu / 2)^(nu / 2) * exp(-nu * h^2 / (2 * x)) / (gamma(nu / 2) * x^(nu / 2 + 1))
+}
+
+curve(dbetaprime(x, n=6, a=3, zeta=0.5), ylab="Density", xlab=expression(italic(g)), from=0, to=8, lwd=2)
+curve(dbetaprime(x, n=6, a=3, zeta=0), add=T, col="blue", lwd=2)
+curve(dbetaprime(x, n=6, a=3, zeta=-0.5), add=T, col="red", lwd=2)
+curve(dinvchisq(x, nu=1, h=0.5), add=T, col="gray", lwd=2)
+curve(dinvchisq(x, nu=1, h=1), add=T, col="darkgray", lty=3, lwd=2)
+title(main="Correct Figure 2 in Faulkenberry (2021, p. 16)",
+      sub="How Varying the Shape Parameter Influences the Prior Distribution")
+legend("topright", c(expression(italic(ζ)==0.5 * "," ~~~~~italic(n)==6 * "," ~~italic(a)==3),
+                     expression(italic(ζ)==0 * "," ~~~~~~~~italic(n)==6 * "," ~~italic(a)==3),
+                     expression(italic(ζ)==-0.5 * "," ~~italic(n)==6 * "," ~~italic(a)==3),
+                     expression(italic(ν)==1 * "," ~~~~~~~~italic(h)==0.5),
+                     expression(italic(ν)==1 * "," ~~~~~~~~italic(h)==1)),
+       col=c("black","blue","red","gray","darkgray"), lwd=3, lty=c(rep(1,4),3), bty="n")
+```
+
+The black, blue, and red curves represent the generalized beta prime probability density functions, which are used in the Pearson Bayes factor.
+
+The gray and dark gray curves represent the scaled inverse chi-squared probability density functions, which are used in the JZS Bayes factor (Rouder et al., [2017](https://psycnet.apa.org/doi/10.1037/met0000057), p. 310).
+
+&nbsp;
+
+$g\sim\beta'(\beta+1,\ \zeta+1,\ \color{lightgray}{\lambda=1，}\ n)\quad\implies\quad\mathbb{E}[g]=\frac{\Gamma(\beta+2)\cdot\Gamma(\zeta)}{n\cdot\Gamma(\beta+1)\cdot\Gamma(\zeta+1)}=\frac{\beta+1}{n\zeta}\ \text{ for }\zeta>0$
+
+$g\sim\text{Scale-inv-}\chi^2(\nu,h^2)\quad\implies\quad\mathbb{E}[g]=\frac{\nu h^2}{\nu-2}\ \text{ for }\nu>2$
+
+&nbsp;
+&nbsp;
+
+<span style="color:red"><font size="3"> Caution Large Sample Size </font></span>
+
+```{r gamma}
+# recall the first gamma term on the denominator in Eq. 12
+c(gamma((3 * 114 - 1) / 2),
+  gamma((3 * 115 - 1) / 2)) # suppose 342 and 345 total observations
+```
+
+By applying Stirling's formula $\Gamma(y+z)\thicksim y^z\cdot\Gamma(y)$ as $y\to+\infty$, the gamma ratio in Eq. 12 becomes
+\begin{equation}
+    \frac{\Gamma\left(\frac{a(n-1)}{2}\right)}{\Gamma\left(\frac{an-1}{2}\right)}\thicksim\left(\frac{an}{2}\right)^{\frac{1-a}{2}},\quad\text{as }n\to+\infty
+\end{equation}
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Test-Based Bayes Factor
+
+&nbsp;
+
+Bayes Factors Based on the Sampling Distributions of Test Statistics
+
+&nbsp;
+&nbsp;
+
+Johnson ([2005](https://doi.org/10.1111/j.1467-9868.2005.00521.x)) developed an approach to computing Bayes factors based on test statistics. These Bayes factors are derived by modeling the test statistic and considering its distribution under both the null and alternative hypotheses. The resulting Bayes factor is an approximation of a full Bayes factor. Additionally, priors for the parameter under test are chosen to maximize the marginal density of the data (the test statistic in this context) under the alternative hypothesis, thereby making the test statistic Bayes factor (TSBF) an upper bound on the weight of evidence against the null hypothesis.
+
+Unlike JAB/WAB, the proposed TSBFs are also unable to find evidence in favor of the null hypothesis. That is to say, the range of these measures of evidence is $1\leqslant\textit{BF}_{10}<\infty$.
+
+* TSBFs provide the least conservative measure of evidence against the null hypothesis, yielding relatively larger values of $\mathit{TSBF}_{10}$.
+
+* TSBFs may lack the property of **coherence** ($\textit{BF}_{12}=\textit{BF}_{10}\cdot\textit{BF}_{02}$) due to the different transformations applied to the data.
+
+&nbsp;
+
+Given the unusual results we have observed for BIC/PBF in ANOVA when the number of groups is large, we use the TSBFs in our cohort and evaluate them in our simulations.
+
+\[\mathit{TSBF}_{01}=
+\begin{cases}\ \tag{14} \left(\frac{1+(N-a)\ /\ (a-1)}{F+(N-a)\ /\ (a-1)}\right)^{\frac{N-1}{2}}\!\cdot F^{\frac{a-1}{2}}, & \text{if } F>1 \\ \\ \ 1, & \text{otherwise}\end{cases} \]
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Savage–Dickey Density Ratio
+
+&nbsp;
+
+**The Savage–Dickey density ratio** is a special form of the Bayes factor for **nested** models by dividing the value of <br><span style="color:#0055A4">the posterior density over the parameters for the alternative model evaluated at the hypothesized value</span> by <br><span style="color:#EF4135">the prior for the same model evaluated at the same point</span>.
+
+\begin{equation} \tag{15}
+    \textit{BF}_{01}:=\frac{p(\boldsymbol{y}\mid \mathcal{M}_0)}{p(\boldsymbol{y}\mid \mathcal{M}_1)}=\frac{\color{#0055A4}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid\boldsymbol{y},\mathcal{M}_1)}}{\color{#EF4135}{p(\boldsymbol{\theta}=\boldsymbol{\theta}_0\mid \mathcal{M}_1)}}
+\end{equation}
+
+&nbsp;
+
+```{r rstan+24sec}
+stancode3M1 <- "
+data {
+  int<lower=1> N;        // total number of subjects
+  int<lower=2> C;        // number of conditions
+  vector[N] Y;           // responses (ready for the ragged data structure)
+  // int s[C];              // condition sizes (i.e., number of subjects in each condition) [removed features]
+  array[C] int s;        // condition sizes [Stan 2.26+ syntax for array declarations]
+  vector[C] mVec;        // mean vector for the multivariate normal prior on theta
+  matrix[C,C] covMat;    // covariance matrix for the multivariate normal prior on theta
+}
+
+parameters {
+  vector[C] theta;                                  // combined vector for intercept and slopes
+  real<lower=0> sigma;                              // error standard deviation
+}
+
+model {
+  // Priors
+  theta ~ multi_normal(mVec, covMat);               // unit information
+  target += -log(sigma);                            // Jeffreys prior
+  
+  // Likelihood
+  int pos = 1;
+  for (i in 1:C) {
+    segment(Y, pos, s[i]) ~ normal((i == 1) ? theta[1] : (theta[1] + theta[i]), sigma);
+    pos = pos + s[i];
+  }
+}"
+
+stanmodel3M1 <- rstan::stan_model(model_code=stancode3M1)
+```
+
+&nbsp;
+
+Suppose $a=3$ (three conditions).
+
+A linear regression model without an intercept is $Y_{ij}=\mu_1\cdot D_{1j}+\mu_2\cdot D_{2j}+\mu_3\cdot D_{3j}+\epsilon_{ij}$, <br>where $D_{ij}$ are dummy variables indicating the condition for observation $j$. $\quad\mathcal{H}_0:\mu_1=\mu_2=\mu_3$ is not a point-null hypothesis.
+
+A linear regression model with an intercept is $Y_{ij}=\beta_0+\beta_1\cdot x_{1j}+\beta_2\cdot x_{2j}+\epsilon_{ij}$. $\quad\mathcal{H}_0:\beta_1=\beta_2=0$.
+
+* $\mu_1=\beta_0$
+* $\mu_2=\beta_0+\beta_1$
+* $\mu_3=\beta_0+\beta_2$
+
+Recall the Wald test statistic and Eq. $8^\prime$ where $\boldsymbol{\theta}=(\beta_1,\ \beta_2)^\top$, $\boldsymbol{\theta}_0=(0,\ 0)^\top$, and $q=a-1=2$.
+
+&nbsp;
+
+```{r vcov}
+summary(fitA <- lm(weight ~ group, PlantGrowth))
+summary(fitB <- lm(weight ~ 0 + group, PlantGrowth)) # summary(lm(weight ~ group - 1, PlantGrowth)) # same
+
+vcov(fitA) # vcov(test) # same
+vcov(fitB)
+```
+
+&nbsp;
+
+When we include an intercept (`resp ~ grp`), R uses "treatment contrasts", which causes the design matrix columns to be linearly dependent (they are not orthogonal). That induces nonzero covariances among the estimated coefficients, so we get a non-diagonal variance-covariance matrix.
+
+When we exclude the intercept (`resp ~ 0 + grp`), each level of `grp` becomes its own independent dummy variable (i.e., exactly one column is "1" for each observation, all others are "0"), which makes the design matrix columns **orthogonal**. That orthogonality leads to zero covariances and hence a diagonal variance-covariance matrix. `model.matrix(fitB)`
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 2. Simulation
+
+&nbsp;
+
+<font size="4"> Effect Size </font>
+
+The most common measure of effect size for one-way ANOVA is the observed $\eta^2=\frac{\textit{SS}_{\ \text{between}}}{\textit{SS}_{\ \text{total}}}$.
+
+For example, the observed $\eta^2=.9$ indicates that 90% of the total variance is accounted for by the treatment effect.
+
+* Cohen ([1988](https://doi.org/10.4324/9780203771587), p. 285-287) suggests that the effect sizes are small, medium, and large for $\eta^2\in\{0.01,\ 0.06,\ 0.14\}$, respectively.
+
+&nbsp;
+
+In practice, we set the standardized range of population means $d$ (Cohen, [1988](https://doi.org/10.4324/9780203771587), p. 275-280).
+
+\begin{align}
+    d&=\frac{\mu_{\text{max}}-\mu_{\text{min}}}{\sigma_\epsilon} \\
+    \\
+    f&=\frac{\sigma_m}{\sigma_\epsilon},\quad\text{where}\quad\sigma_m^2=\frac{1}{a}\sum_{i=1}^a (\mu_i-\mu)^2=\frac{1}{a}\sum_{i=1}^a t_i^2 \qquad{\color{lightgray}{\text{not to be confused with }\mathbb{E}\left[\textit{MS}_{\ \text{between}}\right]=\sigma_\epsilon^2+\frac{1}{a-1}\sum_{i=1}^a n_i t_i^2}} \\
+    \\
+    f&=\begin{cases}
+        \text{$\ d\sqrt{\frac{1}{2a}}$,} & \text{Minimum variability: One mean at each end of $d$, the remaining $a-2$ means all at the midpoint} \\
+        \\
+        \text{$\ \frac{d}{2}\sqrt{\frac{a+1}{3(a-1)}}$,} & \text{Intermediate variability: The $a$ means equally spaced over $d$} \\
+        \\
+        \text{$\ d\frac{\sqrt{a^2-1}}{2a}$,} & \text{Maximum variability: The means all at the end points of $d\qquad$ ($a$ is odd)}
+        \\
+        \text{$\ \frac{d}{2}$,} & \text{Maximum variability: The means all at the end points of $d\qquad$ ($a$ is even)}
+        \end{cases}
+    \\ \\
+    \eta^2&=\frac{\sigma_m^2}{\sigma_\epsilon^2+\sigma_m^2}=\frac{f^2}{1+f^2}
+\end{align}
+
+&nbsp;
+
+<font size="4"> Data </font>
+
+```{r data, fig.width=5.5, fig.height=4.5}
+simData4 <- function(n, a=3, m1=0, delta=NULL, sd=1, power=NULL) {
+  #' Input - 
+  #' n:       number of observations per balanced group
+  #' a:       number of groups
+  #' m1:      population mean of the first group (suppose the lowest)
+  #' delta:   population mean difference, m2 - m1 = m3 - m2  = ···
+  #'          intermediate variability - the `a` means are equally spaced
+  #' sd:      population error standard deviation
+  #' power:   statistical power;
+  #'          need to input either `delta` or `power`
+  #' 
+  #' Dependency - pwr (v1.3-0)
+  #' Output - balanced between-subjects data in the long format
+  
+  if (is.null(delta) & !is.null(power)) {
+    delta <- sd * 2 * pwr::pwr.anova.test(k=a, n=n, power=power)$f * sqrt(3 / (a^2 - 1))
+  } else if (is.null(delta) & is.null(power)) {
+    delta <- 0 # simulation under the null
+  } else if (!is.null(delta) & !is.null(power)) {stop("Bad input!")}
+  
+  # no random seed
+  data.frame("resp"=stats::rnorm(n * a, m1 + delta * (1:a - 1), sd),
+             "grp"=rep(paste0("grp", 1:a), n),
+             stringsAsFactors=T)
+}
+
+
+num <- 50
+BF_fix <- BF_rand <- numeric(num)
+for (i in 1:num) {
+  set.seed(i)
+  data <- simData4(n=30, delta=0.25)[sample(1:90,70),] # unbalanced design
+  BF_fix[i] <- BayesFactor::extractBF(BayesFactor::anovaBF(resp ~ grp, data, progress=F))$bf
+  BF_rand[i] <- BayesFactor::extractBF(BayesFactor::anovaBF(resp ~ grp, whichRandom="grp", data, progress=F))$bf
+}
+plot(BF_fix, BF_rand, xlim=range(c(BF_fix, BF_rand)), ylim=range(c(BF_fix, BF_rand)),
+     xlab=expression(italic(BF)[10]~" for Testing Fixed Effects"),
+     ylab=expression(italic(BF)[10]~" for Testing Random Effects"),
+     main=paste0("One-Way Analysis of Variance (", num, " Runs)"))
+abline(0, 1, col="gray", lty=2, lwd=1.5)
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> The Bayes Factors </font>
+
+**Note**: All the Bayes factors are $\textit{BF}_{01}$.
+
+```{r BFs+35sec}
+computeBFs4 <- function(data, zeta=-0.5, ...) {
+  #' Input -
+  #' data:     between-subjects data in the long format whose columns must be `resp` and `grp`
+  #' zeta:     the adjustment of the shape parameters for Output 6
+  #' ...       more esoteric options, such as `bgridsize`, in ks::kde
+  #' 
+  #' Global -  stanmodel3M1
+  #' Dependency - BayesFactor (v0.9.12-4.7), rstan (v2.32.6), ks (v1.14.3), mvtnorm (v1.3-1)
+  #' Output -  a vector of the Bayes factors in favor of the null
+  #'           1. Savage–Dickey density ratio using the extended normal unit-information prior
+  #'           2. anovaBF function
+  #'           3. BIC approximation to the Bayes factor in Eq. 8; BIC(fit) ≡ AIC(fit, k=log(N))
+  #'           4. Jeffreys approximate Bayes factor using the normal unit-information prior
+  #'           5. Jeffreys approximate Bayes factor using the extended normal unit-information prior
+  #'           6. Pearson type VI Bayes factor based on the F-ratio and degrees of freedom in Eq. 12
+  #'           7. Test statistic Bayes factor based on the F-ratio and degrees of freedom in Eq. 14
+  
+  data <- stats::na.omit(data)
+  grp_sizes <- unname(table(data$grp)) # group sizes (can take in imbalance)
+  N <- sum(grp_sizes) # total number of observations
+  J <- length(grp_sizes) # number of groups
+  
+  fit0 <- stats::aov(resp ~ 1, data) # null model fit
+  fit1 <- stats::aov(resp ~ grp, data) # full model fit
+  pVal <- summary(fit1)[[1]]["grp", "Pr(>F)"] # p-value in one-way ANOVA
+  FVal <- stats::qf(1-pVal, J-1, N-J) # F-ratio, ["grp", "F value"]
+
+  datalist <- list(N=N, C=J, Y=data$resp[order(data$grp, data$resp)], s=grp_sizes,
+                   mVec=stats::coef(fit1), covMat=stats::vcov(fit1)*(N^(1/(J-1)))) #  <==
+  stanfitM1 <- rstan::sampling(stanmodel3M1, data=datalist,
+                               iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+  betaS <- rstan::extract(stanfitM1, pars="theta")$theta[,-1]
+  dPost <- predict(ks::kde(betaS, ...), x=rep(0, J-1)) # estimated posterior density
+  dPrior <- ifelse(J==2,
+                   stats::dnorm(0, datalist$mVec[-1], sqrt(datalist$covMat[-1,-1])),
+                   mvtnorm::dmvnorm(rep(0, J-1), datalist$mVec[-1], datalist$covMat[-1,-1]))
+  SDdr01 <- dPost / dPrior # Savage–Dickey density ratio
+  
+  bf <- BayesFactor::anovaBF(resp ~ grp, data, progress=F)
+  BF01 <- ifelse(BayesFactor::extractBF(bf)$error < 0.01, # control Monte Carlo errors
+                 1 / BayesFactor::extractBF(bf)$bf, NA)
+  
+  BICB01 <- exp((stats::BIC(fit1) - stats::BIC(fit0)) / 2) # equiv. AIC(fit, k=log(N)); Eq. 8
+  
+  JAB01_UI <- N^((J-1)/2) * exp(-0.5 * FVal * (J-1)) # Eq. 8' & 9, unit-information prior
+  JAB01_EXT <- sqrt(N) * exp(-0.5 * FVal * (J-1) * (N^(1/(J-1))-1) / (N^(1/(J-1)))) # extended
+  
+  PBF01 <- ifelse(N >= 345, # Eq. 12
+                  
+                  (N/2)^((J-1)/2) * gamma(1+zeta) * 
+                    ((N-J) / (N-J+(J-1)*FVal))^((N-J)/2-1-zeta) / gamma((J-1)/2+1+zeta), # in case of Inf/Inf
+                  
+                  gamma((N-1)/2) * gamma(1+zeta) * 
+                    ((N-J) / (N-J+(J-1)*FVal))^((N-J)/2-1-zeta) / (gamma((J-1)/2+1+zeta) * gamma((N-J)/2)))
+  
+  TSBF01 <- ifelse(FVal == Inf,
+                   0, # in case of 0*Inf
+                   (((N-J)/(J-1)+1) / ((N-J)/(J-1)+FVal))^((N-1)/2) * (FVal^((J-1)/2))) # Eq. 14
+  
+  c("SD"=SDdr01, "anovaBF"=BF01, "BIC_approx"=BICB01,
+                 "JAB_OG"=JAB01_UI, "JAB"=JAB01_EXT, "PBF"=PBF01, "TSBF"=ifelse(FVal>1, TSBF01, 1))
+}
+
+
+set.seed(277)
+test4 <- simData4(n=30, a=5, delta=0.1)
+round(computeBFs4(test4), 2) #  <== HOW COME?
+```
+
+&nbsp;
+&nbsp;
+
+<font size="4"> Simulation Study </font>
+
+We aim to conduct several simulation studies to evaluate the accuracy of approximate objective Bayes factors in their ability to convert $p$-values and $n$ reported in scientific articles to Bayesian measures of evidence.
+
+$n_1=n_2=n_3=n$
+
+$\mu_3-\mu_2=\mu_2-\mu_1=\sigma_\epsilon\cdot\delta$
+
+```{r sim, eval=F}
+nSim <- 1000 # number of simulation runs for each setting
+nSubj <- c(10, 20, 30, 100, 500) # number of observations per balanced group
+SMD <- c("Null"=0, "Small"=0.1, "Medium"=0.25, "Large"=0.4) # (standardized) mean differences, m2-m1, given sd=1
+
+reportBF <- reportBF_avg <- reportBF_sd <- reportERR <- reportERR_avg <- reportERR_sd <- 
+  reportRULE <- reportRULE_H1 <- reportRULE_H0 <- reportRULE_inc <-
+  setNames(vector(mode="list", length=length(nSubj) * length(SMD)), # pre-allocation
+           apply(expand.grid(names(SMD), nSubj), 1, function(r) paste0("n = ", r[2], ", delta = ", r[1])))
+
+index <- 1 # initial list index
+
+for (n in nSubj) {
+
+  for (delta in SMD) {
+    set.seed(n+delta)
+    temp <- t(replicate(nSim, computeBFs4(simData4(n, delta=delta)))) # replicate the Bayes factors
+    reportBF[[index]] <- temp
+    
+    tempRULE_H1 <- temp < 1/3 # support H1
+    tempRULE_H0 <- temp > 3 # support H0
+    tempRULE_inc <- temp >= 1/3 & temp <= 3 # inconclusive
+
+    # counts of matching decisions for H1
+    reportRULE_H1[[index]] <- colSums(tempRULE_H1 * tempRULE_H1[,1], na.rm=T)
+
+    # counts of matching decisions for H0
+    reportRULE_H0[[index]] <- colSums(tempRULE_H0 * tempRULE_H0[,1], na.rm=T)
+
+    # counts of matching inconclusiveness
+    reportRULE_inc[[index]] <- colSums(tempRULE_inc * tempRULE_inc[,1], na.rm=T)
+
+    tempRULE <- 1*(temp < 1/3) - 1*(temp > 3) # 1: support H1;  0: inconclusive;  -1: support H0
+    reportRULE[[index]] <- colSums(tempRULE[,1] == tempRULE, na.rm=T) # counts of matching decisions
+    # colMeans(); a value near 1 suggests matching results; the first column should be all 1
+    
+    
+    temp[temp[,1]==0,1] <- NA # extremely small SD₀₁ values were rounded down to 0  <==
+    reportBF_avg[[index]] <- colMeans(temp, na.rm=T) # mean Bayes factors in favor of the null
+    reportBF_sd[[index]] <- apply(na.omit(temp), 2, sd) # sample standard deviations of them
+    
+    tempERR <- 100* (temp - temp[,1]) / temp[,1] # percent errors; the first column should be all 0
+    reportERR[[index]] <- tempERR # (can take in NA)
+    reportERR_avg[[index]] <- colMeans(tempERR, na.rm=T) # mean percent errors
+    reportERR_sd[[index]] <- apply(na.omit(tempERR), 2, sd) # sample standard deviations of the percent errors
+    
+    index <- index + 1
+  }
+} # roughly 6.9 hours of run time
+```
+
+&nbsp;
+
+```{r prep}
+reshapeW2L3 <- function(list, prob=T, lab=c("SD", "BF", "BIC", "JAB_OG", "JAB", "PBF", "TSBF")) {
+  #' Input -
+  #' list:    a list of size length(nSubj) * length(SMD);
+  #'          reportERR (unaggregated),
+  #'          reportRULE, reportRULE_H1, reportRULE_H0, or reportRULE_inc (aggregated)
+  #' prob:    logical; if TRUE (default), return the proportions;
+  #'                           otherwise, return the original values
+  #' lab:     a vector of characters representing the Bayes factor methods
+  #' 
+  #' Global -
+  #' nSim:    number of simulation runs for each setting
+  #' nSubj:   number of observations per balanced group
+  #' SMD:     (standardized) mean differences, m2 - m1, given sd = 1
+  #' 
+  #' Output - unlist the report and reshape the wide into the long
+  
+  len <- length(lab) # seven methods
+  nRep <- ifelse(!prob, nSim, 1) # nSim if unaggregated; 1 if aggregated
+  long <- data.frame("value"=unname(unlist(list)),
+                     "method"=factor(rep(rep(1:len, each=nRep), length(list)), labels=lab),
+                     "n"=rep(nSubj, each=nRep*len*length(SMD)),
+                     "delta"=rep(rep(unname(SMD), each=nRep*len), length(nSubj)))
+  
+  if (prob) {
+    list2 <- lapply(list, function(vec) {
+      if (vec[1] == 0) {
+        vec * NA
+      } else {
+        vec / vec[1] # convert counts to proportions
+      }
+    })
+    list3 <- lapply(list, function(vec) rep(vec[1], length(vec))) # denominator
+    long$total <- unname(unlist(list3))
+    long$prop <- unname(unlist(list2))
+  }
+  long
+}
+
+
+formatting2 <- function(val) {
+  #' format the value using scientific notation
+  if (is.na(val)) {
+    "'No entries.'"
+  } else if (abs(val) >= 10) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e\\+0*(\\d+)", "%*%10^\\1", sprintf("%.2e", val)))
+  } else if (abs(val) < 1) {
+    paste("~italic(BF)[\"01\"] %~~%", 
+          gsub("e-0*(\\d+)", "%*%10^{-\\1}", sprintf("%.2e", val)))
+  } else {
+    paste("~italic(BF)[\"01\"] %~~%", sprintf("%.2f", val))
+  }
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 3. Graphic Results {.tabset .tabset-fade}
+
+&nbsp;
+
+<font size="4"> Visualization </font>
+
+Note: The gold standard method, `SD`, is the Savage–Dickey density ratio, which assumes the extended normal unit-information prior $\boldsymbol{\theta}\sim\boldsymbol{\mathcal{N}}_{a-1}\!\left(\hat{\boldsymbol{\theta}},\ N^{\frac{1}{a-1}}\cdot I^{-1}(\hat{\boldsymbol{\theta}})\right)$, just as `JAB` does. Meanwhile, `JAB_OG` assumes $\boldsymbol{\theta}\sim\boldsymbol{\mathcal{N}}_{a-1}\!\left(\hat{\boldsymbol{\theta}},\ N\cdot I^{-1}(\hat{\boldsymbol{\theta}})\right)$.
+
+<span style="color:gray">The archived version [0.30.9000](https://osf.io/bkd4p) did not implement the extended JAB, where `SD` and `JAB` used the original normal unit-information prior.</span>
+
+### Boxplot ($\textit{BF}_{01}$)
+
+```{r load, eval=runthis, echo=F}
+load("~/Downloads/anovaSim.RData")
+```
+```{r viz-boxplot2, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+df4_BF <- reshapeW2L3(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (smd in SMD) {
+  sub <- subset(df4_BF, delta == smd) # subset the long
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(n)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression(italic("BF")["01"]),
+               caption="One-Way Between-Subjects Design with Three Groups") +
+          ggtitle(paste0(names(SMD[SMD==smd]), " Standardized Mean Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot (Percent Errors)
+
+```{r viz-boxplot, eval=runthis, fig.width=10, fig.height=5, results="asis"}
+# percent errors
+df4 <- reshapeW2L3(reportERR, prob=F)
+
+index <- 0
+
+# boxplot of the percent errors
+for (smd in SMD) {
+  baseBF01 <- sapply(reportBF_avg[seq(1, by=length(SMD), length.out=length(nSubj)) + index], 
+                     function(x) x[1]) # baseline is the Savage–Dickey density ratio
+  baseBF01_lab <- sapply(baseBF01, formatting2) # scientific notation
+  index <- index + 1
+  
+  sub <- subset(df4, method != "SD" & delta == smd) # subset the long
+  anno <- data.frame("label"=baseBF01_lab, "n"=unique(sub$n),
+                     "x"=3.5, "y"=Inf) # for annotation use
+  
+  print(ggplot(sub, aes(x=method, y=value)) +
+        geom_boxplot(alpha=0.3, na.rm=T) +
+        geom_text(data=anno, aes(label=label, x=x, y=y), vjust=10, parse=T, col="red") +
+        facet_wrap(.~n, scales="free_y", nrow=1,
+           labeller=label_bquote(cols=italic(n)==.(n))) +
+        labs(x="\nBayes Factor Methods", y="Percent Error (%)\n",
+             caption="One-Way Between-Subjects Design with Three Groups") +
+        ggtitle(paste0(names(SMD[SMD==smd]), " Standardized Mean Difference")) +
+        geom_hline(yintercept=0, linetype="dashed", color="gray") + # reference line 0%
+        theme_classic() +
+        theme(axis.text.x=element_text(angle=90, hjust=0.9)))
+  cat("<br><br><br><br><br><br><br>")
+}
+```
+
+Note: For large samples and effect sizes, the evidence against the null hypothesis is substantial. Consequently, R has rounded the negligible Savage–Dickey density ratio $\textit{BF}_{01}$ down to 0, leading to no available entries for calculating the percent error.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Line Chart (Proportions of Agreement)
+
+```{r viz-line, eval=runthis, fig.width=9, fig.height=7, warning=F}
+# decisions
+decis4 <- rbind(reshapeW2L3(reportRULE),
+                reshapeW2L3(reportRULE_H1),
+                reshapeW2L3(reportRULE_H0),
+                reshapeW2L3(reportRULE_inc))
+decis4$result <- factor(rep(c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"),
+                            each=length(levels(df4$method)) * length(nSubj) * length(SMD)),
+                        levels=c("Overall", "BF01 < 1/3", "BF01 > 3", "[1/3, 3]"))
+decis4$delta <- paste0("ES = ", decis4$delta)
+decis4 <- decis4[!is.na(decis4[,"prop"]),]
+if (F) {
+  # compute the pointwise confidence intervals using the normal approximation
+  decis4$half.len <- qnorm(1-.05/2) * 
+    sqrt(decis4$value * (decis4$total - decis4$value) / decis4$total^3) # 95% CI width
+  decis4$lwr <- max(0, decis4$value / decis4$total - decis4$half.len) # 95% CI lower bound
+  decis4$upr <- min(1, decis4$value / decis4$total + decis4$half.len) # 95% CI upper bound
+} else { # Jeffreys intervals
+  decis4$lwr <- qbeta(.05/2, decis4$value, decis4$total - decis4$value + 1) # 95% CI lower bound
+  decis4$upr <- qbeta(1-.05/2, decis4$value + 1, decis4$total - decis4$value) # 95% CI upper bound
+  decis4$half.len <- (decis4$upr - decis4$lwr) / 2 # 95% CI width
+}
+
+# line chart of the proportions of agreement
+ggplotly(ggplot(decis4, aes(n, prop, color=method, label=value)) +
+           geom_line(linewidth=1.2, na.rm=T) + geom_point(size=2, na.rm=T) +
+           geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=.2) +
+           scale_color_manual(values=c("black", "gray", "#E69F00", "#D55E00", "#CC79A7", "#56B4E9", "#EF4135"),
+                              labels=c("SD", "BF", "BIC", "JAB_OG", "JAB", "PBF", "TSBF")) +
+           facet_grid(result~delta) +
+           labs(x="Sample Size per Balanced Group", y="Proportion of Agreement", color="Method") +
+           scale_x_continuous(breaks=c(10, 100, 500)) +
+           scale_y_continuous(breaks=c(0, 0.5, 1)) + # min(decis4$prop, na.rm=T)
+           theme_minimal()) # interactive plots
+```
+&nbsp;
+&nbsp;
+&nbsp;
+```{r viz-line2, eval=runthis, echo=F, fig.width=10, fig.height=10, message=F}
+decis4 <- rbind(reshapeW2L3(reportRULE),
+                reshapeW2L3(reportRULE_H1),
+                reshapeW2L3(reportRULE_H0),
+                reshapeW2L3(reportRULE_inc))
+decis4$result <- factor(rep(c("Overall", "H1", "H0", "Inconclusive"),
+                            each=length(levels(df4$method)) * length(nSubj) * length(SMD)),
+                        levels=c("Overall", "H1", "H0", "Inconclusive"),
+                        labels=c("Overall", "italic(BF)['01'] < 1/3", 
+                                 "italic(BF)['01'] > 3", "italic(BF)['01'] %in% group('[',list(1/3, 3),']')"))
+decis4$delta <- factor(decis4$delta, levels=unname(SMD),
+                       labels=paste0("italic(δ) == ", unname(SMD), "~(", names(SMD), ")"))
+set.seed(277)
+decis4_plot <- subset(decis4[sample(1:nrow(decis4), nrow(decis4)),], 
+                      !(method %in% c("SD", "JAB_OG"))) # shuffle to prevent overlapping
+
+ggplot(decis4_plot, aes(n, prop, color=method, shape=method)) +
+  geom_line(linewidth=1.2, na.rm=T) + geom_point(size=3.5, na.rm=T) +
+  scale_color_manual(values=c("gray", "#E69F00", "#CC79A7", "#56B4E9", "#EF4135"),
+                     labels=c("BF", "BIC", "JAB", "PBF", "TSBF")) +
+  scale_shape_manual(values=c(10, 8, 18, 17, 3),
+                     labels=c("BF", "BIC", "JAB", "PBF", "TSBF")) +
+  facet_grid(result~delta, labeller=label_parsed) +
+  labs(x="\nSample Size per Balanced Group", y="Proportion of Agreement\n", color="Method", shape="Method",
+       title="One-Way Analysis of Variance with Three Groups") +
+  scale_x_continuous(breaks=c(10, 100, 500)) +
+  scale_y_continuous(breaks=c(0, 0.5, 1)) +
+  theme_minimal() +
+  theme(legend.position="bottom", text=element_text(size=17),
+        legend.title=element_text(margin=margin(0,1,0,0,"cm")),
+        legend.text=element_text(margin=margin(0,0.5,0,0.5,"cm"))) +
+  guides(color=guide_legend(override.aes=list(linewidth=0)),
+         shape=guide_legend(override.aes=list(size=6), nrow=1))
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### **Eureka!**
+
+Since all the methods have solutions in $t$-tests and balanced one-way ANOVA, simulation studies may not be necessary.
+
+```{r theoretical, fig.width=9, fig.height=8}
+BF10 <- function(F_ratio) {
+  h <- 0.5 # prior scale on the variability of fixed effects
+  coef <- (2*pi)^(-0.5) * h
+  integrand <- function(g) {
+    K <- 1 + n*g / (1 + F_ratio * (a-1)/(a*n-a))
+    (1+n*g)^((a*n-a)/2) * K^((1-a*n)/2) * g^(-1.5) * exp(-h^2/(2*g))
+  }
+  unname(coef * integrate(integrand, lower=0, upper=Inf)$value)
+}
+
+BIC01 <- function(F_ratio) {
+  N <- a * n # total number of observations
+  df1 <- a - 1 # condition (between-groups) degrees of freedom
+  df2 <- a * (n - 1) # error (within-groups) degrees of freedom
+  sqrt(N^df1 * (1 + F_ratio * df1 / df2)^(-N))
+}
+
+JAB01_OG <- function(F_ratio) {
+  N <- a * n # total number of observations
+  N^((a-1)/2) * exp(-0.5 * F_ratio * (a-1))
+}
+
+JAB01 <- function(F_ratio) {
+  N <- a * n # total number of observations
+  sqrt(N) * exp(-0.5 * F_ratio * (a-1) * (N^(1/(a-1))-1) / (N^(1/(a-1)))) # extended JAB
+}
+
+PBF01 <- function(F_ratio) {
+  N <- a * n # total number of observations
+  zeta <- -0.5 # adjustment of the shape parameters
+  ifelse(N >= 345,
+         (N/2)^((a-1)/2) * gamma(1+zeta) * 
+           ((N-a) / (N-a+(a-1)*F_ratio))^((N-a)/2-1-zeta) / gamma((a-1)/2+1+zeta), # in case of Inf/Inf
+         gamma((N-1)/2) * gamma(1+zeta) * 
+           ((N-a) / (N-a+(a-1)*F_ratio))^((N-a)/2-1-zeta) / (gamma((a-1)/2+1+zeta) * gamma((N-a)/2)))
+}
+
+TSBF01 <- function(F_ratio) {
+  # Johnson (2005), https://doi.org/10.1111/j.1467-9868.2005.00521.x
+  df1 <- a - 1 # condition (between-groups) degrees of freedom
+  df2 <- a * (n - 1) # error (within-groups) degrees of freedom
+  ifelse(F_ratio > 1,
+         ((df2/df1+1) / (df2/df1+F_ratio))^((df1+df2)/2) * (F_ratio^(df1/2)),
+         1)
+}
+
+
+# CAUTION: not all `n` and `a` will cause the integrand to converge
+n <- 30 # number of observations per balanced group
+a <- 3 # number of groups
+Fs <- qf(c(.9, .05, .01, .005), a - 1, a * (n - 1), lower.tail=F) # critical values of F
+x <- seq(Fs[1], Fs[4], by=0.1) # input sequence
+num <- length(x)
+bf <- bic <- jab_og <- jab <- pbf <- tsbf <- numeric(num)
+for (i in 1:num) {
+  bf[i] <- BF10(x[i])                 # JZS Bayes factor
+  bic[i] <- BIC01(x[i])               # BIC approximation
+  jab_og[i] <- JAB01_OG(x[i])         # Jeffreys approximate Bayes factor
+  jab[i] <- JAB01(x[i])               # Extended Jeffreys approximate Bayes factor
+  pbf[i] <- PBF01(x[i])               # Pearson Bayes factor
+  tsbf[i] <- TSBF01(x[i])             # Test-based Bayes factor
+}
+
+plot(x, bf, ylab=expression(italic(BF)[10]), xlab=expression(italic(F) * "-Ratio"),
+     main="Balanced One-Way Analysis of Variance", sub=bquote(italic(n)==.(n)~~"&"~~italic(a)==.(a)))
+points(x, 1/bic, col="#E69F00", pch=8)
+points(x, 1/jab_og, col="#D55E00", pch=13)
+points(x, 1/jab, col="#CC79A7", pch=18)
+points(x, 1/pbf, col="#56B4E9", pch=17)
+points(x, 1/tsbf, col="#EF4135", pch=3)
+abline(h=c(1/3, 3), col="gray")
+abline(v=c(Fs[2], Fs[3]), col="red")
+legend("topleft", c("anovaBF", "BIC approx", "JAB_OG", "JAB", "PBF", "TSBF"),
+       col=c("black", "#E69F00", "#D55E00", "#CC79A7", "#56B4E9", "#EF4135"),
+       pch=c(1, 8, 13, 18, 17, 3), lty=0, lwd=2, bty="n")
+
+plot(x, 1/bf, ylab=expression(italic(BF)["01"]), xlab=expression(italic(F) * "-Ratio"),
+     main="Balanced One-Way Analysis of Variance", sub=bquote(italic(n)==.(n)~~"&"~~italic(a)==.(a)))
+points(x, bic, col="#E69F00", pch=8)
+points(x, jab_og, col="#D55E00", pch=13)
+points(x, jab, col="#CC79A7", pch=18)
+points(x, pbf, col="#56B4E9", pch=17)
+points(x, tsbf, col="#EF4135", pch=3)
+abline(h=c(1/3, 3), col="gray")
+abline(v=c(Fs[2], Fs[3]), col="red")
+legend("topright", c("anovaBF", "BIC approx", "JAB_OG", "JAB", "PBF", "TSBF"),
+       col=c("black", "#E69F00", "#D55E00", "#CC79A7", "#56B4E9", "#EF4135"),
+       pch=c(1, 8, 13, 18, 17, 3), lty=0, lwd=2, bty="n")
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 4. Decision Rules
+
+&nbsp;
+
+<span style="color:red"><font size="3"> Debugging </font></span>
+
+```{r debug, error=T}
+(mat <- matrix(rep(c(0, -1), 5), nrow=2))
+(res <- mat[mat[,1] == -1, 1] == mat[mat[,1] == -1,]) # only one row ==> column vector
+
+colSums(res) #  ERROR!
+colSums(rbind(rep(F, 5), res)) # counts of matching decisions
+
+colSums((mat == -1) * (mat == -1)[,1]) # counts of matching decisions
+```
+
+&nbsp;
+
+The counts of matching Bayes factors between the gold standard and approximate methods.
+
+```{r rules, eval=runthis}
+reportRULE
+reportRULE_inc
+reportRULE_H1
+reportRULE_H0
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 5. Finite Sample Correction
+
+&nbsp;
+
+Using a power transformation, it can be shown that $\textit{JAB_OG}_{01}^{\ *}=\textit{JAB_OG}_{01}^{\frac{N-1}{N}}\cdot N^{\frac{a-1}{2N}}$.
+
+&nbsp;
+
+$n_1=n_2=n_3=10$
+
+```{r (N-1)/N, eval=runthis, fig.width=10, fig.height=5}
+par(mfrow=c(1, length(SMD)))
+for (i in 1:length(SMD)) {
+  reportBF[[i]][,5] <- reportBF[[i]][,4]^(29/30) * 30^(2/60) # total number of observations is 10 * 3
+  boxplot(reportBF[[i]][,c(1,4:5)], names=c("SD", "JAB_OG", "JAB_OG*"),
+          xlab="", ylab=expression(italic("BF")["01"]), main=paste0(names(SMD)[i], " SMD"), las=2)
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 6. Higher Dimensions {.tabset .tabset-fade}
+
+&nbsp;
+
+### Problem
+
+&nbsp;
+
+We are likely to encounter issues with unreliable multivariate density estimation when $a>3$.
+
+A linear regression model without an intercept does not test a point-null hypothesis, but rather $\mathcal{H}_0:\mu_1=\dotsb=\mu_a$.
+
+* The size of the parameters is $a$<span style="color:lightgray">, not $a-1$</span>. Thus, $\boldsymbol{\mu}\sim\boldsymbol{\mathcal{N}}_a\!\left(\hat{\boldsymbol{\mu}},\ N^{\frac{1}{a}}\cdot I^{-1}(\hat{\boldsymbol{\mu}})\right)$
+
+* In general, we do not know the hypothesized population means $\mu_1=\dotsb=\mu_a=\phi$, unless they are set in simulation studies.
+
+* Based on our data-generating function `simData4`, $\phi$ is the mean of an arithmetic series, i.e., `m1` + `(a-1)` × `delta` / 2.
+
+It is also noted that the inverse of the Fisher information matrix is a diagonal matrix, due to the orthogonality of the design matrix.
+
+* Hence, a multivariate normal distribution becomes the product of several univariate normal distributions.
+
+&nbsp;
+&nbsp;
+
+<span style="color:red">Danger Zone</span>:
+
+Use MCMC methods (e.g., a Stan No-U-Turn sampler) to estimate parameters that are independent of each other, *a priori*
+
+The joint posterior density, based on posterior samples of the parameters, is **not** a product of independent univariate densities of specific forms, **but** a multivariate density that exhibits dependency.
+
+&nbsp;
+&nbsp;
+
+Now, we consider $a=5$ (five conditions).
+
+&nbsp;
+
+```{r a5+20sec}
+stancode3M2 <- "
+data {
+  int<lower=1> N;        // total number of subjects
+  int<lower=2> C;        // number of conditions
+  vector[N] Y;           // responses (ready for the ragged data structure)
+  // int s[C];              // condition sizes (i.e., number of subjects in each condition) [removed features]
+  array[C] int s;        // condition sizes [Stan 2.26+ syntax for array declarations]
+  vector[C] mVec;        // mean vector for the multivariate normal prior on theta
+  matrix[C,C] covMat;    // covariance matrix for the multivariate normal prior on theta
+}
+
+parameters {
+  vector[C] theta;                                  // condition means
+  real<lower=0> sigma;                              // error standard deviation
+}
+
+model {
+  // Priors
+  theta ~ multi_normal(mVec, covMat);               // unit information
+  target += -log(sigma);                            // Jeffreys prior
+  
+  // Likelihood
+  int pos = 1;
+  for (i in 1:C) {
+    segment(Y, pos, s[i]) ~ normal(theta[i], sigma);
+    pos = pos + s[i];
+  }
+}"
+
+stanmodel3M2 <- rstan::stan_model(model_code=stancode3M2)
+
+
+n <- 30; a <- 5; m1 <- 0; delta <- 0.1; phi <- m1 + (a-1) * delta / 2
+# set.seed(277); test4 <- simData4(n, a, m1, delta) # cf. the "2. Simulation" section
+fit_a5 <- lm(resp ~ 0 + grp, test4)
+
+datalist2 <- list(N=n*a, C=a, Y=test4$resp[order(test4$grp, test4$resp)], s=rep(n, a),
+                  mVec=coef(fit_a5), covMat=vcov(fit_a5)*((n*a)^(1/a)))
+stanfitM2 <- rstan::sampling(stanmodel3M2, data=datalist2,
+                             iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+muS <- rstan::extract(stanfitM2, pars="theta")$theta
+dPost <- prod(apply(muS, 2, function(col) polspline::dlogspline(phi, polspline::logspline(col))))
+dPrior <- mvtnorm::dmvnorm(rep(phi, a), datalist2$mVec, datalist2$covMat)
+c("Numerator"=dPost, "Denominator"=dPrior, "BF₀₁"=dPost / dPrior) # Savage–Dickey density ratio
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Code
+
+&nbsp;
+
+```{r update-BFs}
+alterBFs4 <- function(data, phi, zeta=-0.5) {
+  #' Input -
+  #' data:     between-subjects data in the long format whose columns must be `resp` and `grp`
+  #' phi:      true value of the mean
+  #' zeta:     the adjustment of the shape parameters for Output 6
+  #' 
+  #' Global -  stanmodel3M2
+  #' Dependency - BayesFactor (v0.9.12-4.7), rstan (v2.32.6), polspline (v1.1.25), mvtnorm (v1.3-1)
+  #' Output -  a vector of the Bayes factors in favor of the null
+  #'           1. Savage–Dickey density ratio using the normal unit-information prior
+  #'           2. anovaBF function
+  #'           3. BIC approximation to the Bayes factor in Eq. 8; BIC(fit) ≡ AIC(fit, k=log(N))
+  #'           4. Jeffreys approximate Bayes factor using the normal unit-information prior
+  #'           5. Jeffreys approximate Bayes factor using the extended normal unit-information prior
+  #'           6. Pearson type VI Bayes factor based on the F-ratio and degrees of freedom in Eq. 12
+  #'           7. Test statistic Bayes factor based on the F-ratio and degrees of freedom in Eq. 14
+  
+  data <- stats::na.omit(data)
+  grp_sizes <- unname(table(data$grp)) # group sizes (can take in imbalance)
+  N <- sum(grp_sizes) # total number of observations
+  J <- length(grp_sizes) # number of groups
+  
+  fit0 <- stats::aov(resp ~ 1, data) # null model fit
+  fit1 <- stats::aov(resp ~ grp, data) # full model fit
+  pVal <- summary(fit1)[[1]]["grp", "Pr(>F)"] # p-value in one-way ANOVA
+  FVal <- stats::qf(1-pVal, J-1, N-J) # F-ratio, ["grp", "F value"]
+  
+  fitM <- stats::lm(resp ~ 0 + grp, data) # without an intercept
+
+  datalist2 <- list(N=N, C=J, Y=data$resp[order(data$grp, data$resp)], s=grp_sizes,
+                    mVec=stats::coef(fitM), covMat=stats::vcov(fitM)*(N^(1/J))) #  <==
+  stanfitM2 <- rstan::sampling(stanmodel3M2, data=datalist2,
+                               iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+  muS <- rstan::extract(stanfitM2, pars="theta")$theta
+  dPost <- prod(apply(muS, 2, function(col) polspline::dlogspline(phi, polspline::logspline(col))))
+  dPrior <- mvtnorm::dmvnorm(rep(phi, J), datalist2$mVec, datalist2$covMat)
+  SDdr01 <- dPost / dPrior # Savage–Dickey density ratio
+  
+  bf <- BayesFactor::anovaBF(resp ~ grp, data, progress=F)
+  BF01 <- ifelse(BayesFactor::extractBF(bf)$error < 0.01, # control Monte Carlo errors
+                 1 / BayesFactor::extractBF(bf)$bf, NA)
+  
+  BICB01 <- exp((stats::BIC(fit1) - stats::BIC(fit0)) / 2) # equiv. AIC(fit, k=log(N)); Eq. 8
+  
+  JAB01_UI <- N^((J-1)/2) * exp(-0.5 * FVal * (J-1)) # Eq. 8' & 9, unit-information prior
+  JAB01_EXT <- sqrt(N) * exp(-0.5 * FVal * (J-1) * (N^(1/(J-1))-1) / (N^(1/(J-1)))) # extended
+  
+  PBF01 <- ifelse(N >= 345, # Eq. 12
+                  
+                  (N/2)^((J-1)/2) * gamma(1+zeta) * 
+                    ((N-J) / (N-J+(J-1)*FVal))^((N-J)/2-1-zeta) / gamma((J-1)/2+1+zeta), # in case of Inf/Inf
+                  
+                  gamma((N-1)/2) * gamma(1+zeta) * 
+                    ((N-J) / (N-J+(J-1)*FVal))^((N-J)/2-1-zeta) / (gamma((J-1)/2+1+zeta) * gamma((N-J)/2)))
+  
+  TSBF01 <- ifelse(FVal == Inf,
+                   0, # in case of 0*Inf
+                   (((N-J)/(J-1)+1) / ((N-J)/(J-1)+FVal))^((N-1)/2) * (FVal^((J-1)/2))) # Eq. 14
+  
+  c("SD"=SDdr01, "anovaBF"=BF01, "BIC_approx"=BICB01,
+                 "JAB_OG"=JAB01_UI, "JAB"=JAB01_EXT, "PBF"=PBF01, "TSBF"=ifelse(FVal>1, TSBF01, 1))
+}
+```
+
+&nbsp;
+&nbsp;
+
+$n_1=n_2=n_3=n_4=n_5=n$
+
+$\mu_5-\mu_4=\mu_4-\mu_3=\mu_3-\mu_2=\mu_2-\mu_1=\sigma_\epsilon\cdot\delta$
+
+&nbsp;
+
+```{r update-sim, eval=F}
+SMD <- c("Null"=0, "Small"=0.2, "Medium"=0.5, "Large"=0.8) / (a-1)
+mu_H0 <- 0 + (a-1) * SMD / 2 # hypothesized population mean
+
+reportBF <- reportBF_avg <- reportBF_sd <- reportERR <- reportERR_avg <- reportERR_sd <- 
+  reportRULE <- reportRULE_H1 <- reportRULE_H0 <- reportRULE_inc <-
+  setNames(vector(mode="list", length=length(nSubj) * length(SMD)), # pre-allocation
+           apply(expand.grid(names(SMD), nSubj), 1, function(r) paste0("n = ", r[2], ", delta = ", r[1])))
+
+index <- 1 # initial list index
+
+for (n in nSubj) {
+  index2 <- 1 # index of `delta` in `SMD`
+  
+  for (delta in SMD) {
+    set.seed(n+delta)
+    temp <- t(replicate(nSim, alterBFs4(simData4(n, a, delta=delta), mu_H0[index2])))
+    reportBF[[index]] <- temp
+    
+    tempRULE_H1 <- temp < 1/3 # support H1
+    tempRULE_H0 <- temp > 3 # support H0
+    tempRULE_inc <- temp >= 1/3 & temp <= 3 # inconclusive
+
+    # counts of matching decisions for H1
+    reportRULE_H1[[index]] <- colSums(tempRULE_H1 * tempRULE_H1[,1], na.rm=T)
+
+    # counts of matching decisions for H0
+    reportRULE_H0[[index]] <- colSums(tempRULE_H0 * tempRULE_H0[,1], na.rm=T)
+
+    # counts of matching inconclusiveness
+    reportRULE_inc[[index]] <- colSums(tempRULE_inc * tempRULE_inc[,1], na.rm=T)
+
+    tempRULE <- 1*(temp < 1/3) - 1*(temp > 3) # 1: support H1;  0: inconclusive;  -1: support H0
+    reportRULE[[index]] <- colSums(tempRULE[,1] == tempRULE, na.rm=T) # counts of matching decisions
+    # colMeans(); a value near 1 suggests matching results; the first column should be all 1
+    
+    
+    temp[temp[,1]==0,1] <- NA # extremely small SD₀₁ values were rounded down to 0  <==
+    reportBF_avg[[index]] <- colMeans(temp, na.rm=T) # mean Bayes factors in favor of the null
+    reportBF_sd[[index]] <- apply(na.omit(temp), 2, sd) # sample standard deviations of them
+    
+    tempERR <- 100* (temp - temp[,1]) / temp[,1] # percent errors; the first column should be all 0
+    reportERR[[index]] <- tempERR # (can take in NA)
+    reportERR_avg[[index]] <- colMeans(tempERR, na.rm=T) # mean percent errors
+    reportERR_sd[[index]] <- apply(na.omit(tempERR), 2, sd) # sample standard deviations of the percent errors
+    
+    index <- index + 1
+    index2 <- index2 + 1
+  }
+} # roughly 6.3 hours of run time
+
+# There were 50 or more warnings:
+# 1: In polspline::logspline(col) :  Not all models could be fitted
+# 2: In polspline::logspline(col) : too much data close together
+# 3: In polspline::logspline(col) : re-ran with oldlogspline
+# ...
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot ($\textit{BF}_{01}$)
+
+&nbsp;
+
+```{r update-load, eval=runthis, echo=F}
+load("~/Downloads/anovaSim_a5.RData")
+```
+```{r update-viz-boxplot2, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df4_BF <- reshapeW2L3(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (smd in SMD) {
+  sub <- subset(df4_BF, delta == smd & method %in% c("SD", "BF", "JAB", "TSBF")) # subset the long
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(1/3, 1, 3), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(n)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression(italic("BF")["01"]),
+               caption="One-Way Between-Subjects Design with Five Groups") +
+          ggtitle(paste0(names(SMD[SMD==smd]), " Standardized Mean Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 7. Two-Way ANOVA {.tabset .tabset-fade}
+
+&nbsp;
+
+### Models
+
+&nbsp;
+
+In a two-way ANOVA, we compare an additive model, $\mathcal{M}_{\text{add}}$, to a model, $\mathcal{M}_{\text{omitA}}$, which omits the factor being tested, suppose factor $A$, in testing $\mathcal{H}_0:\alpha_i=0$ versus $\mathcal{H}_1:$ at least one $\alpha_i\neq0$.
+
+\begin{align}
+  \mathcal{M}_{\text{full}}:\ Y_{ijk}&=\mu+\alpha_i+\beta_j+(\alpha\beta)_{ij}+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{add}}:\ Y_{ijk}&=\mu+\alpha_i+\beta_j+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{omitA}}:\ Y_{ijk}&=\mu+\beta_j+\epsilon_{ijk} \\
+  \mathcal{M}_{\text{omitB}}:\ Y_{ijk}&=\mu+\alpha_i+\epsilon_{ijk},\qquad\epsilon_{ijk}\overset{\text{i.i.d.}}{\sim}\mathcal{N}(0,\ \sigma_\epsilon^2) \\
+  &\qquad\text{for}\ i=1,\dotsb,I;\ j=1,\dotsb,J;\ \text{and (unbalanced)}\ k=1,\dotsb,n_{ij}\neq1
+\end{align}
+
+The sum-to-zero constraints impose that $\sum_{i=1}^I\alpha_i=0$, $\sum_{j=1}^J\beta_j=0$, and $\sum_{i=1}^I(\alpha\beta)_{ij}=\sum_{j=1}^J(\alpha\beta)_{ij}=0$.
+
+&nbsp;
+
+The number of free parameters in $\mathcal{M}_{\text{add}}$ is given by $1+(I-1)+(J-1)+1=I+J$.
+
+The number of free parameters in $\mathcal{M}_{\text{omitA}}$ is given by $1+(J-1)+1=J+1$.
+
+Thus, the difference in free parameters is $I-1$, which is equivalent to the number of free parameters in a one-way ANOVA.
+
+The sample size in this case is $N=\sum_{i=1}^I\sum_{j=1}^J n_{ij}$. If the design is balanced, then $N=IJn$.
+
+&nbsp;
+
+Fractional factorial designs are a subset of factorial designs where only a fraction of all possible treatment combinations is executed. $n_{ij}=0$ for some $i$ and $j$.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Code
+
+&nbsp;
+
+```{r two-way-ANOVA, eval=F}
+simData2way <- function(n, A=NULL, B=0.5, nA=2, nB=2, sd=1) {
+  #' Input - 
+  #' n:       number of observations per balanced condition
+  #' A:       effect size of the first factor (of interest)
+  #' B:       effect size of the second factor
+  #' nA:      number of levels in the first factor
+  #' nB:      number of levels in the second factor
+  #' sd:      error standard deviation
+  #' 
+  #' Output - two-way between-subjects data in the long format
+  
+  if (nA + nB <= 2) stop("Bad input!") # one-way design: nA > 1 & nB = 1
+  
+  C1 <- seq(-.5, .5, length.out=nA) # contrast coded
+  C2 <- seq(-.5, .5, length.out=nB)
+  M <- cbind(A, B) %*% t(expand.grid(C1, C2)) # cell means: a1b1, a2b1, ..., a1b2, a2b2, ...
+                                              # no interaction effect
+  
+  # no random seed
+  data.frame("resp"=stats::rnorm(n * nA * nB, M, sd),
+             "A"=paste0("a", 1:nA),
+             "B"=rep(paste0("b", 1:nB), each=nA),
+             stringsAsFactors=T)
+}
+
+stancodelm <- "
+data {
+  int<lower=1> N;           // total number of subjects
+  int<lower=2> C;           // number of conditions
+  vector[N] Y;              // responses (ready for the ragged data structure)
+  // int s[C];                 // condition sizes (i.e., number of subjects in each condition) [removed features]
+  array[C] int s;           // condition sizes [Stan 2.26+ syntax for array declarations]
+  int<lower=1> K;           // number of parameters (including an intercept)
+  matrix[C,K] X;            // design matrix
+  vector[K] mVec;           // mean vector for the multivariate normal prior
+  matrix[K,K] covMat;       // covariance matrix for the multivariate normal prior
+}
+
+parameters {
+  vector[K] beta;                                   // parameter vector
+  real<lower=0> sigma;                              // error standard deviation
+}
+
+model {
+  // Priors
+  beta ~ multi_normal(mVec, covMat);
+  target += -log(sigma);                            // Jeffreys prior
+
+  // Likelihood
+  int pos = 1;
+  for (i in 1:C) {
+    segment(Y, pos, s[i]) ~ normal(X[i,] * beta, sigma);
+    pos = pos + s[i];
+  }
+}"
+
+stanlm <- rstan::stan_model(model_code=stancodelm)
+
+
+computeBFs2way <- function(data, ...) {
+  #' Input -
+  #' data:     two-way between-subjects data in the long format whose columns must be `resp`, `A`, and `B`
+  #' ...       more esoteric options, such as `bgridsize`, in ks::kde
+  #' 
+  #' Global -  stanlm
+  #' Dependency - BayesFactor (v0.9.12-4.7), rstan (v2.32.6), ks (v1.14.3), mvtnorm (v1.3-1)
+  #' Output -  a vector of the Bayes factors in favor of the null for testing `A`
+  #'           1. Savage–Dickey density ratio using the extended normal unit-information prior
+  #'           2. lmBF function
+  #'           3. BIC approximation to the Bayes factor
+  #'           4. Jeffreys approximate Bayes factor using the normal unit-information prior
+  #'           5. Jeffreys approximate Bayes factor using the extended normal unit-information prior
+  
+  data <- stats::na.omit(data)
+  grp_sizes <- unname(c(table(data$A, data$B))) # condition sizes (can take in imbalance)
+  grp_sizes <- grp_sizes[grp_sizes != 0] # (take in fractionality)
+  N <- sum(grp_sizes) # total number of observations
+  C <- length(grp_sizes) # number of conditions
+  J <- length(unique(data$A)) # number of levels in `A`
+  
+  fit0 <- stats::aov(resp ~ B, data) # omitted model fit
+  fit1 <- stats::aov(resp ~ A + B, data) # additive model fit
+  pVal <- summary(fit1)[[1]]["A", "Pr(>F)"] # p-value in two-way ANOVA
+  FVal <- summary(fit1)[[1]]["A", "F value"] # F-ratio
+
+  fitM <- stats::lm(resp ~ A + B, data)
+  designMat <- stats::model.matrix(fitM) # design matrix of all replicates
+  datalist3 <- list(N=N, C=C, Y=data$resp[order(data$B, data$A, data$resp)], s=grp_sizes,
+                    K=ncol(designMat), X=designMat[1:C,],
+                    mVec=stats::coef(fitM), covMat=stats::vcov(fitM)*(N^(1/(J-1)))) #  <==
+  stanfitM3 <- rstan::sampling(stanlm, data=datalist3,
+                               iter=15000, warmup=5000, chains=2, seed=277, refresh=0)
+  betaS <- rstan::extract(stanfitM3, pars="beta")$beta[,2:J]
+  dPost <- predict(ks::kde(betaS, ...), x=rep(0, J-1)) # estimated posterior density
+  dPrior <- ifelse(J==2,
+                   stats::dnorm(0, datalist3$mVec[2], sqrt(datalist3$covMat[2,2])),
+                   mvtnorm::dmvnorm(rep(0, J-1), datalist3$mVec[2:J], datalist3$covMat[2:J,2:J]))
+  SDdr01 <- dPost / dPrior # Savage–Dickey density ratio
+  
+  model_add <- BayesFactor::lmBF(resp ~ A + B, data, progress=F)
+  model_omit <- BayesFactor::lmBF(resp ~ B, data, progress=F)
+  bf <- model_omit / model_add
+  BF01 <- ifelse(BayesFactor::extractBF(bf)$error < 0.05, # control Monte Carlo errors
+                 BayesFactor::extractBF(bf)$bf, NA)
+  
+  BICB01 <- exp((stats::BIC(fit1) - stats::BIC(fit0)) / 2)
+  
+  JAB01_UI <- N^((J-1)/2) * exp(-0.5 * FVal * (J-1)) # unit-information prior
+  JAB01_EXT <- sqrt(N) * exp(-0.5 * FVal * (J-1) * (N^(1/(J-1))-1) / (N^(1/(J-1)))) # extended
+  
+  c("SD"=SDdr01, "lmBF"=BF01, "BIC_approx"=BICB01, "JAB_OG"=JAB01_UI, "JAB"=JAB01_EXT)
+}
+
+# set.seed(277)
+# test3x2 <- simData2way(n=30, A=0.3, nA=3)
+# computeBFs2way(test3x2)
+
+
+SMD <- c("Null"=0, "Small"=0.2, "Medium"=0.5, "Large"=0.8)
+
+reportBF <- reportBF_avg <- reportBF_sd <- reportERR <- reportERR_avg <- reportERR_sd <- 
+  reportRULE <- reportRULE_H1 <- reportRULE_H0 <- reportRULE_inc <-
+  setNames(vector(mode="list", length=length(nSubj) * length(SMD)), # pre-allocation
+           apply(expand.grid(names(SMD), nSubj), 1, function(r) paste0("n = ", r[2], ", delta = ", r[1])))
+
+index <- 1 # initial list index
+
+for (n in nSubj) {
+
+  for (delta in SMD) {
+    set.seed(n+delta)
+    temp <- t(replicate(nSim, computeBFs2way(simData2way(n, delta)))) # replicate the Bayes factors
+    reportBF[[index]] <- temp
+    
+    tempRULE_H1 <- temp < 1/3 # support H1
+    tempRULE_H0 <- temp > 3 # support H0
+    tempRULE_inc <- temp >= 1/3 & temp <= 3 # inconclusive
+
+    # counts of matching decisions for H1
+    reportRULE_H1[[index]] <- colSums(tempRULE_H1 * tempRULE_H1[,1], na.rm=T)
+
+    # counts of matching decisions for H0
+    reportRULE_H0[[index]] <- colSums(tempRULE_H0 * tempRULE_H0[,1], na.rm=T)
+
+    # counts of matching inconclusiveness
+    reportRULE_inc[[index]] <- colSums(tempRULE_inc * tempRULE_inc[,1], na.rm=T)
+
+    tempRULE <- 1*(temp < 1/3) - 1*(temp > 3) # 1: support H1;  0: inconclusive;  -1: support H0
+    reportRULE[[index]] <- colSums(tempRULE[,1] == tempRULE, na.rm=T) # counts of matching decisions
+    # colMeans(); a value near 1 suggests matching results; the first column should be all 1
+    
+    
+    temp[temp[,1]==0,1] <- NA # extremely small SD₀₁ values were rounded down to 0  <==
+    reportBF_avg[[index]] <- colMeans(temp, na.rm=T) # mean Bayes factors in favor of the null
+    reportBF_sd[[index]] <- apply(na.omit(temp), 2, sd) # sample standard deviations of them
+    
+    tempERR <- 100* (temp - temp[,1]) / temp[,1] # percent errors; the first column should be all 0
+    reportERR[[index]] <- tempERR # (can take in NA)
+    reportERR_avg[[index]] <- colMeans(tempERR, na.rm=T) # mean percent errors
+    reportERR_sd[[index]] <- apply(na.omit(tempERR), 2, sd) # sample standard deviations of the percent errors
+    
+    index <- index + 1
+  }
+} # roughly 4.9 hours of run time
+```
+
+&nbsp;
+&nbsp;
+
+```{r reshapeW2L2x2, include=F}
+reshapeW2L2way <- function(list, prob=T, lab=c("SD", "BF", "BIC", "JAB_OG", "JAB")) {
+  #' Input -
+  #' list:    a list of size length(nSubj) * length(SMD);
+  #'          reportERR (unaggregated),
+  #'          reportRULE, reportRULE_H1, reportRULE_H0, or reportRULE_inc (aggregated)
+  #' prob:    logical; if TRUE (default), return the proportions;
+  #'                           otherwise, return the original values
+  #' lab:     a vector of characters representing the Bayes factor methods
+  #' 
+  #' Global -
+  #' nSim:    number of simulation runs for each setting
+  #' nSubj:   number of observations per balanced group
+  #' SMD:     (standardized) mean differences, m2 - m1, given sd = 1
+  #' 
+  #' Output - unlist the report and reshape the wide into the long
+  
+  len <- length(lab) # five methods
+  nRep <- ifelse(!prob, nSim, 1) # nSim if unaggregated; 1 if aggregated
+  long <- data.frame("value"=unname(unlist(list)),
+                     "method"=factor(rep(rep(1:len, each=nRep), length(list)), labels=lab),
+                     "n"=rep(nSubj, each=nRep*len*length(SMD)),
+                     "delta"=rep(rep(unname(SMD), each=nRep*len), length(nSubj)))
+  
+  if (prob) {
+    list2 <- lapply(list, function(vec) {
+      if (vec[1] == 0) {
+        vec * NA
+      } else {
+        vec / vec[1] # convert counts to proportions
+      }
+    })
+    list3 <- lapply(list, function(vec) rep(vec[1], length(vec))) # denominator
+    long$total <- unname(unlist(list3))
+    long$prop <- unname(unlist(list2))
+  }
+  long
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+### Boxplot ($\textit{BF}_{01}$)
+
+&nbsp;
+
+```{r 2x2-load, eval=runthis, echo=F}
+load("~/Downloads/anovaSim_2x2.RData")
+```
+```{r 2x2-viz-boxplot2, eval=runthis, echo=F, fig.width=10, fig.height=5, results="asis"}
+df4_BF <- reshapeW2L2way(reportBF, prob=F)
+
+# boxplot of the BF₀₁
+for (smd in SMD) {
+  sub <- subset(df4_BF, delta == smd & method != "JAB_OG") # subset the long
+  print(ggplot(sub, aes(x=method, y=value)) +
+          geom_boxplot(alpha=0.3, na.rm=T) +
+          geom_hline(yintercept=c(1/3, 1, 3), linetype="dashed", color="red") +
+          facet_wrap(.~n, scales="free_y", nrow=1,
+                     labeller=label_bquote(cols=italic(n)==.(n))) +
+          labs(x="\nBayes Factor Methods", y=expression(italic("BF")["01"]),
+               caption="2 × 2 Between-Subjects Design") +
+          ggtitle(paste0(names(SMD[SMD==smd]), " Standardized Mean Difference")) +
+          theme_classic() +
+          theme(axis.text.x=element_text(angle=90)))
+  cat("<br><br><br><br><br>")
+}
+```
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
+
+## 8. eJAB
+
+&nbsp;
+
+To test the hypotheses $\mathcal{H}_0:\boldsymbol{\theta}=\boldsymbol{\theta}_0$ versus $\mathcal{H}_1:\boldsymbol{\theta}\neq\boldsymbol{\theta}_0$, we define the extended Jeffreys approximate objective Bayes factor (eJAB) as
+\begin{equation}
+  \mathit{eJAB}_{01}=\sqrt{N}\exp\left\{-\frac{1}{2}\frac{N^{1/q}-1}{N^{1/q}}\cdot Q_{\chi^{2}_{q}}(1-p)\right\},
+\end{equation}
+
+where $q$ is the size of the parameter vector $\boldsymbol{\theta}$, $N$ is the sample size, $Q_{\chi^{2}_{q}}(\cdot)$ is the quantile function of the chi-squared distribution with $q$ degrees of freedom, and $p$ is the $p$-value from a null-hypothesis significance test. We further define $\mathit{eJAB}_{10}=1\ \!/\ \!\mathit{eJAB}_{01}$.
+
+&nbsp;
+
+The sample size $N$ is
+
+* the total number of observations for for $t$-tests, linear regression, logistic regression, one-way ANOVA, and chi-squared tests.
+
+* the number of events for Cox models.
+
+* the number of independent observations for one-way repeated-measures ANOVA (Nathoo & Masson, [2016](https://dx.doi.org/10.1016/j.jmp.2015.03.003)).
+
+&nbsp;
+
+The degrees of freedom are
+
+* $q=1$ for $t$-tests, linear regression, logistic regression, and Cox models, where $\mathcal{H}_0$ specifies a point-null hypothesis (Wagenmakers, [2022](https://doi.org/10.31234/osf.io/egydq)).
+
+* $q=I-1$ for one-way ANOVA and one-way repeated-measures ANOVA, where $I$ is the number of conditions.
+
+* $q=(R-1)(C-1)$ for chi-squared tests, where $R$ and $C$ are the numbers of rows and columns, respectively.
+
+Since the Bayes factor is the ratio of the marginal likelihoods of two competing models, $q=p_1-p_0$ also represents the difference in the number of free parameters between the alternative and null models.
+
+&nbsp;
+
+For further reading, please visit <https://osf.io/qeprj/>.
+
+&nbsp;
+
+<a href="#top"> scroll to top </a>
+
+&nbsp;
+&nbsp;
+
