@@ -1,0 +1,10 @@
+metric,value
+eligible_results,16563
+eligible_trials,1790
+statistical_test_classes,8
+results_p_le_0_05,6409
+contradictions_p_le_0_05_ejab_gt_1,461
+contradictions_p_le_0_01_ejab_gt_1,0
+jlp_p_le_0_05_ejab_gt_3,19
+weak_evidence_posterior_mean,0.3465931796083695
+weak_evidence_posterior_sd,0.004588697857670915

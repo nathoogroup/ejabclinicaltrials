@@ -1,0 +1,4 @@
+phase,eligible_studies,eligible_analyses,one_sided_analyses,left_censored_p_values,statistically_significant,significant_favoring_null,raw_contradiction_proportion
+Early Phase I,47,270,8,30,90,5,0.05555555555555555
+Phase I,280,2098,54,429,918,25,0.027233115468409588
+Phase II,1463,14195,365,2255,5401,431,0.0798000370301796

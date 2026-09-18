@@ -1,5 +1,15 @@
 
 
+Current early-phase clinical-trial reanalysis
+
+The revised manuscript application is reproduced by the scripts in
+analysis/early_phase/. See analysis/early_phase/README.md for the run order,
+input data, generated results, and one-sided eJAB definition. The one-sided
+calculation omits (n-1)/n from the exponent and retains the Wagenmakers
+factor 1/[2(1-p1)]. The two-sided calculation retains its finite-sample factor.
+The earlier top-level CTGJAB.R and figure scripts describe the original
+analysis; use analysis/early_phase/ for the revised early-phase application.
+
 Guidelines for Using the Provided HTML Files
 
 Please download the HTML files and view them using the following instructions to ensure proper functionality:
@@ -17,4 +27,3 @@ Please download the HTML files and view them using the following instructions to
 (4) Reproducibility: Stan results are contingent upon the consistency of several configurations, including the Stan version, computer hardware, and the C++ compiler. https://mc-stan.org/docs/reference-manual/reproducibility.html
 
 See also `.RNG.name` in JAGS. https://www.rdocumentation.org/packages/rjags/versions/4-15/topics/jags.model
-
