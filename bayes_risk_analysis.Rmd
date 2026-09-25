@@ -1,5 +1,5 @@
 ---
-title: "Bayes-risk comparisons for eJAB"
+title: "Normalized average error difference (NAED) comparisons for eJAB"
 author: "eJAB clinical-trials project"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -76,7 +76,8 @@ dense_theta_grid <- unique(c(
 
 # Comparisons
 
-This R Markdown file is the single source for four Bayes-risk comparisons:
+This R Markdown file is the single source for four normalized average error
+difference (NAED) comparisons:
 
 1. \(eJAB_{01}\leq1\) versus \(p<0.005\), for all 10 tests.
 2. \(eJAB_{01}\leq1\) versus \(p<0.05\), for all 10 tests.
@@ -540,7 +541,7 @@ simulate_one <- function(test_key, n, theta) {
 }
 ```
 
-# Decision rules and Bayes-risk estimation
+# Decision rules and average error estimation
 
 ```{r risk-functions}
 valid_result <- function(x, test_key) {
@@ -1268,28 +1269,40 @@ kable(tibble(
 ))
 ```
 
-# Risk plots
+# Normalized average error difference plots
 
-Every risk map starts from the raw Bayes-risk difference
-
-\[
-\Delta R(n,\theta)
-=R_{\mathrm{comparison}}(n,\theta)-R_{eJAB}(n,\theta).
-\]
-
-Within each test panel, the displayed value is
+For each effect size \(\theta\) and sample size \(n\), we compare the simple
+null (effect zero) with the simple alternative (effect \(\theta\)). For a
+decision rule \(d\), the average error under equal weighting is
 
 \[
-\Delta R_{\mathrm{scaled}}(n,\theta)
-=\frac{\Delta R(n,\theta)}{
-\max_{n,\theta}|\Delta R(n,\theta)|}.
+A_d(\theta,n)
+=\frac{\alpha_d(\theta,n)+\beta_d(\theta,n)}{2},
 \]
 
+where \(\alpha_d\) is the type I error probability under the null and
+\(\beta_d\) is the type II error probability at the specified alternative,
+equal to one minus power. The \(\theta\) argument in \(\alpha_d\) allows for
+rules such as the prespecified-effect TSBF whose rejection boundary also
+depends on the selected effect size. Define the average error difference as
+\(\Delta A(\theta,n)=A_{\mathrm{comparison}}(\theta,n)-A_{eJAB}(\theta,n)\).
+Within each test panel, the normalized average error difference is
+
+\[
+\operatorname{NAED}(\theta,n)=\frac{\Delta A(\theta,n)}{M},
+\qquad
+M=\max_{(\theta,n)\in\mathcal G}|\Delta A(\theta,n)|,
+\]
+
+where \(\mathcal G\) is the displayed grid for that panel.
 All panels therefore use the same \([-1,1]\) purple-white-yellow scale without
-clipping. Each panel is annotated with the raw maximum absolute risk difference
-used as its divisor. Positive/yellow values mean eJAB has lower estimated Bayes
-risk; negative/purple values mean the comparison rule has lower estimated
-Bayes risk.
+clipping. Each panel is annotated with \(M\), the raw maximum absolute average
+error difference used as its divisor. Positive/yellow values mean eJAB has
+lower average error; negative/purple values mean the comparison rule has
+lower average error. This is a pointwise comparison across effect sizes, not
+an integration over a composite alternative prior. Internal cache filenames
+and `risk_*` column names are retained for compatibility; these columns
+contain the average errors defined above.
 
 Dashed black curves show local alternatives of the form
 \(\theta=c/\sqrt{n}\), or \(w=c/\sqrt{n}\) for the table-dimension plots, for
@@ -1358,7 +1371,7 @@ plot_criticality_map <- function(data, value_col, title,
     distinct(facet_label, panel_max_abs_risk_difference) |>
     mutate(
       annotation = sprintf(
-        "plain('max')*'|'*Delta*R*'|' == %.4f",
+        "M == %.4f",
         panel_max_abs_risk_difference
       )
     )
@@ -1419,7 +1432,7 @@ plot_criticality_map <- function(data, value_col, title,
       midpoint = 0,
       limits = c(-1, 1),
       breaks = c(-1, -0.5, 0, 0.5, 1),
-      name = expression(frac(Delta*R, plain("max")*abs(Delta*R)))
+      name = expression(plain(NAED)(theta, n))
     ) +
     labs(
       title = title,
@@ -1746,7 +1759,7 @@ p_vs_ejab <- plot_criticality_map(
   plot_data,
   "delta_p_minus_ejab",
   expression(
-    "Large-sample Bayes-risk criticality maps: " *
+    "Large-sample NAED maps: " *
       p < 0.005 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "01_ejab_vs_p005_all_10_tests.png",
@@ -1763,7 +1776,7 @@ p05_vs_ejab <- plot_criticality_map(
   plot_data,
   "delta_p05_minus_ejab",
   expression(
-    "Large-sample Bayes-risk criticality maps: " *
+    "Large-sample NAED maps: " *
       p < 0.05 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "02_ejab_vs_p05_all_10_tests.png",
@@ -1780,7 +1793,7 @@ bic_vs_ejab <- plot_criticality_map(
   empirical_bic_plot_data,
   "delta_bic_minus_ejab",
   expression(
-    "Large-sample empirical Bayes-risk criticality maps: " *
+    "Large-sample empirical NAED maps: " *
       BF["01"]^plain(BIC) <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "02_ejab_vs_bic_bf01_six_parametric_tests.png",
@@ -1802,7 +1815,7 @@ tsbf_vs_ejab <- plot_criticality_map(
   tsbf_dimension_plot_data,
   "delta_tsbf_minus_ejab",
   expression(
-    "Large-sample Bayes-risk criticality maps: " *
+    "Large-sample NAED maps: " *
       TSBF["01"] <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "03_ejab_vs_tsbf01_three_table_sizes.png",
@@ -1870,14 +1883,14 @@ tsbf_estimated_omega_vs_ejab <- plot_criticality_map(
   tsbf_estimated_omega_dimension_plot_data,
   "delta_tsbf_estimated_omega_minus_ejab",
   expression(
-    "Large-sample Bayes-risk sensitivity map: " *
+    "Large-sample NAED sensitivity map: " *
       TSBF["01"](hat(omega)) <= 1 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "03b_ejab_vs_tsbf01_estimated_omega_three_table_sizes.png",
   ncol = 3,
   height = 5.5,
   y_label = expression(
-    "Population effect size defining risk (" * omega * ")"
+    "Population effect size (" * omega * ")"
   )
 )
 tsbf_estimated_omega_vs_ejab
@@ -1888,7 +1901,7 @@ tsbf_estimated_omega_vs_ejab
 ```{r combined-figure, fig.height=30}
 combined <- p_vs_ejab / p05_vs_ejab / bic_vs_ejab / tsbf_vs_ejab +
   plot_annotation(
-    title = "Four Bayes-risk comparisons for eJAB",
+    title = "Four normalized average error difference (NAED) comparisons for eJAB",
     theme = theme(plot.title = element_text(face = "bold", size = 16))
   )
 combined
@@ -1898,6 +1911,45 @@ ggsave(
   combined,
   width = 17,
   height = 30,
+  dpi = 300
+)
+```
+
+## Manuscript figure
+
+The manuscript combines the estimated-effect TSBF, prespecified-effect TSBF,
+and \(p<0.05\) comparisons without changing their panelwise normalization.
+
+```{r manuscript-figure, fig.width=12, fig.height=13.2}
+manuscript_a <- tsbf_estimated_omega_vs_ejab +
+  facet_wrap(~ facet_label, ncol = 1, labeller = label_parsed) +
+  labs(
+    title = expression(
+      "A. " * TSBF["01"](hat(omega)) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+    ),
+    y = expression("True standardized effect size (" * omega * ")")
+  )
+manuscript_b <- tsbf_vs_ejab +
+  facet_wrap(~ facet_label, ncol = 1, labeller = label_parsed) +
+  labs(title = expression(
+    "B. " * TSBF["01"](omega) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+  ))
+manuscript_c <- p05_vs_ejab +
+  labs(title = expression(
+    "C. " * p < 0.05 ~ "versus" ~ eJAB["01"] <= 1
+  ))
+manuscript_naed <- ((manuscript_a | manuscript_b) / manuscript_c) +
+  plot_layout(heights = c(3, 2), guides = "collect") +
+  plot_annotation(
+    title = "Normalized average error difference",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 18))
+  )
+manuscript_naed
+ggsave(
+  file.path(output_dir, "05_manuscript_naed.png"),
+  manuscript_naed,
+  width = 12,
+  height = 13.2,
   dpi = 300
 )
 ```
@@ -2134,19 +2186,20 @@ kable(
 )
 ```
 
-Each panel below starts with the raw Bayes-risk difference
-\(\Delta R=R_{\mathrm{reference}}-R_{eJAB}\), then divides by that panel's
+Each panel below starts with the raw average error difference
+\(\Delta A=A_{\mathrm{reference}}-A_{eJAB}\), then divides by that panel's
 largest absolute raw difference:
 
 \[
-\Delta R_{\mathrm{scaled}}
-=\frac{\Delta R}{\max_{n,w}|\Delta R|}.
+\operatorname{NAED}(\theta,n)=\frac{\Delta A(\theta,n)}{M},
+\qquad M=\max_{(\theta,n)\in\mathcal G}|\Delta A(\theta,n)|,
+\quad \theta=w.
 \]
 
 All panels therefore span the common scale \([-1,1]\), while the annotation in
-each panel reports the raw \(\max|\Delta R|\) used as its divisor.
+each panel reports the raw maximum \(M\) used as its divisor.
 Positive/yellow values favor eJAB; negative/purple values favor the rule named
-in that row. No risk differences are clipped.
+in that row. No average error differences are clipped.
 
 ```{r chi-square-dimension-risk-plot, fig.height=8}
 chisq_x_bounds <- cell_boundaries(log10(dense_n_grid))
@@ -2237,7 +2290,7 @@ write.csv(
 kable(
   chisq_panel_scaling_factors,
   digits = 6,
-  caption = "Panel-specific maximum absolute raw Bayes-risk differences"
+  caption = "Panel-specific maximum absolute raw average error differences (M)"
 )
 
 chisq_panel_annotations <- chisq_panel_scaling_factors |>
@@ -2251,7 +2304,7 @@ chisq_panel_annotations <- chisq_panel_scaling_factors |>
   ) |>
   mutate(
     annotation = sprintf(
-      "plain('max')*'|'*Delta*R*'|' == %.4f",
+      "M == %.4f",
       panel_max_abs_risk_difference
     )
   )
@@ -2311,10 +2364,10 @@ chisq_dimension_risk_plot <- ggplot(
     midpoint = 0,
     limits = c(-1, 1),
     breaks = c(-1, -0.5, 0, 0.5, 1),
-    name = expression(frac(Delta*R, plain("max")*abs(Delta*R)))
+    name = expression(plain(NAED)(theta, n))
   ) +
   labs(
-    title = expression(chi^2~"Bayes-risk comparisons across table dimensions"),
+    title = expression(chi^2~"NAED comparisons across table dimensions"),
     x = expression("Nominal sample size " * n),
     y = expression("True standardized effect size (" * omega * ")")
   ) +
