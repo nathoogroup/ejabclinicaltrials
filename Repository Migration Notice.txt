@@ -1,0 +1,16 @@
+Repository Migration Notice
+This OSF project (https://osf.io/qeprj/) has been migrated to GitHub and has not been updated since February 24, 2026.
+
+The repository is now maintained at the following location:
+
+GitHub Repository: https://github.com/nathoogroup/ejabclinicaltrials
+
+Please use the GitHub repository for the latest updates, ongoing development, and future access to project materials.
+
+Important OSF Timeline
+
+November 16, 2026: OSF users will no longer be able to create new projects or child components.
+February 19, 2027: All existing OSF projects will become read-only.
+Please update your bookmarks and use the GitHub repository as the primary source for this project going forward.
+
+Thank you for your interest in and support of this project.
