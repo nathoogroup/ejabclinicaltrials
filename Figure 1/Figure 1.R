@@ -1,144 +1,194 @@
-####################
-##### Function #####
-####################
-
-computeDist <- function(n, ES=0.5, sd=1, loc.alt=0, rand=F) {
-  #' Input -
-  #' n:           number of observations
-  #' ES:          population effect size
-  #' sd:          population standard deviation
-  #' loc.alt:     whether to simulate under a local alternative;
-  #'              0 -- θ₀ + c;            (fixed);
-  #'              1 -- θ₀ + c / n;
-  #'              2 -- θ₀ + c / √n;       (local);
-  #'              3 -- θ₀ + c / n^{1/4};
-  #'              4 -- θ₀ + c / ln{n};
-  #'              5 -- θ₀ + c ln{n} / √n
-  #' rand:        whether to draw the effect (c) from a prior or fix it
-  #' 
-  #' Output - 
-  #' a list of the p-value and $D_{n}=\sqrt{n}\cdot p\cdot(-\ln{p})$
-  
-  if(rand) ES <- rnorm(1, ES, sd) # random effect
-  if (loc.alt==1) {
-    multiplier <- 1 / n
-  } else if (loc.alt==2) {
-    multiplier <- 1 / sqrt(n)
-  } else if (loc.alt==3) {
-    multiplier <- n^-0.25
-  } else if (loc.alt==4) {
-    multiplier <- 1 / log(n)
-  } else if (loc.alt==5) {
-    multiplier <- log(n) / sqrt(n)
-  } else {
-    multiplier <- 1
-  }
-  mu <- ES * multiplier
-  
-  pVal <- t.test(rnorm(n, mu, sd))$p.value # p-value of the one-sample t-test
-  list("p"=pVal,
-       "D"=sqrt(n) * pVal * -log(pVal) )
-}
-
-
-#######################
-##### Simulations #####
-#######################
-
-nSim <- 5000 # number of simulation runs for each setting
-n <- c(50, 250, 1000, 5000, 25000, 50000) # numbers of observations
-
-set.seed(277)
-distAlt2 <- sapply(n, function(x) replicate(nSim, computeDist(x, loc.alt=2)$D)) # θ₀ + c / √n
-
-set.seed(277)
-distAlt3 <- sapply(n, function(x) replicate(nSim, computeDist(x, loc.alt=3)$D)) # θ₀ + c / n^{1/4}
-
-loc <- data.frame("dist"=c(distAlt2, distAlt3),
-                  "n"=rep(n, each=nSim),
-                  "Alt"=factor(rep(c("italic(θ)[0] + italic(c) / sqrt(italic(n))", "italic(θ)[0] + italic(c) / italic(n)^0.25"), each=nSim*length(n)),
-                               levels=c("italic(θ)[0] + italic(c) / sqrt(italic(n))", "italic(θ)[0] + italic(c) / italic(n)^0.25")))
-
-
 ############################
 ##### Data Preparation #####
 ############################
 
 {
-  load("~/Downloads/osfstorage-archive/Theorem/regularity_conditions.RData")
-  
-  ##### Two-Sample t-Test (balanced group sizes with equal variance)
-  sub1 <- data.frame("dist"=c(distMat1),
-                     "N"=rep(2 * c(10, 25, 50, 100, 250, 500), each=nrow(distMat1)), # total number of observations
-                     "test"="ttest")
+  ##### Two-Sample t-Test
+  load("~/Downloads/osfstorage-archive/Simulations/Data/ttestSim_totTRUE.RData") # sample size is the total number of observations
+  rm(list=setdiff(ls(), c("reportBF", "nSubj", "SMD")))
+  index <- 1; sub1 <- data.frame()
+  for (n1 in nSubj) {
+    for (delta in names(SMD)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- 2.2 * n1 # n2 = 1.2 * n1, unbalanced group
+      temp$ES <- delta
+      sub1 <- rbind(sub1, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub1$p <- pt(sqrt(-2 * log(sub1$JAB / sqrt(sub1$N))), sub1$N-2, lower.tail=F) * 2
+  sub1$eJAB <- sqrt(sub1$N) * exp(-0.5 * qchisq(sub1$p, 1, lower.tail=F) * (sub1$N-1) / sub1$N)
+  sub1$test <- "ttest"
   
   
   ##### Simple Linear Regression
-  sub2 <- data.frame("dist"=c(distMat2),
-                     "N"=rep(c(10, 25, 50, 100, 250, 500), each=nrow(distMat2)),
-                     "test"="lm")
+  load("~/Downloads/osfstorage-archive/Simulations/Data/lmSim.RData")
+  rm(list=setdiff(ls(), c("sub1", 
+                          "reportBF", "nObs", "BETA1")))
+  index <- 1; sub2 <- data.frame()
+  for (n in nObs) {
+    for (slope in names(BETA1)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- n
+      temp$ES <- slope
+      sub2 <- rbind(sub2, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub2$p <- pt(sqrt(-2 * log(sub2$JAB / sqrt(sub2$N))), sub2$N-2, lower.tail=F) * 2
+  sub2$eJAB <- sqrt(sub2$N) * exp(-0.5 * qchisq(sub2$p, 1, lower.tail=F) * (sub2$N-1) / sub2$N)
+  sub2$test <- "lm"
   
   
-  ##### Simple Logistic Regression (binomial family)
-  sub3 <- data.frame("dist"=c(distMat3),
-                     "N"=rep(c(10, 25, 50, 100, 250, 500), each=nrow(distMat3)),
-                     "test"="glm")
+  ##### Simple Logistic Regression
+  load("~/Downloads/osfstorage-archive/Simulations/Data/glmSim.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", 
+                          "reportBF", "nObs", "BETA1")))
+  index <- 1; sub3 <- data.frame()
+  for (n in nObs) {
+    for (slope in names(BETA1)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- n
+      temp$ES <- slope
+      sub3 <- rbind(sub3, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub3$p <- pchisq(-2 * log(sub3$JAB / sqrt(sub3$N)), 1, lower.tail=F)
+  sub3$eJAB <- sqrt(sub3$N) * exp(-0.5 * qchisq(sub3$p, 1, lower.tail=F) * (sub3$N-1) / sub3$N)
+  sub3$test <- "glm"
   
   
-  ##### One-Way Analysis of Variance (ANOVA) with Four Groups
-  sub4 <- data.frame("dist"=c(distMat4),
-                     "N"=rep(4 * c(10, 25, 50, 100, 250, 500), each=nrow(distMat4)),
-                     "test"="anova")
+  ##### One-Way Analysis of Variance (ANOVA)
+  load("~/Downloads/osfstorage-archive/Simulations/Data/anovaSim.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", 
+                          "reportBF", "nSubj", "SMD")))
+  index <- 1; sub4 <- data.frame()
+  for (n in nSubj) {
+    for (delta in names(SMD)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- 3 * n # three groups
+      temp$ES <- delta
+      sub4 <- rbind(sub4, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub4$p <- pf(-log(sub4$JAB_OG / sub4$N), 2, sub4$N-3, lower.tail=F)
+  sub4$eJAB <- sqrt(sub4$N) * exp(-0.5 * qchisq(sub4$p, 2, lower.tail=F) * (sqrt(sub4$N)-1) / sqrt(sub4$N))
+  sub4$test <- "anova"
   
   
-  ##### One-Way Repeated-Measures ANOVA (rANOVA) with Four Conditions
-  sub5 <- data.frame("dist"=c(distMat5),
-                     "N"=rep(3 * c(10, 25, 50, 100, 250, 500), each=nrow(distMat5)), # total number of independent observations
-                     "test"="ranova")
+  ##### One-Way Repeated-Measures ANOVA (rANOVA)
+  load("~/Downloads/osfstorage-archive/Simulations/Data/rmanovaSim_rho0.9.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", "sub4", 
+                          "reportBF", "nSubj", "SMD")))
+  index <- 1; sub5H <- data.frame()
+  for (n in nSubj) {
+    for (delta in names(SMD)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- 2 * n # three conditions
+      temp$ES <- delta
+      sub5H <- rbind(sub5H, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub5H$p <- pf(-log(sub5H$JAB / sqrt(sub5H$N)) * sqrt(sub5H$N) / (sqrt(sub5H$N)-1),
+                2, sub5H$N-2, lower.tail=F)
+  sub5H$eJAB <- sqrt(sub5H$N) * exp(-0.5 * qchisq(sub5H$p, 2, lower.tail=F) * (sqrt(sub5H$N)-1) / sqrt(sub5H$N))
+  sub5H$test <- "ranova high" # high correlation
+  
+  
+  load("~/Downloads/osfstorage-archive/Simulations/Data/rmanovaSim_rho0.2.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", "sub4", "sub5H", 
+                          "reportBF", "nSubj", "SMD")))
+  index <- 1; sub5L <- data.frame()
+  for (n in nSubj) {
+    for (delta in names(SMD)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- 2 * n # three conditions
+      temp$ES <- delta
+      sub5L <- rbind(sub5L, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub5L$p <- pf(-log(sub5L$JAB / sqrt(sub5L$N)) * sqrt(sub5L$N) / (sqrt(sub5L$N)-1),
+                2, sub5L$N-2, lower.tail=F)
+  sub5L$eJAB <- sqrt(sub5L$N) * exp(-0.5 * qchisq(sub5L$p, 2, lower.tail=F) * (sqrt(sub5L$N)-1) / sqrt(sub5L$N))
+  sub5L$test <- "ranova low" # low correlation
   
   
   ##### Chi-Squared Test for Independence (3 × 3 Contingency Table)
-  # The smallest sample size is 3 × 100 to ensure accuracy of the chi-squared test with no cells having an expected count lower than 5
-  sub6 <- data.frame("dist"=c(distMat6),
-                     "N"=rep(3 * c(100, 250, 500, 1000, 2000, 3000), each=nrow(distMat6)),
-                     "test"="chisq")
+  load("~/Downloads/osfstorage-archive/Simulations/Data/chisqSim_jointMulti_R3C3.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", "sub4", "sub5H", "sub5L", 
+                          "reportBF", "nObs", "OMEGA")))
+  index <- 1; sub6J <- data.frame()
+  for (n in nObs) {
+    for (omega in names(OMEGA)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- n # grand total
+      temp$ES <- omega
+      sub6J <- rbind(sub6J, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub6J$p <- pchisq(-2 * log(sub6J$JAB / (sub6J$N^2)) * sub6J$N / (sub6J$N-1), 4, lower.tail=F)
+  sub6J$test <- "chisq multinom" # fixed total
   
   
-  ##### Cox Proportional-Hazards Regression (random right-censoring)
-  # Note that the smallest sample size is N=25 , because, with right censoring, the Cox model cannot estimate parameters when N=10
-  sub7 <- data.frame("dist"=c(distMat7),
-                     "N"=rep(c(25, 50, 100, 250, 500), each=nrow(distMat7)), # number of observations (> number of events)
-                     "test"="coxph")
+  load("~/Downloads/osfstorage-archive/Simulations/Data/chisqSim_indepMulti_R3C3.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", "sub4", "sub5H", "sub5L", "sub6J", 
+                          "reportBF", "nObs", "OMEGA")))
+  index <- 1; sub6I <- data.frame()
+  for (n in nObs) {
+    for (omega in names(OMEGA)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- n # grand total
+      temp$ES <- omega
+      sub6I <- rbind(sub6I, temp)
+      index <- index + 1
+    }
+  }
+  # The original simulations didn't save the p-values, but the p-values can be back-transformed from JAB.
+  sub6I$p <- pchisq(-2 * log(sub6I$JAB / (sub6I$N^2)) * sub6I$N / (sub6I$N-1), 4, lower.tail=F)
+  sub6I$test <- "chisq prod-multinom" # fixed row sums
   
   
-  ##### Wilcoxon Signed-Rank Test
-  sub8 <- data.frame("dist"=c(distMat8),
-                     "N"=rep(c(10, 25, 50, 100, 250, 500), each=nrow(distMat8)),
-                     "test"="wilcox")
+  ##### Cox Proportional-Hazards Regression
+  load("~/Downloads/osfstorage-archive/Simulations/Data/coxphSim.RData")
+  rm(list=setdiff(ls(), c("sub1", "sub2", "sub3", "sub4", "sub5H", "sub5L", "sub6J", "sub6I", 
+                          "reportBF", "reportP", "nObs", "BETA1")))
+  index <- 1; sub7 <- data.frame()
+  for (n in nObs) {
+    for (slope in names(BETA1)) {
+      temp <- as.data.frame(reportBF[[index]])
+      temp$N <- n #  <== number of observations
+      temp$ES <- slope
+      temp$p <- reportP[[index]][,1]
+      temp$nEvent <- reportP[[index]][,2]
+      sub7 <- rbind(sub7, temp)
+      index <- index + 1
+    }
+  }
+  sub7$eJAB <- sqrt(sub7$nEvent) * exp(-0.5 * qchisq(sub7$p, 1, lower.tail=F) * (sub7$nEvent-1) / sub7$nEvent)
+  sub7$test <- "cox"
   
-  
-  ##### Mann–Whitney U-Test
-  sub9 <- data.frame("dist"=c(distMat9),
-                     "N"=rep(2 * c(10, 25, 50, 100, 250, 500), each=nrow(distMat9)), # total number of observations
-                     "test"="Utest")
-  
-  
-  ##### Kruskal-Wallis H-Test with Five Groups
-  sub10 <- data.frame("dist"=c(distMat10),
-                      "N"=rep(5 * c(10, 25, 50, 100, 250, 500), each=nrow(distMat10)),
-                      "test"="Htest")
-  
-  ##### Conditional Logistic Regression (1:1 matched case-control study with two predictors)
-  sub11 <- data.frame("dist"=c(distMat11),
-                      "N"=rep(c(100, 220, 340, 460, 580, 700), each=nrow(distMat11)), # number of pairs (>= number of matched pairs)
-                      "test"="clogit")
 }
 
-df <- rbind(sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8, sub9, sub10)
-rm(list=setdiff(ls(), c("df", "sub11", "loc")))
-df$test <- factor(df$test,
-                  levels=c("ttest", "lm", "glm", "anova", "ranova", "chisq", "coxph",
-                           "wilcox", "Utest", "Htest"))
+
+# [1] "22-ttest"         "44-ttest"         "66-ttest"         "220-ttest"        "1100-ttest"       "10-lm"           
+# [7] "20-lm"            "30-lm"            "100-lm"           "500-lm"           "10-glm"           "20-glm"          
+# [13] "30-glm"           "100-glm"          "500-glm"          "30-anova"         "60-anova"         "90-anova"        
+# [19] "300-anova"        "1500-anova"       "20-ranova hi"     "40-ranova hi"     "60-ranova hi"     "20-ranova lo"    
+# [25] "40-ranova lo"     "60-ranova lo"     "45-chisq joint"   "90-chisq joint"   "300-chisq joint"  "750-chisq joint" 
+# [31] "1500-chisq joint" "45-chisq indep"   "90-chisq indep"   "300-chisq indep"  "750-chisq indep"  "1500-chisq indep"
+# [37] "10-cox"         "20-cox"         "30-cox"         "100-cox"        "500-cox"       
 
 
 
@@ -146,63 +196,114 @@ df$test <- factor(df$test,
 
 ##############################
 ##### Data Visualization #####
-############################## boxplot
-library(ggplot2) # v 3.5.2
+############################## scatter plot
+library(ggplot2) # v 4.0.3
 
-## Panel A ---------------------------------------------------------------------
+## Panel A, eJAB ---------------------------------------------------------------
 
-fA <- ggplot(df, aes(x=factor(N), y=dist)) +
-  geom_boxplot(alpha=.05, na.rm=T) +
-  facet_wrap(.~test, scales="free", nrow=2) +
-  #labs(x="Sample Size", y=expression(italic(D)[italic(n)])) +
+select <- c("SD", "eJAB", "N", "ES", "p", "test")
+df <- rbind(subset(sub1, N==66)[select], 
+            subset(sub2, N==30)[select], 
+            subset(sub3, N==30)[select], 
+            subset(sub4, N==90)[select], 
+            subset(sub5H, N==40)[select], 
+            subset(sub5L, N==40)[select], 
+            # setNames(subset(sub6J, N==300)[c("TSBF", "eJAB", "N", "ES", "p", "test")], select), #  <== no SDdr gold standard
+            # setNames(subset(sub6I, N==300)[c("TSBF", "eJAB", "N", "ES", "p", "test")], select), #  <== no SDdr gold standard
+            subset(sub7, N==30)[select])
+df$test <- factor(df$test,
+                  levels=c("ttest", "lm", "glm", "anova", "ranova high", "ranova low", "chisq multinom", "chisq prod-multinom", "cox"))
+df$label <- paste0(ifelse(df$test == "cox", "italic(n)^'*' == ", "italic(n) == "), df$N)
+df$dim <- paste0("italic(q) == ", ifelse(df$test %in% c("anova", "ranova high", "ranova low"), 2,
+                                         ifelse(df$test %in% c("chisq multinom", "chisq prod-multinom"), 4, 1)))
+set.seed(277); df2 <- df[sample(1:nrow(df), nrow(df)),] # shuffle to prevent overlapping
+
+figA <- ggplot(subset(na.omit(df2), SD > 0), #  <== negative SDdr in ANOVA and rANOVA due to estimation issues
+              aes(-log(eJAB), -log(SD),
+                  color=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))),
+                  shape=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))))) +
+  geom_point(size=2, alpha=.1, na.rm=T) +
+  facet_wrap(.~test, nrow=2) +
+  scale_color_manual(values=c("#8263d9", "#ff7411", "#5494cb", "black")) +
+  labs(x=expression("ln"~italic("eJAB")[10]),
+       y="MCMC Bayes Factor\n",
+       color=expression(paste(italic("p-"), "Value")),
+       shape=expression(paste(italic("p-"), "Value"))) + #title="Accuracy of the Bayes-Factor Approximation", subtitle="Fixed Sample Size"
+  scale_x_continuous(limits=c(-3, 5), expand=c(0, 0),
+                     breaks=c(-log(3), 0, log(3)),
+                     labels=c("-ln3", 0, "ln3")) +
+  scale_y_continuous(limits=c(-3, 5), expand=c(0, 0),
+                     breaks=c(-log(3), 0, log(3)),
+                     labels=c("-ln3", 0, "ln3")) +
+  geom_abline(slope=1, color="gray") +
+  geom_vline(xintercept=c(-log(3),log(3)), linetype="dashed", color="gray") +
+  geom_hline(yintercept=c(-log(3),log(3)), linetype="dashed", color="gray") +
+  geom_text(data=df, aes(x=-1.2, y=1.5, label=label), alpha=.01, parse=T, col="red") +
+  geom_text(data=df, aes(x=-1.2, y=2.5, label=dim), alpha=.01, parse=T, col="red") +
   theme_classic() +
   theme(text=element_text(size=12),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x=element_text(angle=45, hjust=0.9))
+        axis.title.x=element_text(margin=margin(t=12)),
+        legend.position=c(0.9, 0.2)) + #`legend.position.inside`
+  guides(colour=guide_legend(override.aes=list(size=2, alpha=1)))
 
 
-## Panel B ---------------------------------------------------------------------
+## Panel B, BIC approx ---------------------------------------------------------
 
-fB <- ggplot(sub11, aes(x=factor(N), y=dist)) +
-  geom_boxplot(alpha=.05, na.rm=T) +
-  facet_wrap(.~test, scales="free") +
+select <- c("BIC_approx", "SD", "N", "ES", "p", "test")
+df <- rbind(subset(sub1, N==66)[select], 
+            subset(sub2, N==30)[select], 
+            subset(sub3, N==30)[select], 
+            subset(sub4, N==90)[select], 
+            setNames(subset(sub5H, N==40)[c("SBC_approx", "SD", "N", "ES", "p", "test")], select), # or "NM16"
+            setNames(subset(sub5L, N==40)[c("SBC_approx", "SD", "N", "ES", "p", "test")], select),
+            # setNames(subset(sub6J, N==300)[c("BIC_approx", "TSBF", "N", "ES", "p", "test")], select), #  <== no SDdr gold standard
+            # setNames(subset(sub6I, N==300)[c("BIC_approx", "TSBF", "N", "ES", "p", "test")], select), #  <== no SDdr gold standard
+            subset(sub7, N==30)[select])
+df$test <- factor(df$test,
+                  levels=c("ttest", "lm", "glm", "anova", "ranova high", "ranova low", "chisq multinom", "chisq prod-multinom", "cox"))
+df$label <- paste0(ifelse(df$test == "cox", "italic(n)^'*' == ", "italic(n) == "), df$N)
+df$dim <- paste0("italic(q) == ", ifelse(df$test %in% c("anova", "ranova high", "ranova low"), 2,
+                                         ifelse(df$test %in% c("chisq multinom", "chisq prod-multinom"), 4, 1)))
+set.seed(277); df2 <- df[sample(1:nrow(df), nrow(df)),] # shuffle to prevent overlapping
+
+figB <- ggplot(subset(na.omit(df2), SD > 0), #  <== negative SDdr in ANOVA and rANOVA due to estimation issues
+              aes(-log(BIC_approx), -log(SD),
+                  color=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))),
+                  shape=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))))) +
+  geom_point(size=2, alpha=.1, na.rm=T) +
+  facet_wrap(.~test, nrow=2) +
+  scale_color_manual(values=c("#8263d9", "#ff7411", "#5494cb", "black")) +
+  labs(x=expression("ln"~italic("BF")[10]^"(BIC)"),
+       y="MCMC Bayes Factor\n",
+       color=expression(paste(italic("p-"), "Value")),
+       shape=expression(paste(italic("p-"), "Value"))) + #title="Accuracy of the Bayes-Factor Approximation", subtitle="Fixed Sample Size"
+  scale_x_continuous(limits=c(-3, 5), expand=c(0, 0),
+                     breaks=c(-log(3), 0, log(3)),
+                     labels=c("-ln3", 0, "ln3")) +
+  scale_y_continuous(limits=c(-3, 5), expand=c(0, 0),
+                     breaks=c(-log(3), 0, log(3)),
+                     labels=c("-ln3", 0, "ln3")) +
+  geom_abline(slope=1, color="gray") +
+  geom_vline(xintercept=c(-log(3),log(3)), linetype="dashed", color="gray") +
+  geom_hline(yintercept=c(-log(3),log(3)), linetype="dashed", color="gray") +
+  geom_text(data=df, aes(x=2.2, y=-1.5, label=label), alpha=.01, parse=T, col="red") +
+  geom_text(data=df, aes(x=2.2, y=-0.5, label=dim), alpha=.01, parse=T, col="red") +
   theme_classic() +
   theme(text=element_text(size=12),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        plot.margin=margin(t=5, r=1, b=5, l=15),
-        #strip.background=element_rect(linewidth=0.55),
-        axis.text.x=element_text(angle=45, hjust=0.9))
+        axis.title.x=element_text(margin=margin(t=12)),
+        legend.position=c(0.9, 0.2)) + #`legend.position.inside`
+  guides(colour=guide_legend(override.aes=list(size=2, alpha=1)))
 
 
-## Panel C ---------------------------------------------------------------------
+library(ggpubr)   # v1.0.0
 
-fC <- ggplot(loc, aes(x=factor(n), y=dist)) +
-  geom_boxplot(alpha=.05, na.rm=T) +
-  facet_wrap(.~Alt, scales="free", labeller=label_parsed, nrow=1) +
-  theme_classic() +
-  theme(text=element_text(size=12),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        plot.margin=margin(t=5, r=5, b=5, l=10),
-        axis.text.x=element_text(angle=45, hjust=0.9))
+ggarrange(figA, figB,
+          nrow=2, ncol=1, labels=c("A", "B"), align="v",
+          font.label=list(size=13))
 
-
-library(ggpubr)   # v0.6.1
-
-f1 <- ggarrange(fA,
-                ggarrange(ggarrange(ggplot()+theme_classic(), fB, ggplot()+theme_classic(),
-                                    nrow=1, ncol=3, labels=c("", "B", ""),
-                                    font.label=list(size=13), widths=c(0.5, 1, 0.5)),
-                          fC,
-                          nrow=2, ncol=1, labels=c("", "C"),
-                          font.label=list(size=13)),
-                nrow=1, ncol=2, labels="A", font.label=list(size=13), widths=c(5, 2))
-
-f1 <- annotate_figure(f1,
-                      left=text_grob(expression(italic(D)[italic(n)]), rot=90, size=13),
-                      bottom=text_grob("Sample Size", size=13))
-
-ggsave("~/Downloads/osfstorage-archive/Figure 1/Figure 1.png", f1, width=3500, height=1500, units="px", device="jpg", dpi=300)
+ggsave("~/Downloads/osfstorage-archive/Figure 1/Figure 1.png", width=2600, height=3000, units="px", device="jpg", dpi=300)
 
