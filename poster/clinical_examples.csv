@@ -1,0 +1,4 @@
+nct_id,phase,comparison,test,n,p,ejab
+NCT00494806,Early Phase I,First flatus: rocking vs standard care,t-test,66,<.05,1.23
+NCT03907683,Phase I,Activity after a weekday move-more message,t-test,80,.037,1.04
+NCT00539539,Phase II,CPR fraction: feedback on vs off,Linear regression,1586,.016,2.19

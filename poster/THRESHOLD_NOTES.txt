@@ -1,0 +1,49 @@
+TSBF optimality and the cutoff of 1
+
+Scope: fix n, q, and prespecified omega > 0. Work with the test-statistic
+model X^2 ~ chi-square_q(lambda), not the full contingency-table data.
+For finite contingency tables, this is an approximation to the sampling
+distribution, so the statement is not exact finite-sample optimality for
+all tests of the original table.
+
+1. Power at the attained size
+
+Write x = X^2, t = tau^2 = n*omega^2/q > 0, and
+a = t/[q(1+t)], b = t/[2(1+t)]. Johnson et al.'s fixed-scale TSBF has
+BF_10(x) = (1+t)^(-q/2-1) * (1+a*x) * exp(b*x).
+Its log derivative is a/(1+a*x) + b > 0. Therefore BF_01 <= 1 is an
+upper-tail rule x >= c, for its corresponding critical value c.
+
+For every lambda > 0, the noncentral/central chi-square density ratio is
+exp(-lambda/2) * sum_{k>=0} (lambda*x/4)^k / [k! * (q/2)_k],
+where (q/2)_k is the rising factorial. This ratio increases in x.
+Neyman-Pearson therefore makes the same upper-tail rule most powerful
+against every lambda > 0 at alpha = P_0(X^2 >= c): UMP among X^2-based
+tests. This application does not distinguish the particular BF cutoff 1.
+
+2. Why choose 1?
+
+Let m0 and m1 be the fixed null and alternative predictive densities of
+X^2. Under equal model weights and 0-1 loss, rejection region R has risk
+0.5 * [integral_R m0(x) dx + integral_(R complement) m1(x) dx].
+Pointwise minimization chooses R = {x: m1(x) >= m0(x)}, equivalently
+BF_01(x) <= 1. The alternative error here is averaged over the fixed
+alternative prior. The displayed normalized EWDE instead uses error at each true
+effect; it need not be minimized pointwise by this rule.
+
+3. Panel A
+
+Panel A estimates tau^2 from x. It is not a ratio of the same two fixed
+predictive densities across samples, so the fixed-prior Bayes-risk proof
+does not automatically apply. Its plotted rule uses the positive upper
+crossing of BF_10(x; tau^2=x/q)=1. The equality at x=0 has probability
+zero in the continuous chi-squared model. No new simulations were run.
+
+Sources and provenance
+Johnson, Pramanik and Shudde (2023), Theorem 3:
+https://doi.org/10.1073/pnas.2217331120
+Fowlie (2021), sections 2-4:
+https://arxiv.org/abs/2110.15625
+bayes_risk_analysis.Rmd, estimated_omega_tsbf_critical and sensitivity text.
+The argument above applies these sources to the current TSBF. It is not
+a claim that these priors define Johnson's distinct UMPBT construction.

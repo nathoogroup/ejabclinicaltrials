@@ -14,3 +14,18 @@ csv/CTR_summary.csv
 
 # Job-specific Slurm logs and intermediate BIC shards
 slurm_bic_runs/
+
+# Local system files, caches and scratch work
+.DS_Store
+__pycache__/
+*.py[cod]
+/tmp/
+/Rplots.pdf
+
+# LaTeX build intermediates (keep sources and final PDFs)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz

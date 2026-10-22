@@ -1,0 +1,442 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+\setlist{itemsep=0.2em, topsep=0.4em}
+\setlength{\parskip}{0.65em}
+\setlength{\parindent}{0pt}
+
+\title{Preregistration: Contradictory Bayesian Evidence in Early-Phase Clinical Trial Results}
+\author{}
+\date{July 8, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Research Questions or Hypotheses}
+
+\subsection{Primary Research Question}
+
+Throughout this preregistration, statistical significance is defined using the reported and classified test direction: two-sided tests are statistically significant if \(p<0.05\), and one-sided tests are statistically significant if \(p<0.025\). One-sided and two-sided tests will be evaluated using their corresponding one-sided or two-sided eJAB calculations.
+
+What are the posterior distributions of the Phase 1 and Phase 2 population proportions of statistically significant primary outcome statistical analysis results that show contradictory Bayesian evidence, defined as \(BF_{01} > 1\) for the appropriate one-sided or two-sided extended approximate objective Bayes factor (eJAB)?
+
+The target population is all eligible early-phase interventional clinical trials and their eligible primary outcome statistical analysis results. ClinicalTrials.gov (CTG) is the observed sample used to estimate the target-population quantities. The parameters \(\theta_1\) and \(\theta_2\) are population proportions, not probabilities assigned to individual clinical trials.
+
+Formally, let \(S=1\) denote statistical significance under the direction-specific threshold and \(Y=1\) denote \(BF_{01}>1\). Let \(\operatorname{Prop}_{1}\) and \(\operatorname{Prop}_{2}\) denote target-population proportions within Phase 1 and Phase 2, respectively. The phase-specific estimands are
+\[
+\theta_1 = \operatorname{Prop}_{1}(Y=1 \mid S=1)
+\]
+and
+\[
+\theta_2 = \operatorname{Prop}_{2}(Y=1 \mid S=1).
+\]
+
+The primary estimands are the posterior distributions of \(\theta_1\) and \(\theta_2\), estimated from the CTG sample separately by phase while accounting for clustering of multiple analysis results within the same CTG study.
+
+\subsection{Secondary Equivalence Question}
+
+Are the Phase 1 and Phase 2 population proportions of contradictory Bayesian evidence equivalent within a prespecified absolute margin \(\epsilon\)?
+
+The secondary equivalence comparison is
+\[
+H_0: |\theta_2-\theta_1| \geq \epsilon
+\]
+against
+\[
+H_1: |\theta_2-\theta_1| < \epsilon.
+\]
+
+\subsection{Secondary Descriptive Question}
+
+What is the posterior distribution of the phase difference
+\[
+\Delta = \theta_2 - \theta_1,
+\]
+and what is the posterior probability that the Phase 2 population proportion is higher than the Phase 1 population proportion?
+\[
+\Pr(\theta_2 > \theta_1 \mid \text{data}).
+\]
+
+\subsection{Clustered Sensitivity Question}
+
+As a sensitivity analysis, we will also evaluate whether the phase comparison is similar under a mixed-effects logistic model for the non-independence of multiple statistical analysis results originating from the same registered study. Let \(Y_{ij}\) denote the contradictory-evidence indicator for statistical analysis result \(j\) from study \(i\), and let \(A_i\) indicate study phase, with \(A_i=0\) for Phase 1 and \(A_i=1\) for Phase 2. The clustered sensitivity model is
+\[
+Y_{ij} \mid b_i \sim \mathrm{Bernoulli}(\pi_{ij}),
+\]
+\[
+\mathrm{logit}(\pi_{ij}) = \alpha + \beta A_i + b_i,
+\]
+\[
+b_i \sim N(0,\tau^2).
+\]
+
+The parameter \(\beta\) will be reported descriptively. The null hypothesis of equal model-adjusted proportions of contradictory Bayesian evidence between Phase 1 and Phase 2 trials corresponds to
+\[
+H_0: \beta = 0,
+\]
+against the two-sided alternative
+\[
+H_1: \beta \neq 0.
+\]
+
+For interpretability, model-implied marginal proportions will also be reported for each phase:
+\[
+p_{\mathrm{Phase\ 1}} =
+\int \mathrm{logit}^{-1}(\alpha + b)\phi(b;0,\tau^2)\,db,
+\]
+\[
+p_{\mathrm{Phase\ 2}} =
+\int \mathrm{logit}^{-1}(\alpha + \beta + b)\phi(b;0,\tau^2)\,db.
+\]
+
+The estimated difference in marginal proportions will be reported as
+\[
+\Delta_{\mathrm{marginal}} =
+p_{\mathrm{Phase\ 2}} - p_{\mathrm{Phase\ 1}}.
+\]
+
+\section{Foreknowledge of Data or Evidence}
+
+Authors have observed at least some of the data that will be used for this analysis plan. The authors have sufficiently observed relevant evidence to influence analysis decisions or conclusions. However, the authors have not yet performed the proposed primary analyses in this plan and will not do so until after this plan is registered.
+
+\subsection{Explanation of Foreknowledge and Managing Unintended Influences}
+
+The data source is publicly available ClinicalTrials.gov results data. Preliminary data inspection was used to develop the extraction, parsing, and eligibility rules for the current plan. The primary inferential analyses specified here, including the phase-specific posterior Dirichlet-multinomial analyses, the secondary equivalence analysis, and the clustered sensitivity model, will be conducted only after preregistration.
+
+\section{Research Design}
+
+\subsection{Study Type}
+
+Systematic review: a systematic analysis of existing public clinical trial results records from ClinicalTrials.gov.
+
+\subsection{Intention for Causal Interpretation}
+
+No causal relationship is inferred. This study is not intended to inform a causal relationship.
+
+\subsection{Blinding of Experimental Treatments}
+
+No blinding is involved.
+
+\subsection{Additional Blinding During Research or Analysis}
+
+No additional blinding is planned.
+
+\subsection{Study Design}
+
+This is a retrospective observational study using publicly available ClinicalTrials.gov results data. No treatments, interventions, or experimental conditions will be administered by the investigators, and no participants will be recruited or randomized.
+
+The unit of analysis is an eligible statistical analysis result reported under a primary outcome measure in a Phase 1 or Phase 2 interventional clinical trial. Statistical analysis results are nested within ClinicalTrials.gov studies because a single trial may contribute more than one eligible primary outcome statistical analysis.
+
+The primary estimands are phase-specific population proportions in the target population of eligible clinical trials. Study phase is a study-level, between-trial variable coded as Phase 1 or Phase 2. The outcome is an analysis-result-level binary indicator of contradictory Bayesian evidence, defined as \(BF_{01} > 1\) for the appropriate one-sided or two-sided eJAB among statistically significant primary outcome results.
+
+The design is therefore a clustered two-group observational design: Phase 1 versus Phase 2 at the study level, with potentially multiple statistical analysis results per study. Clustering of analysis results within the same trial will be retained and incorporated into the primary phase-specific posterior proportion estimates using a study-level Dirichlet-multinomial model. A clustered mixed-effects model will be reported as a sensitivity analysis.
+
+There are no within-subject experimental manipulations, no repeated investigator-administered treatments, no factorial design, no randomized blocks, and no counterbalancing. Any within-trial dependence arises only because multiple reported statistical analysis results may come from the same ClinicalTrials.gov study.
+
+\subsection{Randomization}
+
+No randomization will be performed by the investigators.
+
+\section{Sampling}
+
+\subsection{Data Collection Procedures}
+
+This study will use existing publicly available clinical trial results from ClinicalTrials.gov. No new participant-level data will be collected, and no participants will be recruited. ClinicalTrials.gov will provide the observed sample of study records with posted tabular results in the archived ClinicalTrials.gov results snapshot.
+
+The target population is all statistical analysis results reported for primary outcome measures in early-phase interventional clinical trials that satisfy the substantive eligibility criteria. The observed sample will consist of eligible records available in the archived ClinicalTrials.gov snapshot. The primary analysis will be restricted to sampled trials classified on ClinicalTrials.gov as Phase 1 or Phase 2. The unit of analysis will be a statistical analysis result reported under a primary outcome measure, nested within a sampled CTG study.
+
+ClinicalTrials.gov records will be downloaded as structured results data and converted into an analysis-level table using a reproducible extraction pipeline. For each study record, the pipeline will iterate over reported outcome measures with statistical analyses. For each statistical analysis, the pipeline will extract the ClinicalTrials.gov identifier, brief title, study type, study phase indicators, outcome type, outcome title, statistical method string, reported \(p\)-value string, analysis group identifiers, group description, participant-denominator rows, and available descriptive fields such as condition and intervention MeSH terms.
+
+Participant counts will be derived from outcome denominator rows whose units are ``Participants.'' Denominator counts will be retained only for groups linked to the statistical analysis group identifiers when group identifiers are available. Each statistical analysis will receive a deterministic hash-based identifier generated from the ClinicalTrials.gov study identifier, the full outcome record, and the full statistical analysis record.
+
+Eligible statistical analysis results must meet all of the following criteria: the study type is interventional; the study phase is Phase 1 or Phase 2; tabular results are posted; the statistical analysis is reported under a primary outcome measure; the reported statistical method can be mapped to one of the prespecified eJAB-computable statistical test classes; the reported \(p\)-value contains a parseable numeric value in \((0,1)\); the test can be classified as one-sided or two-sided using ClinicalTrials.gov fields or prespecified parsing rules; and the sample size or group counts required to compute the corresponding one-sided or two-sided eJAB value are available or can be deterministically derived from reported participant-denominator counts. Statistical significance will then be coded using the prespecified direction-specific threshold and used to define the denominator of \(\theta_1\) and \(\theta_2\).
+
+\(p\)-values reported as numeric inequalities, such as \(p < 0.001\), will be retained using the reported numeric threshold and flagged as inequality-reported \(p\)-values. \(p\)-values reported as non-numeric text, ranges without a single parseable threshold, or ambiguous strings will be treated as unavailable.
+
+One-sided \(p\)-values will not be converted to two-sided \(p\)-values. One-sided results will be evaluated using the prespecified one-sided eJAB calculation, and two-sided results will be evaluated using the prespecified two-sided eJAB calculation.
+
+The following records or statistical analysis results will be excluded from the primary analysis: observational studies; expanded access records; studies without posted tabular results; studies not classified as Phase 1 or Phase 2; studies classified only as Early Phase 1, Phase 1/Phase 2, Phase 2/Phase 3, Phase 3, Phase 4, or another phase category; statistical analyses reported only for secondary outcomes, other outcomes, baseline measures, participant flow, or adverse event tables; statistical analyses whose method cannot be mapped to a prespecified eJAB-computable test class; statistical analyses without a parseable numeric \(p\)-value; statistical analyses for which test direction cannot be classified as one-sided or two-sided; statistical analyses for which required participant counts are unavailable, ambiguous, or not linked to the analysis groups; duplicate statistical analyses representing the same study, primary outcome, time point, comparison, analysis population, and statistical test; and statistical analyses for which the appropriate eJAB value cannot be computed from the available information.
+
+When multiple eligible statistical analyses are reported for the same trial, each eligible statistical analysis result will be retained as a separate observation. The ClinicalTrials.gov study identifier will be retained to describe and evaluate within-trial clustering and to support sensitivity analyses.
+
+Data preparation will proceed in a reproducible pipeline. First, ClinicalTrials.gov results records will be downloaded and archived. Second, outcome-level statistical analyses and participant-denominator rows will be extracted. Third, records will be filtered to interventional Phase 1 and Phase 2 trials with posted results. Fourth, primary outcome statistical analyses will be retained. Fifth, statistical method strings will be mapped to prespecified eJAB-computable test classes. Sixth, \(p\)-values, test direction, and participant counts will be parsed. Seventh, statistical significance will be determined using \(p < 0.05\) for two-sided tests and \(p < 0.025\) for one-sided tests. Eighth, the corresponding one-sided or two-sided eJAB will be computed for each eligible primary outcome test.
+
+The ClinicalTrials.gov results data will be downloaded and archived on July 8, 2026. This archived snapshot will define the fixed CTG sample for the study. The final analytic dataset will be frozen before conducting the primary analysis. Any changes to extraction, filtering, or derivation rules after the dataset is frozen will be documented as deviations from the preregistered protocol.
+
+\subsection{Sample Size}
+
+The unit of analysis is an eligible statistical analysis result reported under a primary outcome measure on ClinicalTrials.gov. Because this study uses a fixed retrospective CTG sample rather than prospective recruitment, the final sample size will be determined by the number of ClinicalTrials.gov records available in the archived July 8, 2026 snapshot that meet the preregistered eligibility criteria.
+
+The sample size will be described at two levels. At the study level, the sample will consist of eligible Phase 1 and Phase 2 interventional clinical trials with posted results. At the analysis-result level, the sample will consist of eligible primary outcome statistical analyses extracted from those trials, with statistical significance coded as a derived variable. A single trial may contribute more than one eligible statistical analysis result, so statistical analysis results will be nested within trials.
+
+Let \(m_1\) and \(m_2\) denote the number of eligible Phase 1 and Phase 2 trials, respectively. Let \(n_1\) and \(n_2\) denote the number of eligible primary outcome statistical analysis results from Phase 1 and Phase 2 trials, respectively, and let \(s_1\) and \(s_2\) denote the corresponding numbers that are statistically significant under the direction-specific threshold. The total number of study-level clusters will be \(m = m_1 + m_2\), and the total number of analysis-result-level observations will be \(n = n_1 + n_2\).
+
+The sample size is not expected to be equal across phases. The number of eligible trials and the number of eligible statistical analysis results may differ between Phase 1 and Phase 2 trials. Cluster sizes are also expected to vary because different trials may report different numbers of eligible primary outcome statistical analyses. The primary analysis will retain all eligible statistical analysis results.
+
+\subsection{Sample Size Rationale}
+
+No prospective sample size calculation will be performed because this is a fixed retrospective sample of eligible public ClinicalTrials.gov records. The final sample size will be determined entirely by the number of eligible records and eligible primary outcome statistical analysis results available in the archived July 8, 2026 snapshot.
+
+\subsection{Starting and Stopping Rules}
+
+This study will not generate new data and will not involve pilot testing, participant recruitment, interim analyses, or sequential data collection. The study will use a fixed retrospective snapshot of publicly available ClinicalTrials.gov results data.
+
+Data collection will begin with downloading and archiving ClinicalTrials.gov records available as of July 8, 2026. This archived snapshot will define the fixed CTG sample for the study. No records posted or modified after the archived snapshot date will be included in the primary analysis.
+
+Data collection will terminate once the archived ClinicalTrials.gov snapshot has been downloaded and all preregistered extraction, filtering, and derivation procedures have been applied to construct the final analytic dataset. The final analytic dataset will be frozen before conducting the primary analysis. After the dataset is frozen, no additional records will be added to the primary analysis, and any changes to extraction, filtering, or derivation rules will be documented as deviations from the preregistered protocol.
+
+\section{Variables}
+
+\subsection{Manipulated Variables}
+
+None. This study has no randomization and no manipulated variables. The investigators will not assign participants, trials, or statistical analysis results to treatment conditions. The comparison of interest is observational and is based on ClinicalTrials.gov study phase, classified as Phase 1 or Phase 2, as reported in the archived ClinicalTrials.gov records.
+
+\subsection{Measured Variables}
+
+The primary measured outcome is a binary indicator of contradictory Bayesian evidence for each eligible primary outcome statistical analysis result. This variable will be coded as 1 if the result has \(BF_{01} > 1\), indicating that the appropriate one-sided or two-sided eJAB favors the null hypothesis, and 0 otherwise. The primary estimands condition on statistical significance through the derived indicator \(S_{ij}\).
+
+The primary predictor is ClinicalTrials.gov study phase, coded as Phase 1 or Phase 2. Trial phase will be extracted from the ClinicalTrials.gov design module and treated as a study-level variable. Only trials classified as Phase 1 or Phase 2 will be included in the primary analysis.
+
+For each statistical analysis result, the following measured or extracted variables will be collected when available: ClinicalTrials.gov identifier, brief study title, study type, study phase indicators, primary outcome title, outcome type, outcome description where available, deterministic analysis identifier, comparison group identifiers, group descriptions, denominator units, group-specific participant counts, reported statistical method string, reported \(p\)-value string, condition MeSH terms and identifiers, intervention MeSH terms and identifiers, and fields needed to classify the result as one-sided or two-sided.
+
+The following derived variables will be constructed from the extracted ClinicalTrials.gov fields: an analysis-level unique identifier; an indicator for whether the result is reported under a primary outcome measure; an indicator for whether the reported \(p\)-value contains a parseable numeric value; an indicator for whether the \(p\)-value was reported as an inequality; test direction, classified as one-sided or two-sided using ClinicalTrials.gov fields or prespecified parsing rules; the relevant sample size or group counts required for eJAB calculation; an indicator for statistical significance using \(p < 0.05\) for two-sided tests and \(p < 0.025\) for one-sided tests; the corresponding one-sided or two-sided eJAB value; and the primary binary outcome \(I(BF_{01} > 1)\).
+
+Variables used for subsetting or exclusion will include study type, study phase, availability of posted tabular results, outcome type, statistical method type, \(p\)-value availability and format, test direction availability, denominator units, group counts or sample size availability, duplicate analysis identifiers, and whether the appropriate eJAB value can be computed from the available information.
+
+Additional descriptive variables may be extracted for characterization of the included trials and results, including condition MeSH terms and identifiers, intervention MeSH terms and identifiers, intervention model, allocation, observational model, time perspective, and whether results-linked references are available in the ClinicalTrials.gov record. These variables will not define the primary comparison unless otherwise specified in a secondary or descriptive analysis.
+
+\subsection{Indices}
+
+The primary derived variable is the binary indicator of contradictory Bayesian evidence. For eligible primary outcome statistical analysis result \(j\) from study \(i\), let \(BF_{01,ij}\) denote the appropriate one-sided or two-sided eJAB in favor of the null hypothesis over the alternative hypothesis. The primary derived outcome will be
+\[
+Y_{ij} = I(BF_{01,ij} > 1),
+\]
+where \(Y_{ij}=1\) indicates that the result provides Bayesian evidence favoring the null hypothesis, and \(Y_{ij}=0\) otherwise. Among statistically significant results, \(Y_{ij}=1\) indicates contradictory Bayesian evidence.
+
+Statistical significance will be derived from the reported \(p\)-value and classified test direction. Let \(p_{ij}\) be the parsed numeric \(p\)-value for result \(j\) in study \(i\), and let \(D_{ij}\) denote the classified direction of the test. The statistical-significance indicator will be defined as
+\[
+S_{ij} =
+I(D_{ij}=\text{two-sided and } p_{ij}<0.05)
++
+I(D_{ij}=\text{one-sided and } p_{ij}<0.025).
+\]
+Both \(S_{ij}=1\) and \(S_{ij}=0\) results will be retained in the Dirichlet-multinomial posterior model. The primary proportions \(\theta_1\) and \(\theta_2\) condition on \(S_{ij}=1\).
+
+The eJAB will be derived separately for each eligible result using the reported \(p\)-value, classified test direction, reported statistical method class, and relevant sample size or group-count information. Two-sided tests will use the prespecified two-sided eJAB calculation, and one-sided tests will use the prespecified one-sided eJAB calculation. More generally, for statistical test type \(M_{ij}\), test direction \(D_{ij}\), \(p\)-value \(p_{ij}\), and required sample-size or group-count information \(N_{ij}\), the derived Bayes factor will be computed as
+\[
+BF_{01,ij} = f_{M_{ij},D_{ij}}(p_{ij}, N_{ij}),
+\]
+where \(f_{M_{ij},D_{ij}}\) is the prespecified eJAB mapping for the corresponding statistical test and direction. Results for which this mapping cannot be evaluated from the available ClinicalTrials.gov fields will be excluded.
+
+The relevant sample size or group-count variable \(N_{ij}\) will be derived from the ClinicalTrials.gov outcome denominator fields. When group-specific participant counts are required, the participant counts corresponding to the analysis group identifiers will be extracted. For analyses involving multiple linked groups, the total sample size will be derived as
+\[
+n_{ij} = \sum_{g \in G_{ij}} n_{g,ij},
+\]
+where \(G_{ij}\) is the set of ClinicalTrials.gov group identifiers included in the statistical analysis result and \(n_{g,ij}\) is the participant count for group \(g\). Denominator entries whose units are not ``Participants'' will not be used to derive sample size for the primary analysis.
+
+For one-sample t-tests and Wilcoxon signed-rank tests, the relevant sample size will be the linked participant count for the analyzed group. For two-group tests, regression models, ANOVA-type tests, and rank-based multi-group tests, the relevant sample size and group-count quantities will be derived deterministically from the linked participant-denominator rows according to the prespecified eJAB mapping.
+
+Trial phase will be converted into a binary study-level predictor:
+\[
+A_i =
+\begin{cases}
+0, & \text{if study } i \text{ is classified as Phase 1},\\
+1, & \text{if study } i \text{ is classified as Phase 2}.
+\end{cases}
+\]
+Studies not classified as Phase 1 or Phase 2 will be excluded from the primary analysis.
+
+A deterministic analysis-level identifier will be created to identify duplicate statistical analysis records. The identifier will be generated from the ClinicalTrials.gov study identifier, the full primary outcome record, and the full statistical analysis record using a reproducible hash-based procedure. Duplicate records representing the same study, primary outcome, time point, comparison, analysis population, and statistical test will be excluded according to the preregistered eligibility criteria.
+
+For descriptive purposes, raw phase-specific proportions may be computed as
+\[
+\hat{p}_1 =
+\frac{\sum_{i:A_i=0}\sum_j S_{ij}Y_{ij}}{\sum_{i:A_i=0}\sum_j S_{ij}}
+\]
+and
+\[
+\hat{p}_2 =
+\frac{\sum_{i:A_i=1}\sum_j S_{ij}Y_{ij}}{\sum_{i:A_i=1}\sum_j S_{ij}}.
+\]
+These raw proportions will summarize the observed analysis-result-level data among statistically significant results.
+
+\section{Analysis Plan}
+
+\subsection{Statistical Models}
+
+The primary research question concerns the posterior distributions of the phase-specific target-population proportions \(\theta_1\) and \(\theta_2\). These proportions will be estimated from the CTG sample separately for Phase 1 and Phase 2 using the study-accounting Dirichlet-multinomial posterior model implemented in \texttt{dirichletMultinomialAlpha.R} and \texttt{rfuncs/DirichletMultinomial.R}.
+
+For phase \(g \in \{1,2\}\), let \(\mathcal{I}_g\) denote the set of sampled eligible CTG studies in that phase. For study \(i \in \mathcal{I}_g\), let \(m_i\) be the number of eligible primary outcome statistical analysis results from that sampled study. Each result will be assigned to one of four categories:
+\[
+k=1: S_{ij}=0,\ Y_{ij}=0,
+\]
+\[
+k=2: S_{ij}=0,\ Y_{ij}=1,
+\]
+\[
+k=3: S_{ij}=1,\ Y_{ij}=0,
+\]
+\[
+k=4: S_{ij}=1,\ Y_{ij}=1,
+\]
+where \(S_{ij}=1\) indicates statistical significance under the prespecified direction-specific threshold and \(Y_{ij}=1\) indicates that the eJAB favors the null hypothesis. The conjunction \(S_{ij}=1\) and \(Y_{ij}=1\) defines contradictory Bayesian evidence.
+
+Let \(y_{ik}\) be the number of results from study \(i\) in category \(k\). For each study, the vector of study-level category proportions will be assigned a Dirichlet posterior with unit prior counts:
+\[
+(\pi_{i1},\pi_{i2},\pi_{i3},\pi_{i4}) \mid \text{data}
+\sim
+\mathrm{Dirichlet}(1+y_{i1},1+y_{i2},1+y_{i3},1+y_{i4}).
+\]
+
+For posterior draw \(r\), the study-accounted phase-specific population proportion among statistically significant primary outcome results will be computed as
+\[
+\theta_g^{(r)}
+=
+\frac{
+\sum_{i \in \mathcal{I}_g} m_i \pi_{i4}^{(r)}
+}{
+\sum_{i \in \mathcal{I}_g} m_i\left(\pi_{i3}^{(r)}+\pi_{i4}^{(r)}\right)
+}.
+\]
+This estimator treats each sampled CTG study as a cluster, draws study-level category proportions, and aggregates those draws using the observed number of eligible analysis results contributed by each sampled study. The primary output will be the posterior samples \(\{\theta_1^{(r)}\}\) and \(\{\theta_2^{(r)}\}\), interpreted as posterior estimates of the corresponding target-population proportions.
+
+The posterior distribution of the difference
+\[
+\Delta = \theta_2 - \theta_1
+\]
+will be computed by pairing the phase-specific posterior draws. We will report the posterior median, posterior mean, posterior standard deviation, and 95\% credible interval for \(\theta_1\), \(\theta_2\), and \(\Delta\), as well as
+\[
+\Pr(\theta_2 > \theta_1 \mid \text{data})
+\]
+and
+\[
+\Pr(\theta_2 < \theta_1 \mid \text{data}).
+\]
+
+The secondary equivalence analysis will use the posterior distribution of \(\Delta\). For a prespecified absolute equivalence margin \(\epsilon\), the equivalence hypotheses are
+\[
+H_0: |\Delta| \geq \epsilon
+\]
+against
+\[
+H_1: |\Delta| < \epsilon.
+\]
+We will report
+\[
+\Pr(|\Delta| < \epsilon \mid \text{data})
+\]
+as the posterior evidence for equivalence of the Phase 1 and Phase 2 population proportions. Equivalence will be concluded only if this posterior probability exceeds the prespecified decision threshold.
+
+As a sensitivity analysis, we will fit a mixed-effects logistic regression model with a study-level random intercept:
+\[
+Y_{ij} \mid b_i \sim \mathrm{Bernoulli}(\pi_{ij}),
+\]
+\[
+\mathrm{logit}(\pi_{ij}) = \alpha + \beta A_i + b_i,
+\]
+\[
+b_i \sim N(0,\tau^2).
+\]
+This model will assess whether the phase comparison is similar after accounting for clustering of multiple statistical analysis results within the same ClinicalTrials.gov study. The estimated odds ratio \(\exp(\beta)\) and 95\% confidence interval will be reported. This model is sensitivity/descriptive and will not replace the primary Dirichlet-multinomial posterior proportion estimates.
+
+\subsection{Transformations}
+
+Categorical variables will be coded using deterministic binary or indicator variables before analysis.
+
+The primary predictor, ClinicalTrials.gov study phase, will be coded as
+\[
+A_i =
+\begin{cases}
+0, & \text{Phase 1},\\
+1, & \text{Phase 2}.
+\end{cases}
+\]
+Only studies classified as Phase 1 or Phase 2 will be included in the primary analysis. Studies classified as Early Phase 1, Phase 1/Phase 2, Phase 2/Phase 3, Phase 3, Phase 4, or any other phase category will be excluded rather than recoded.
+
+The primary outcome will be coded as a binary variable:
+\[
+Y_{ij} =
+\begin{cases}
+1, & BF_{01,ij} > 1,\\
+0, & BF_{01,ij} \leq 1.
+\end{cases}
+\]
+Thus, \(Y_{ij}=1\) indicates that the appropriate one-sided or two-sided eJAB favors the null hypothesis. A result will be classified as contradictory Bayesian evidence when \(S_{ij}=1\) and \(Y_{ij}=1\).
+
+Test direction will be coded as a categorical variable with two possible values: one-sided or two-sided. Statistical significance will then be derived using
+\[
+S_{ij}=1
+\]
+if \(p_{ij}<0.05\) for a two-sided test or \(p_{ij}<0.025\) for a one-sided test, and
+\[
+S_{ij}=0
+\]
+otherwise.
+
+Reported \(p\)-values will be parsed as numeric values when possible. \(p\)-values reported as inequalities with a single parseable numeric threshold will be retained using that threshold and flagged as inequality-reported \(p\)-values. \(p\)-values reported as non-numeric text, ambiguous strings, or ranges without a single parseable numeric threshold will be treated as unavailable.
+
+Group counts and sample sizes will be parsed as numeric participant counts when available from denominator fields with units equal to ``Participants.''
+
+No centering, scaling, standardization, winsorization, or normalization will be applied to variables in the primary model. No continuous covariates will be included in the primary model. The reported \(p\)-value, test direction, statistical method class, and relevant sample size or group counts will be used only to compute the prespecified eJAB value and the derived binary outcome \(I(BF_{01}>1)\).
+
+\subsection{Inference Criteria}
+
+The primary inference will be based on the Dirichlet-multinomial posterior distributions of \(\theta_1\) and \(\theta_2\). The phase difference \(\Delta=\theta_2-\theta_1\) and the equivalence assessment will be secondary.
+
+The primary posterior quantities will be the posterior median, posterior mean, posterior standard deviation, and 95\% credible interval for \(\theta_1\) and \(\theta_2\). Secondary posterior quantities will include the same summaries for \(\Delta\), plus
+\[
+\Pr(\theta_2 > \theta_1 \mid \text{data})
+\]
+and
+\[
+\Pr(\theta_2 < \theta_1 \mid \text{data}).
+\]
+
+The secondary equivalence analysis will compare
+\[
+H_0: |\Delta| \geq \epsilon
+\quad \text{versus} \quad
+H_1: |\Delta| < \epsilon.
+\]
+The posterior probability \(\Pr(|\Delta|<\epsilon \mid \text{data})\) will be reported. Equivalence will be concluded only if this posterior probability exceeds the prespecified decision threshold.
+
+There is no primary hypothesis test. The primary question is posterior estimation of \(\theta_1\) and \(\theta_2\). The equivalence analysis is secondary, and no confirmatory subgroup analyses, interaction tests, or pairwise comparisons are planned as part of the primary inferential analysis.
+
+\subsection{Data Inclusion and Exclusion}
+
+The primary analysis will include statistical analysis results reported under primary outcome measures in the archived ClinicalTrials.gov results snapshot from July 8, 2026. The unit of analysis is an eligible primary outcome statistical analysis result.
+
+A statistical analysis result will be included in the primary analysis if all of the following criteria are met: the study is registered on ClinicalTrials.gov; the study type is interventional; the study phase is classified as Phase 1 or Phase 2; tabular results are posted; the statistical analysis is reported under a primary outcome measure; the statistical method can be mapped to a prespecified eJAB-computable test class; the reported \(p\)-value contains a parseable numeric value in \((0,1)\); the statistical test can be classified as one-sided or two-sided using ClinicalTrials.gov fields or prespecified parsing rules; the sample size or group counts required to compute the corresponding result-level eJAB value are available or can be deterministically derived from reported participant-denominator counts; and the result contains sufficient information to compute the appropriate one-sided or two-sided eJAB. Statistical significance is not an inclusion criterion for the Dirichlet-multinomial model; it is a derived category used to estimate \(\theta_1\) and \(\theta_2\).
+
+The following records or statistical analysis results will be excluded from the primary analysis: observational studies; expanded access records; studies without posted tabular results; studies not classified as Phase 1 or Phase 2; studies classified only as Early Phase 1, Phase 1/Phase 2, Phase 2/Phase 3, Phase 3, Phase 4, or another phase category; statistical analyses reported only for secondary outcomes, other outcomes, baseline measures, participant flow, or adverse event tables; statistical analyses whose method cannot be mapped to a prespecified eJAB-computable test class; statistical analyses without a parseable numeric \(p\)-value; statistical analyses for which test direction cannot be classified as one-sided or two-sided; statistical analyses for which required participant counts are unavailable, ambiguous, or not linked to the analysis groups; duplicate statistical analyses representing the same study, primary outcome, time point, comparison, analysis population, and statistical test; and statistical analyses for which the appropriate eJAB cannot be computed from the available information.
+
+When multiple eligible statistical analyses are reported under primary outcome measures for the same trial, all eligible statistical analyses will be retained as separate observations. The ClinicalTrials.gov study identifier will be retained so that clustering of statistical analysis results within trials can be described and evaluated in sensitivity analyses.
+
+Duplicate statistical analysis records will be identified using a deterministic analysis-level identifier generated from the ClinicalTrials.gov study identifier, the full primary outcome record, and the full statistical analysis record. Duplicate records representing the same study, primary outcome, time point, comparison, analysis population, and statistical test will be excluded.
+
+No outlier exclusion will be performed. Observations will not be excluded on the basis of extreme values of the \(p\)-value, sample size, group counts, odds ratio, or Bayes factor, provided that all preregistered eligibility criteria are met and the required quantities can be computed from the available ClinicalTrials.gov fields.
+
+\subsection{Missing Data}
+
+No imputation will be performed. The primary analysis will be conducted using all statistical analysis results that meet the preregistered eligibility criteria and have the information required to compute the result-level eJAB and the primary binary outcome.
+
+A statistical analysis result will be excluded from the primary analysis if any field required for eligibility determination or eJAB computation is missing, unavailable, ambiguous, or not deterministically derivable from the ClinicalTrials.gov results data. Required fields include ClinicalTrials.gov study phase, study type, outcome type, reported statistical method, reported \(p\)-value, test direction or information sufficient to classify test direction, and relevant participant counts or group counts.
+
+\(p\)-values reported as inequalities with a parseable numeric threshold will not be treated as missing. The numeric threshold will be used for the eJAB calculation and an inequality flag will be retained. \(p\)-values reported as non-numeric text, ranges without a single parseable threshold, or ambiguous strings will be treated as unavailable for the primary analysis.
+
+Missing or ambiguous denominator information, missing group counts, denominator units other than ``Participants,'' or inability to link reported group counts to the statistical analysis group identifiers will result in exclusion of that statistical analysis result from the primary analysis.
+
+Missing descriptive variables, such as condition MeSH terms, intervention MeSH terms, brief title, intervention model, allocation, observational model, or time perspective, will not by themselves lead to exclusion unless the variable is required to determine eligibility or compute the eJAB value.
+
+The primary analysis will be fit to the final analytic dataset consisting of all eligible analysis-result records. Missingness will otherwise be ignored; no missing-data model, weighting adjustment, or multiple-imputation procedure will be used. The number of records excluded because of missing, unavailable, ambiguous, or non-computable information will be documented where feasible.
+
+\end{document}

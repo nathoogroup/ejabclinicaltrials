@@ -1,0 +1,246 @@
+Source transfer map for the eJAB methods draft
+Date: 2026-10-16
+
+All source paths below are relative to the repository root.
+PAPER = Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors
+
+1. Unrestricted eJAB definition, prior and model-selection statement
+   PAPER/REVISION/REVISED.tex
+   Section 2, definition, theorem and the first fact (approximately lines 129-194).
+
+2. One-sided formula and finite-sample convention
+   PAPER/REVISION/REVISED.tex (approximately lines 142-146)
+   PAPER/response_to_reviewers/Response_to_Reviewers.tex
+   One-sided-test response (approximately lines 216-229).
+   The scalar exponent omits (n-1)/n; the directional divisor is 2(1-p1).
+   The unrestricted definition retains its finite-sample correction.
+
+3. Null-centered prior and scalar Savage-Dickey derivation
+   PAPER/response_to_reviewers/notes/deriving eJAB.tex, equations B1-B4.
+   PAPER/response_to_reviewers/notes/one-sided JAB.tex,
+   encompassing-prior identities, equations 3-6.
+   The draft explicitly chooses the null-centered branch of B4 and the
+   directional correction in the revised response. It does not import
+   the finite-sample-corrected base from the older one-sided notes.
+
+4. Regularity conditions
+   Updated source: PAPER/response_to_reviewers/cache/revision_work_plan.tex,
+   lines 58-99, contains the weakened piecewise R2 and R1' with its proof.
+   R1' requires Pr(p_n <= delta | H0) -> C*delta for every fixed
+   0 < delta <= U_p, with 0 < U_p <= 1 and 0 < C <= 1/U_p.
+   R2 uses D_(q,n) = -sqrt(n)*p_n*log(p_n) for q = 1 and
+   D_(q,n) = sqrt(n)*p_n for integer q >= 2, converging in probability
+   to zero under H1. The explicit p_n -> 0 premise is retained from
+   Theorem/regularity_conditions.Rmd, lines 305-341.
+   The manuscript and main response still state the older R2; the work
+   plan is the source for the newer condition. For integer q >= 2,
+   the proof uses stochastic ordering Q_chisq(q)(1-p) >=
+   Q_chisq(2)(1-p) = -2*log(p), explaining the proposed weakening.
+   The factorization n^(1/(2*n^(1/q))) * D_(q,n)^(1-n^(-1/q)) is
+   adapted from Theorem/regularity_conditions.Rmd to the piecewise D.
+   PAPER/REVISION/SI.tex, Appendix D, supplies the chi-squared quantile bound.
+
+5. Asymptotic scope and prior distinctions
+   PAPER/response_to_reviewers/Response_to_Reviewers.tex,
+   TSBF asymptotics and BFF discussion (approximately lines 78-104).
+   The draft distinguishes a null-centered prior from an n^(-1/2)
+   sequence of local alternatives. It does not transfer the broad claim
+   of TSBF inconsistency to the fixed-ordinate nonlocal-prior BFF.
+
+6. Equally Weighted Decision Error Profiles: definitions and caption
+   PAPER/REVISION/REVISED.tex, Equally Weighted Decision Error Profiles subsection
+   (approximately lines 257-276).
+   bayes_risk_analysis.Rmd, normalized EWDE definition and plotting specification
+   (approximately lines 1272-1310 and 1918-1955).
+
+7. Existing figures, with titles updated from the saved results
+   bayes_risk_outputs/revised_three_comparisons/05_manuscript_ewde.png
+     -> figures/ewde_main.png
+   bayes_risk_outputs/revised_three_comparisons/01_ejab_vs_p005_all_10_tests.png
+     -> figures/ewde_p005.png
+   bayes_risk_outputs/revised_three_comparisons/02_ejab_vs_bic_bf01_six_parametric_tests.png
+     -> figures/ewde_bic.png
+   These are comparisons of unrestricted eJAB_01, not one-sided
+   simulation results. The plot titles now read "Equally Weighted
+   Decision Error Profiles"; see item 16. No simulation results,
+   risk values, normalization, image canvas dimensions or fonts were changed.
+   The poster now uses figures/decision_error_profiles.png, a new layout
+   of these existing results with Panel D added from ewde_bic.png's source
+   data and plotting code. A and B are arranged as one row each; C and D
+   each retain two rows. Canvas size and font settings are unchanged.
+
+8. Bibliography and authors
+   PAPER/REVISION/bibliography.bib
+   PAPER/REVISION/REVISED.tex, author list and affiliations.
+   User-directed update: Zhengxiao Wei is first author and Puneet Velidi
+   is second author. Equal-contribution marks and the joint-contribution
+   statement have been removed from the poster and manuscript drafts.
+   This overrides the source author order for these drafts.
+
+9. Citations QR
+   citations.txt contains the seven entries from references.bib in a
+   compact plain-text form, retaining their titles and DOI links.
+   make_citations_qr.py encodes that text into figures/citations_qr.png
+   and figures/citations_qr.svg. The code is self-contained.
+   make_arxiv_qr.py adds a separate QR encoding only
+   https://arxiv.org/abs/2510.10358, also linked in the final PDF.
+
+10. Poster header logos
+   Official white UVic crest and university wordmark:
+   https://www.uvic.ca/assets/core-4-0/img/shield-horz-white.svg
+     -> figures/uvic_crest_white.svg
+   make_header_logos.py composes the white department label alongside this
+   original vector asset, on a transparent PDF background.
+     -> figures/uvic_math_stats_white.pdf
+   The current Nathoo Group website was inspected on 2026-10-16:
+   https://nathoogroup.punnettsquare9331.workers.dev/
+   https://nathoogroup.punnettsquare9331.workers.dev/static/media/logo.87cc298674675d10617c.webp
+     -> figures/nathoo_group_site_original.webp
+   The user subsequently asked to keep the box around the butterfly.
+   The poster now uses the complete original website artwork, converted
+   losslessly from WebP to PNG for pdfLaTeX, with no recoloring or redraw.
+     -> figures/nathoo_group_site_original.png
+   The horizontal name uses the website's Crimson Pro Bold typeface.
+   Its font and license are included; the wordmark PDF has no background.
+     -> figures/nathoo_wordmark_white.pdf
+   Earlier source copies uvic_math_stats.jpg and nathoo_group.png are
+   retained for provenance but are no longer used by the poster.
+
+11. Poster abstract and updated title
+   The user requested the title beginning "Further developments of
+   generalized...factor". Both drafts use the expanded full title.
+   abstract.tex now follows the user's proposed abstract, edited for
+   outcomes and supported scope. Both documents include this shared file.
+   The risk-grid source is
+   bayes_risk_outputs/revised_three_comparisons/chisq_dimensions_risk_grid.csv.
+   It supports broad gains over estimated-effect TSBF for lower dimensions
+   at larger samples and sufficiently strong signals, with more localized
+   gains over the true-effect rule. No uniform dominance is claimed.
+   The original eJAB paper is Velidi, Wei and colleagues (2025),
+   arXiv:2510.10358, added to references.bib and citations.txt.
+   The abstract is placed at the top of the left column, above the
+   one-sided and regularity panels. The normalized EWDE figure and clinical table
+   occupy the right column. The figure's physical size is unchanged.
+
+12. Panel A effect-size estimate
+   bayes_risk_analysis.Rmd, "Sensitivity analysis: TSBF using estimated
+   effect size" (approximately lines 1831-1851), and the
+   estimated_omega_tsbf_critical function (approximately lines 1066-1095).
+   The poster displays the existing plug-in rule omega_hat = sqrt(X^2/n)
+   and its scale substitution tau_hat^2 = (n/q)*omega_hat^2 = X^2/q.
+   X^2 is the observed chi-squared statistic, n is sample size, and q is
+   degrees of freedom. The manuscript figure caption identifies this as
+   Panel A; Panel B uses the prespecified-effect rule. This addition
+   explains the plotted calculation without changing any figure values.
+   Since X^2 = Q_chisq(q)(1-p), estimated omega is recoverable from the
+   same observed p,n,q inputs as eJAB; it is an extra estimation step,
+   not additional observed information. The abstract omits the suggested
+   extra-information claim for this reason.
+
+13. Bayes-factor decision threshold and paragraph caption
+   PAPER/REVISION/REVISED.tex, Equally Weighted Decision Error Profiles subsection
+   (approximately lines 258-270), and poster/ejab_methods_draft.tex,
+   decision-error section, supply the equal-model-probability and
+   0-1-loss rationale for threshold 1.
+   Following the user's request for the most-powerful-test connection,
+   the poster applies Neyman-Pearson to the chi-squared TSBF. The new
+   supporting reference is Fowlie (2021), sections 2-4:
+   https://arxiv.org/abs/2110.15625
+   The chi-squared TSBF formula is from Johnson et al. (2023), Theorem 3,
+   already transcribed in PAPER/response_to_reviewers/notes/BFF.tex.
+   THRESHOLD_NOTES.txt records the derivation and scope. This is an
+   application of the cited results, not text found in the manuscript.
+   UMP is restricted to X^2-based tests in the chi-squared model at the
+   attained size; it does not select cutoff 1. That cutoff minimizes
+   prior-predictive error with fixed priors and equal model/error weights.
+   Panel A remains a plug-in sensitivity analysis, with no claim of fixed
+   prior Bayes optimality or optimal pointwise normalized EWDE.
+   The figure caption is one continuous paragraph. All poster font-size
+   declarations and the normalized EWDE image's physical size are preserved.
+
+14. Corner footer
+   The bottom-right corner is blank, as requested by the user.
+   The draft label, date and replacement sentence have been removed.
+
+15. Clinical-trial contradiction examples
+   PAPER/REVISION/REVISED.tex, Table 1 (tab:examples).
+   The poster and companion methods draft now show the same three cases:
+   NCT00494806: Early Phase I, first flatus after rocking vs standard
+   care, t-test, n = 66, p < .05, eJAB = 1.23.
+   NCT03907683: Phase I, activity after a weekday move-more message,
+   t-test, n = 80, p = .037, eJAB = 1.04.
+   NCT00539539: Phase II, CPR fraction with feedback on vs off, linear
+   regression, n = 1,586, p = .016, eJAB = 2.19.
+   The structured source copy is clinical_examples.csv. Overall phase
+   rates have been removed from these tables. The first calculation
+   uses the reported p-value bound .05; this is explicitly identified.
+   No clinical analysis was rerun.
+
+16. Consistent profile name
+   User-directed rename: "Equally Weighted Decision Error Profiles".
+   This replaces the former plot titles and results heading, and is used
+   in both document subtitles, manuscript section heading, captions and
+   bayes_risk_analysis.Rmd. The main manuscript title remains as requested.
+   The color scale is labeled "Normalized EWDE". EWDE is the equally
+   weighted Type I-II decision error; the plotted value remains the
+   panelwise normalized difference between the comparison rule and eJAB.
+   render_profiles.R evaluates the plotting code in bayes_risk_analysis.Rmd
+   using the existing dense_bayes_risk_grid.csv,
+   large_sample_empirical_bic_risk_grid.csv, and
+   chisq_dimensions_risk_grid.csv. It excludes all simulation/risk-fitting
+   chunks and writes only the regenerated figure images. Data files are
+   checked for byte equality before and after the plot rebuild.
+   At the user's further request, the poster and revised journal manuscript add BIC as Panel D using
+   the same six-test empirical BIC result grid already in the response.
+   Cox regression and the three rank tests remain outside that comparison.
+   The shared abstract now names the profiles and includes BIC approximations
+   and significance rules alongside estimated- and true-effect TSBF. It states
+   that advantages depend on sample size, effect size and dimension; the
+   specific broad-gain claim remains restricted to the estimated-effect
+   comparison in lower-dimensional settings with larger samples and
+   stronger signals. No general dominance over BIC is asserted.
+
+Editorial changes
+   The methods remain central, with a compact clinical illustration added
+   at the user's request. The abstract describes outcomes generally.
+   Existing arguments are shortened and reorganized for the poster.
+   The scalar null-centered approximation is given the local notation
+   BF_01^(0) with a tilde, to distinguish it from corrected eJAB_01.
+   The draft states that the Gaussian derivation is approximate and
+   preserves the prior/posterior location distinction.
+   R2 retains the explicit p -> 0 premise from the theorem source.
+   The consistency theorem is labeled as a theorem for unrestricted eJAB.
+   Normalization remains panel specific. The local-alternative
+   contours describe standardized signal; they do not assert constant normalized EWDE.
+
+This is a source-based draft, not a newly computed analysis.
+
+17. Synchronization with the active journal revision
+   PAPER/REVISION/REVISED.tex and
+   PAPER/response_to_reviewers/Response_to_Reviewers.tex now use
+   Equally Weighted Decision Error Profiles and normalized EWDE in
+   headings, equations, captions and discussion. The revised journal
+   abstract includes BIC and qualifies the performance comparisons.
+   render_profiles.R copies regenerated figures into REVISION/Figure2.png
+   and the six BayesRisk figures in response_to_reviewers/Figures.
+   The poster clinical table uses the three existing manuscript cases.
+
+18. Abstract comparison patterns and citation check
+   User-requested short citation: Velidi and Wei (2025).
+   The primary bibliographic record dates the foundational TSBF paper
+   to Johnson (2005), doi:10.1111/j.1467-9868.2005.00521.x.
+   The plotted nonlocal-prior BFF is Johnson et al. (2023),
+   doi:10.1073/pnas.2217331120, not a Johnson (2025) source.
+   These verified dates are used provisionally pending clarification.
+   Cached chisq_dimensions_risk_grid.csv supports the broad reversal
+   from 2x2/3x3 to 5x5 estimated-omega comparisons and the generally
+   comparable or worse eJAB results with true omega. Small 3x3 samples
+   can also favor estimated-effect TSBF at stronger effects; true-effect
+   TSBF advantages are not uniformly slight near weak signals.
+   Cached large_sample_empirical_bic_risk_grid.csv supports small
+   differences in single-parameter tests and larger gains for eJAB in
+   weaker-effect bands in multiparameter tests. At stronger effects,
+   both rules have high power and BIC can gain through lower Type I error.
+   Cached dense_bayes_risk_grid.csv supports eJAB gains over p < .05
+   at larger samples with sufficient signal, with NHST advantages in
+   weaker-signal bands and some small-sample regimes.

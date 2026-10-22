@@ -1,0 +1,22 @@
+eJAB poster references
+
+1. Wagenmakers EJ (2022). Approximate objective Bayes factors from p-values and sample size: The 3p sqrt(n) rule. PsyArXiv.
+https://doi.org/10.31234/osf.io/egydq
+
+2. Marsman M, Wagenmakers EJ (2017). Three insights from a Bayesian interpretation of the one-sided P value. Educational and Psychological Measurement 77(3):529-539.
+https://doi.org/10.1177/0013164416669201
+
+3. Mulder J, Wagenmakers EJ, Marsman M (2022). A generalization of the Savage-Dickey density ratio for testing equality and order constrained hypotheses. The American Statistician 76(2):102-109.
+https://doi.org/10.1080/00031305.2020.1799861
+
+4. Johnson VE (2005). Bayes factors based on test statistics. JRSS B 67(5):689-701.
+https://doi.org/10.1111/j.1467-9868.2005.00521.x
+
+5. Johnson VE, Pramanik S, Shudde R (2023). Bayes factor functions for reporting outcomes of hypothesis tests. PNAS 120(8):e2217331120.
+https://doi.org/10.1073/pnas.2217331120
+
+6. Fowlie A (2021). Neyman-Pearson lemma for Bayes factors. arXiv:2110.15625.
+https://doi.org/10.48550/arXiv.2110.15625
+
+7. Velidi P, Wei Z, et al. (2025). Generalized Jeffreys's approximate objective Bayes factor: Model-selection consistency, finite-sample accuracy, and statistical evidence in 71,126 clinical trial findings. arXiv:2510.10358.
+https://doi.org/10.48550/arXiv.2510.10358

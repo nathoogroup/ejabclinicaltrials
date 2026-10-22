@@ -1,0 +1,25 @@
+Poster logo treatment, 16 October 2026
+
+UVic Mathematics and Statistics
+The university crest and wordmark are the official white vector asset:
+https://www.uvic.ca/assets/core-4-0/img/shield-horz-white.svg
+The department name and divider are composed in white alongside it.
+Saved: figures/uvic_crest_white.svg and figures/uvic_math_stats_white.pdf.
+The PDF has no opaque background. make_header_logos.py rebuilds it.
+
+Nathoo Group
+The website uses an icon to the left of the name, set in Crimson Pro,
+bold, white. The poster follows that horizontal treatment.
+Website: https://nathoogroup.punnettsquare9331.workers.dev/
+Original icon: figures/nathoo_group_site_original.webp
+Poster icon: figures/nathoo_group_site_original.png
+Vector wordmark: figures/nathoo_wordmark_white.pdf
+Font: fonts/CrimsonPro-Bold.ttf, with fonts/OFL-CrimsonPro.txt
+
+Per the user's update, the butterfly retains its original rectangular
+background and complete ASCII artwork. The WebP was converted losslessly
+to PNG for pdfLaTeX; its decoded pixels are unchanged. No generated or
+redrawn Nathoo icon is used in the current poster.
+
+The header remains navy #173E63. The UVic mark and Nathoo wordmark have
+transparent PDF backgrounds.
