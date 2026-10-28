@@ -22,10 +22,9 @@
 ## censored = the recorded p is a reporting bound ("p < .001"), not a value:
 ##   SCORE originals: orig_p_value_type is not "exact" ("less-than",
 ##     "threshold", or no type).
-##   SCORE replications (no type field): p is a power of ten and its own test
-##     statistic gives less than half of it, or there is no statistic to check.
-##     A t statistic with no df is checked against the normal tail, which is a
-##     lower bound on the t tail for every df.
+##   SCORE replications (no type field): p is a power of ten and cannot be
+##     recomputed from its own test statistic (none, or a t / chi-squared / F
+##     with no df). Where it can be recomputed, the recomputed p replaces it.
 ##   EERP: never. The four powers of ten among the plotted values are values,
 ##     per the project's replication reports: studies 6 and 11 original
 ##     "The original p-value is 0.001"; study 8 original "the exact p-value
@@ -204,14 +203,17 @@ load(file.path(RAW_DIR, "SCORE", "raw", "analyst data.RData"))
 oo <- as.data.frame(orig_outcomes[orig_outcomes$claim_id %in% repli_outcomes$claim_id, ])
 ro <- as.data.frame(repli_outcomes)
 po <- num(oo$orig_p_value); pr <- num(ro$repli_p_value)
-## replication p implied by its own test statistic, to tell a rounded value
-## (0.000575 recorded as 0.001) from a bound (2e-10 recorded as 0.001)
-pr_stat <- exp(recover_logp(ro$repli_stat_type, ro$repli_stat_value,
-                            ro$repli_stat_dof_1, ro$repli_stat_dof_2))
-## a t statistic with no df: the normal tail is a lower bound on p for every df
-t_no_df <- is.na(pr_stat) & tolower(trimws(ro$repli_stat_type)) %in% "t" &
-  !is.na(num(ro$repli_stat_value))
-pr_stat[t_no_df] <- 2 * pnorm(-abs(num(ro$repli_stat_value[t_no_df])))
+## a replication p recorded as a power of ten is censored unless it can be
+## recomputed from its own test statistic; when it can, the recomputed value
+## is used (Farouk, #ejab-revisions 2026-10-27)
+lp_stat <- recover_logp(ro$repli_stat_type, ro$repli_stat_value,
+                        ro$repli_stat_dof_1, ro$repli_stat_dof_2)
+pow <- is_pow10(pr)
+recomp <- pow & is.finite(lp_stat)
+pr[recomp] <- exp(lp_stat[recomp])
+pr_logp <- with_logp(pr, ro$repli_stat_type, ro$repli_stat_value,
+                     ro$repli_stat_dof_1, ro$repli_stat_dof_2)
+pr_logp[recomp] <- lp_stat[recomp]
 build("SCORE",
       data.frame(id = oo$claim_id, p = po,
                  n = ifelse(!is.na(oo$original_effective_sample_size),
@@ -220,9 +222,8 @@ build("SCORE",
                                   oo$orig_stat_dof_1, oo$orig_stat_dof_2),
                  censored = !(oo$orig_p_value_type %in% "exact")),
       data.frame(id = ro$claim_id, p = pr, n = num(ro$repli_sample_size_value),
-                 logp = with_logp(pr, ro$repli_stat_type, ro$repli_stat_value,
-                                  ro$repli_stat_dof_1, ro$repli_stat_dof_2),
-                 censored = is_pow10(pr) & (is.na(pr_stat) | pr_stat < pr / 2)))
+                 logp = pr_logp,
+                 censored = pow & !recomp))
 
 out <- do.call(rbind, counts)
 write.csv(out, file.path(OUT_DIR, "counts.csv"), row.names = FALSE)
