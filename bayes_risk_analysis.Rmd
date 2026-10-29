@@ -80,8 +80,8 @@ This R Markdown file is the single source for Equally Weighted Decision
 Error Profiles, displaying normalized equally weighted decision error (EWDE)
 for four comparisons:
 
-1. \(eJAB_{01}\leq1\) versus \(p<0.005\), for all 10 tests.
-2. \(eJAB_{01}\leq1\) versus \(p<0.05\), for all 10 tests.
+1. \(eJAB_{01}\leq1\) versus \(p\le0.005\), for all 10 tests.
+2. \(eJAB_{01}\leq1\) versus \(p\le0.05\), for all 10 tests.
 3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the six tests
    with an explicit parametric likelihood. Cox regression and the three rank
    tests are excluded.
@@ -595,7 +595,7 @@ decisions_for <- function(draws, test_key, n, theta) {
   }
 
   tibble(
-    reject_p = p < p_threshold,
+    reject_p = p <= p_threshold,
     reject_ejab = ejab <= bf01_threshold,
     reject_bic = bic <= bf01_threshold,
     reject_tsbf = tsbf <= bf01_threshold
@@ -937,6 +937,9 @@ native_ncp <- function(test_key, n, theta) {
   )
 }
 
+# These dense-grid reference distributions are continuous. Their upper-tail
+# probabilities apply equally to p <= alpha and p < alpha; retain the
+# cached risks when updating the decision-rule notation.
 native_rejection_at_stat <- function(test_key, n, theta, critical) {
   if (!is.finite(critical)) return(0)
   if (critical <= 0) return(1)
@@ -1221,7 +1224,7 @@ if (isTRUE(params$dense_refresh) || !file.exists(dense_file)) {
   dense_risk <- readRDS(dense_file)
 }
 
-# Add the p<0.05 comparison to caches created before this comparison existed.
+# Add the p <= 0.05 comparison to caches created before this comparison existed.
 if (!all(c("risk_p05", "delta_p05_minus_ejab") %in% names(dense_risk))) {
   p05_risk <- pmap_dfr(
     dense_risk[c("test_key", "n", "theta")],
@@ -1722,12 +1725,12 @@ all_risk_panel_scaling_factors <- bind_rows(
   panel_scaling_summary(
     plot_data,
     "delta_p_minus_ejab",
-    "p < 0.005 versus eJAB"
+    "p <= 0.005 versus eJAB"
   ),
   panel_scaling_summary(
     plot_data,
     "delta_p05_minus_ejab",
-    "p < 0.05 versus eJAB"
+    "p <= 0.05 versus eJAB"
   ),
   panel_scaling_summary(
     empirical_bic_plot_data,
@@ -1753,7 +1756,7 @@ write.csv(
 )
 ```
 
-## 1. eJAB versus \(p<0.005\): all 10 tests
+## 1. eJAB versus \(p\le0.005\): all 10 tests
 
 ```{r plot-p, fig.height=7.5}
 p_vs_ejab <- plot_criticality_map(
@@ -1761,7 +1764,7 @@ p_vs_ejab <- plot_criticality_map(
   "delta_p_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      p < 0.005 ~ "versus" ~ eJAB["01"] <= 1
+      p <= 0.005 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "01_ejab_vs_p005_all_10_tests.png",
   ncol = 5,
@@ -1770,7 +1773,7 @@ p_vs_ejab <- plot_criticality_map(
 p_vs_ejab
 ```
 
-## 2. eJAB versus \(p<0.05\): all 10 tests
+## 2. eJAB versus \(p\le0.05\): all 10 tests
 
 ```{r plot-p05, fig.height=7.5}
 p05_vs_ejab <- plot_criticality_map(
@@ -1778,7 +1781,7 @@ p05_vs_ejab <- plot_criticality_map(
   "delta_p05_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      p < 0.05 ~ "versus" ~ eJAB["01"] <= 1
+      p <= 0.05 ~ "versus" ~ eJAB["01"] <= 1
   ),
   "02_ejab_vs_p05_all_10_tests.png",
   ncol = 5,
@@ -1919,7 +1922,7 @@ ggsave(
 ## Manuscript figure
 
 The companion methods draft combines the estimated-effect TSBF,
-prespecified-effect TSBF, and \(p<0.05\) comparisons without changing their
+prespecified-effect TSBF, and \(p\le0.05\) comparisons without changing their
 panelwise normalization. The revised journal manuscript and poster use a
 four-panel arrangement that adds BIC as Panel D; `poster/render_profiles.R`
 builds it from these same component plots and copies the figures into the
@@ -1941,7 +1944,7 @@ manuscript_b <- tsbf_vs_ejab +
   ))
 manuscript_c <- p05_vs_ejab +
   labs(title = expression(
-    "C. " * p < 0.05 ~ "versus" ~ eJAB["01"] <= 1
+    "C. " * p <= 0.05 ~ "versus" ~ eJAB["01"] <= 1
   ))
 manuscript_ewde <- ((manuscript_a | manuscript_b) / manuscript_c) +
   plot_layout(heights = c(3, 2), guides = "collect") +
@@ -1964,7 +1967,7 @@ ggsave(
 This analysis directly addresses the comparison of
 \(eJAB_{01}\leq1\) with:
 
-1. \(p<0.05\), and
+1. \(p\le0.05\), and
 2. \(TSBF_{01}\leq1\), with the BFF evaluated at the true standardized
    effect size.
 
@@ -2235,14 +2238,14 @@ chisq_dimension_plot_data <- chisq_dimension_risk |>
         "delta_tsbf_minus_ejab"
       ),
       labels = c(
-        "p < 0.05 versus eJAB",
+        "p <= 0.05 versus eJAB",
         "TSBF(true w) versus eJAB"
       )
     ),
     comparison_plot_label = factor(
       comparison,
       levels = c(
-        "p < 0.05 versus eJAB",
+        "p <= 0.05 versus eJAB",
         "TSBF(true w) versus eJAB"
       ),
       labels = c(

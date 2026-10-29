@@ -175,24 +175,18 @@ eligible <- analysis_level[keep, ] %>%
       -0.5 * ((sample_size^(1 / dimension) - 1) / sample_size^(1 / dimension)) *
         qchisq(1 - p_two_sided, df = dimension)
     ),
-    # The scalar one-sided approximation omits the (n - 1) / n correction
-    # in the exponent, before applying the directional mass correction.
+    # Apply the directional correction to the two-sided eJAB, retaining
+    # its finite-sample factor (n - 1) / n for scalar one-sided tests.
     ejab_01 = if_else(
       one_sided,
-      sqrt(sample_size) * exp(-0.5 * qchisq(1 - p_two_sided, df = 1)) /
-        (2 * (1 - p_bound)),
+      ejab_two_sided_01 / (2 * (1 - p_bound)),
       ejab_two_sided_01
     ),
     significance_threshold = if_else(one_sided, 0.025, 0.05),
-    # For a report such as p < .05, the stored numerical bound is .05 but the
-    # underlying p-value is strictly below it. The bound is retained for the
-    # conservative eJAB calculation while the inequality determines whether
-    # the direction-specific significance rule is met.
-    statistically_significant = if_else(
-      p_left_censored,
-      p_bound <= significance_threshold,
-      p_bound < significance_threshold
-    ),
+    # NHST includes equality at the direction-specific threshold. Compare
+    # numerical reports as displayed; retain literal bounds such as p < .05
+    # and use their upper bound for classification and the eJAB calculation.
+    statistically_significant = p_bound <= significance_threshold,
     favors_null = ejab_01 > 1,
     contradiction = statistically_significant & favors_null,
     evidence_category = case_when(
@@ -370,11 +364,7 @@ alpha_grid <- seq(0.001, 0.25, by = 0.001)
 alpha_profile <- bind_rows(lapply(phase_levels, function(phase_name) {
   phase_frame <- filter(eligible, phase == phase_name)
   bind_rows(lapply(alpha_grid, function(alpha_level) {
-    is_significant <- if_else(
-      phase_frame$p_left_censored,
-      phase_frame$p_two_sided <= alpha_level,
-      phase_frame$p_two_sided < alpha_level
-    )
+    is_significant <- phase_frame$p_two_sided <= alpha_level
     tibble(
       phase = phase_name,
       alpha = alpha_level,

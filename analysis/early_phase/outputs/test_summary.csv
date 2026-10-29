@@ -1,28 +1,28 @@
 phase,test_class,test_direction,eligible_analyses,statistically_significant,significant_favoring_null
 Early Phase I,Kruskal-Wallis test,Two-sided/unrestricted,2,2,0
 Early Phase I,Linear regression,Two-sided/unrestricted,39,6,1
-Early Phase I,Mann-Whitney test,Two-sided/unrestricted,80,17,1
+Early Phase I,Mann-Whitney test,Two-sided/unrestricted,80,19,2
 Early Phase I,One-sample/paired t-test,Two-sided/unrestricted,44,11,0
 Early Phase I,One-way ANOVA,Two-sided/unrestricted,18,14,2
 Early Phase I,Two-sample t-test,One-sided,8,4,0
-Early Phase I,Two-sample t-test,Two-sided/unrestricted,79,36,1
+Early Phase I,Two-sample t-test,Two-sided/unrestricted,79,38,1
 Phase I,Kruskal-Wallis test,Two-sided/unrestricted,52,19,0
-Phase I,Linear regression,Two-sided/unrestricted,53,20,0
+Phase I,Linear regression,Two-sided/unrestricted,53,21,1
 Phase I,Logistic regression,Two-sided/unrestricted,65,39,1
-Phase I,Mann-Whitney test,Two-sided/unrestricted,465,105,1
+Phase I,Mann-Whitney test,Two-sided/unrestricted,465,107,1
 Phase I,One-sample/paired t-test,Two-sided/unrestricted,1,1,0
-Phase I,One-way ANOVA,Two-sided/unrestricted,1202,610,20
+Phase I,One-way ANOVA,Two-sided/unrestricted,1202,614,22
 Phase I,Two-sample t-test,One-sided,54,27,0
-Phase I,Two-sample t-test,Two-sided/unrestricted,188,95,3
+Phase I,Two-sample t-test,Two-sided/unrestricted,188,97,3
 Phase I,Wilcoxon signed-rank test,Two-sided/unrestricted,18,2,0
 Phase II,Kruskal-Wallis test,Two-sided/unrestricted,249,115,4
-Phase II,Linear regression,Two-sided/unrestricted,425,116,21
-Phase II,Logistic regression,Two-sided/unrestricted,4084,1548,224
+Phase II,Linear regression,Two-sided/unrestricted,425,119,24
+Phase II,Logistic regression,Two-sided/unrestricted,4084,1555,231
 Phase II,Mann-Whitney test,One-sided,2,1,0
-Phase II,Mann-Whitney test,Two-sided/unrestricted,2663,798,24
+Phase II,Mann-Whitney test,Two-sided/unrestricted,2663,808,29
 Phase II,One-sample/paired t-test,Two-sided/unrestricted,265,133,0
-Phase II,One-way ANOVA,Two-sided/unrestricted,2932,1362,90
-Phase II,Two-sample t-test,One-sided,343,91,0
-Phase II,Two-sample t-test,Two-sided/unrestricted,2983,1127,66
+Phase II,One-way ANOVA,Two-sided/unrestricted,2932,1371,93
+Phase II,Two-sample t-test,One-sided,343,93,0
+Phase II,Two-sample t-test,Two-sided/unrestricted,2983,1147,76
 Phase II,Wilcoxon signed-rank test,One-sided,20,10,0
-Phase II,Wilcoxon signed-rank test,Two-sided/unrestricted,229,100,2
+Phase II,Wilcoxon signed-rank test,Two-sided/unrestricted,229,101,2

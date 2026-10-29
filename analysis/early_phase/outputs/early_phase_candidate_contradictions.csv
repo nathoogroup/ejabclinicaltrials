@@ -10,6 +10,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 05870cbc4e509cba6181955bc11e9514,NCT01225822,Phase II,Number of Participants With Venous Thromboembolic (VTE) Events,PRIMARY,Logistic regression,757,0.0401,3.355633331792775,FALSE
 05ab6f367ed2083eda56d77abeced196,NCT00456092,Phase II,Change From Baseline in the Functional Assessment of Chronic Illness Therapy for Fatigue (FACIT-F) at Week 12,SECONDARY,One-way ANOVA,131,0.028,1.0428868545550218,FALSE
 06c7795a87e29f0cf24a3b42bc9b75db,NCT05182840,Phase II,"UACR Response II, Defined as Decrease of at Least 15% Absolute Change in First Morning Void Urine of UACR From Treatment Period Baseline to 14 Weeks - Patients With Background Therapy of Empagliflozin - Multiple Imputation",SECONDARY,Logistic regression,127,0.0348,1.2363357887084898,FALSE
+06e847e65a32cdd47f8cddb801eb83a3,NCT03982368,Phase II,Patient Global Impression of Change (PGIC) - Per Protocol Set,SECONDARY,Mann-Whitney test,152,0.05,1.8291424084970136,FALSE
 070dc4112a8f0d1caa3d7c18cb0a5097,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 3 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,83,0.0359,1.0356334328123125,FALSE
 07677b438902f30086647427bab32f00,NCT00550147,Phase II,CGI-S: Clinical Global Improvement Scale,SECONDARY,Two-sample t-test,48,0.05,1.056420483493446,TRUE
 07925708293e496b64d5d3f0ecb3191a,NCT00550147,Phase II,RAAPP: Rating of Aggression Against People and/or Property Scale,PRIMARY,Two-sample t-test,48,0.05,1.056420483493446,TRUE
@@ -32,11 +33,14 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 1077f160bce278a8d68ffa14d9127bd6,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 70% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,87,0.0359,1.0590029238722316,FALSE
 1213331acf448fd6bedc5fcd07ae12e6,NCT04525222,Phase I,Biochemically Confirmed 7-day PPA From Smoking,SECONDARY,Logistic regression,242,0.04,1.9045413276403125,FALSE
 1271d7d5bb2534461028f88a34c9f5bb,NCT02730455,Phase II,Percentage of Participants With Composite Global Measure of Functional Disability Excellent Outcome at Day 90,PRIMARY,Logistic regression,179,0.031,1.3234059506833211,FALSE
+12ff118a7bff19c9d4f131c9ce6fe6d5,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 5 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,83,0.05,1.3659254875513631,FALSE
+1307513f51e132e5a71b050efeed5d91,NCT04954326,Phase II,Pharmacokinetics Measurement,PRIMARY,One-way ANOVA,81,0.05,1.3501394396672934,FALSE
 13cbc8099722207b149693de4cd3f858,NCT01179568,Phase II,Responder Status Based on Complicated Grief Clinical Global Impression-Improvement (CGI-I) Scale,PRIMARY,Logistic regression,200,0.05,2.0918166939707468,TRUE
 13dc45550418fa544c5c8686a7a55a3d,NCT01715896,Phase II,Percentage of Participants Who Achieved Simplified Disease Activity Index (SDAI) Remission at Day 169,SECONDARY,Logistic regression,138,0.048,1.6867447833125748,FALSE
 13ec533e40e3cdab8b30f00a5d75abd5,NCT01361568,Phase II,Total Pain Relief Within the First 2 Hours (TOTPAR 0-2) Following Postoperative Study Drug Treatment Using LOCF,SECONDARY,Two-sample t-test,142,0.05,1.769523642630296,TRUE
 14d913afaba3bfb80dd431d7a9605e95,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 2 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,86,0.0472,1.3243847511726328,FALSE
 159e59038bd7c13bd8e250ffb6a8dc7e,NCT00684060,Phase II,Global Left Ventricular Function,PRIMARY,Two-sample t-test,81,0.05,1.3501394396672934,TRUE
+15fedf6c9513d2dc5a1bc463cb89383d,NCT00043186,Phase II,Serum CTX Percent Change From Baseline at Month 48,SECONDARY,Mann-Whitney test,43,0.05,1.0045490891545463,FALSE
 162b0b74b521757289fff7d64b6abcf9,NCT00267111,Phase II,Visual Analogue Scale,SECONDARY,Two-sample t-test,109,0.05,1.5566964280702844,TRUE
 16448e93398ce9e5bd11b890f2bce4b8,NCT03399318,Phase II,Area-under-the-curve (AUC) of Fever ≥ 38.5°C (Best),SECONDARY,Logistic regression,256,0.05,2.3616538586210782,TRUE
 166cc3fc78dffd135e7e70150874733b,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 50% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,85,0.0451,1.2680681170417196,FALSE
@@ -61,6 +65,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 1fa660a110d401a3d48002eac57c9ba7,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 50% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,86,0.043,1.225419288679711,FALSE
 1fb9e88394bff571f8452f92b91e7a8e,NCT01667406,Phase II,Percentage of Oocyte Maturation,PRIMARY,Logistic regression,62,0.05,1.1898381491955368,TRUE
 2040774a7f7bc0989e40288d88d1ef8d,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 90% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,86,0.046,1.2963144789543684,FALSE
+2079ccb2dd535841c7fd5b97d9b29e4e,NCT04662086,Phase II,Time to First Resolution,SECONDARY,Linear regression,120,0.05,1.630721474794517,FALSE
 20e1f602681dfc4dc608bb3d05106f93,NCT04030026,Phase II,"Mean Change From Baseline in E-RS Breathlessness Score at Days 9, 16, and 22",SECONDARY,Two-sample t-test,76,0.0374,1.0282060855189146,FALSE
 21006dab236877a492d438ac15b9795d,NCT04736628,Phase II,Number of Patients Achieving UACR Decreases in 10-hour Urine of at Least 20% From Baseline After 20 Weeks of Trial Treatment,SECONDARY,Logistic regression,126,0.0476,1.6026944220552248,FALSE
 218dd5ccb23325ca2dc37d1aec93b7dd,NCT01378299,Phase I,Percent Change in Bone Turnover Markers According to the rs700518 Polymorphism of the CYP19A1 Gene,SECONDARY,One-way ANOVA,58,0.05,1.153277765735231,TRUE
@@ -82,6 +87,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 2c29efb1232c0559f0b9e591de9529c4,NCT00684060,Phase II,Left Ventricular Mass,SECONDARY,Two-sample t-test,81,0.05,1.3501394396672934,TRUE
 2c3a46fb142be6cccb66d5c7d21cfbcf,NCT00550147,Phase II,Attention Deficit/Hyperactivity Disorder Rating Scale -IV- Parent Version (ADHDRS-IV-Parent Version),SECONDARY,Two-sample t-test,48,0.05,1.056420483493446,TRUE
 2c599e2d9e277d49d7427b29403c0e7b,NCT00071513,Phase I,Change in Short Moods and Feelings Questionnaire (SMFQ),PRIMARY,Two-sample t-test,480,0.05,3.222524830674947,TRUE
+2d8ccaa408eefef8eba9b6df8f9a6c32,NCT03857230,Phase I,Area Under the Serum Concentration of Follicle Stimulating Hormone (FSH) - Time Curve (AUC(0-192)),PRIMARY,One-way ANOVA,48,0.05,1.056420483493446,FALSE
 2de263c0dcee1fb665c331d82d35def1,NCT03131687,Phase II,Percentage of Participants With 10% or Greater Body Weight Loss From Baseline,SECONDARY,Logistic regression,106,0.036,1.16638390709256,FALSE
 2e03e1701e38f60a32ae96c4d255b27d,NCT00966875,Phase II,Dose-Response Relationship Measured by the Percentage of Participants With American College of Rheumatology (ACR) 20 Response in bDMARD-Naive Population,PRIMARY,Logistic regression,260,0.031,1.5885275125450464,FALSE
 2e4e34a9f89edfee3c3c67a002335528,NCT04867785,Phase II,Percentage of Participant Reaching HbA1c <7.0%,SECONDARY,Logistic regression,89,0.044,1.2697587964360408,FALSE
@@ -98,6 +104,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 3476d1142eb944a5d35c52c92d5f3fc8,NCT02891226,Phase II,Percentage of Participants Achieving Endoscopic Remission at Week 12,SECONDARY,Logistic regression,96,0.032,1.006899839902854,FALSE
 34a5b2664dd5017d09114ab5d4238f8d,NCT01712009,Phase II,Maximum Patient-reported Bone Pain by Cycle and Across Cycles,SECONDARY,One-way ANOVA,391,0.0411,2.468831990331485,FALSE
 34d3307e1165dd354a7a72766c7e5580,NCT00162266,Phase II,ACR Numeric Values (ACR-N),SECONDARY,One-way ANOVA,224,0.0451,2.02858145429274,FALSE
+3556de3d6027be4c155802f61e9c110f,NCT00620191,Phase II,Change in Total Recall Score in the Selective Reminding Test,PRIMARY,Two-sample t-test,80,0.05,1.342177136995123,FALSE
 360c59e7bddaa023397b5b7c396dc89f,NCT03192176,Phase II,"Number of Participants With Mean Percent Reduction of 70% in The Mean Frequency of Mild, Moderate, and Severe VMS From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0414,1.1871719373432823,FALSE
 361acaadcf68174731c3dd564827fbf0,NCT00297427,Phase II,Characteristics of Responders Based on Glasses/Cups Per Day of Non-caffeinated Fluids (Including Water),SECONDARY,Two-sample t-test,100,0.04,1.2395299336417072,FALSE
 36a00d730d294eedc0563984714ce9b4,NCT01635218,Phase II,Change From Baseline in 17-item Hamilton Rating Scale for Depression at 6 Weeks.,PRIMARY,One-way ANOVA,87,0.05,1.396964961234142,TRUE
@@ -112,7 +119,9 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 3ad60e3cef3a742e676897e6072b2dbf,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 4 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,83,0.044,1.2282329662253022,FALSE
 3b47f1dc030d1811c6356d624e83a6c1,NCT01559259,Phase II,Pain Relief Rating Score (PRR),SECONDARY,One-way ANOVA,182,0.031,1.334164004397477,FALSE
 3cd957deca8d893a6487062d1b824108,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 5 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,86,0.046,1.2963144789543684,FALSE
+3cecea6719209ec66197c0fb6b660a1f,NCT03705286,Phase II,Cognitive Function,PRIMARY,Logistic regression,149,0.05,1.8114625253154115,FALSE
 3d48001779720a1e0faf54b3bc77dcf6,NCT01517373,Phase II,"Change From Baseline in Body Weight at Week 2, 4, 6, 8, 12 and 14",SECONDARY,Two-sample t-test,117,0.0319,1.1038787297362482,FALSE
+3d5e82879e2878eb38ab7e97f194dd97,NCT00755326,Phase II,‡Pain Normalized Score,PRIMARY,Two-sample t-test,92,0.05,1.4348242556313036,FALSE
 3de7a0079fdbb9d9c0caeb67ec4bdb07,NCT01225822,Phase II,"Number of Participants With Proximal DVT, PE (Pulmonary Embolism) and VTE Related Mortality",SECONDARY,Logistic regression,763,0.0114,1.1296269719019132,FALSE
 3ef8f6641ea15c62dad44ab702711d1a,NCT01046136,Phase II,"Mean Change From Baseline in a 6 Point Severity Scale (0 = None, 1 = Very Mild, 2 = Mild or Slight, 3 = Moderate, 4 = Severe or 5 = As Bad as it Can be) for Cough.",PRIMARY,Mann-Whitney test,369,0.0293,1.7983769918432746,FALSE
 3eff20a7d991c172e736fbe6e4912e43,NCT01378299,Phase I,Percent Change in Bone Mineral Density (BMD) According to the rs1062033 Polymorphism in the CYP19A1 Gene,PRIMARY,One-way ANOVA,52,0.05,1.0961779658986848,TRUE
@@ -124,6 +133,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 4105aea9cbc2c68de11ddbe537858b5e,NCT00785928,Phase II,Percentage of Participants Achieving The American College of Rheumatology (ACR)20 Response up to 24 Weeks,SECONDARY,Linear regression,156,0.044,1.6647066217186546,FALSE
 4144444e691fd7b2dd3f5eb576364467,NCT00267111,Phase II,Pain Scores Assessed by Neonatal Facial Action,PRIMARY,Two-sample t-test,107,0.05,1.5428567786839715,TRUE
 423a45b67edf9e0abd918f8a64c8f66f,NCT01823341,Phase II,Percentage of Nights With 1 or More Sensor Glucose Values <70 mg/dL (<3.9 mmol/L),SECONDARY,Two-sample t-test,72,0.04,1.0604375762668852,FALSE
+4323f15b441f33a82ce49bcd289add35,NCT00958360,Phase II,Comparison of Changes in Visual Reading Ability From Baseline to Four Months Later Measured With 48 Item VA Low Vision Visual Functioning Questionnaire,PRIMARY,Two-sample t-test,323,0.05,2.6486320043812284,FALSE
 433b17a8d9302cfdb34c5438208ce9f6,NCT02504671,Phase II,Percentage of Participants Achieving Categorical DAS28(CRP) Response (Moderate/Good [European League Against Rheumatism] EULAR Response) at All Assessment Time Points,SECONDARY,Logistic regression,74,0.037,1.0062407456849305,FALSE
 433c98c327338907bb4e064df30894bd,NCT01378299,Phase I,Percent Change in Prostate-specific Antigen (PSA) According to the rs700518 Polymorphism of the CYP19A1 Gene,SECONDARY,One-way ANOVA,63,0.05,1.1988055921831229,TRUE
 436ff2ad2c43aa1df71d2badff81bfcb,NCT01559259,Phase II,Pain Relief Rating Score (PRR),SECONDARY,One-way ANOVA,181,0.024,1.0682329905742762,FALSE
@@ -147,6 +157,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 4fb876f7956aa21387424605673a6d38,NCT04714320,Phase II,"Percentage of Participants Who Achieved Seated Automated SBP ≤ 130 mmHg, DBP ≤ 80 mmHg, and Both at Each Scheduled Post-Baseline Visit",SECONDARY,Logistic regression,90,0.045,1.3007107615183109,FALSE
 4ff54783e70e1b98e23479a33bf208be,NCT01479621,Phase II,Change From Baseline In Weekly Average Of Daily Evening Peak Expiratory Flow (PEF) Over The 12-Week Treatment Period,SECONDARY,Linear regression,473,0.0434,2.8405104684943066,FALSE
 4ffdd2a39c714ff7a1901fb0462686a1,NCT01805089,Early Phase I,Absolute Plasma Estradiol Levels After 4 Month Course of Melatonin or Placebo,PRIMARY,Mann-Whitney test,86,0.05,1.3892698212835706,TRUE
+51318fef7dafbc35ea30e8de6c5ba3d7,NCT01705288,Early Phase I,Pain Medications Used,SECONDARY,Mann-Whitney test,99,0.05,1.4862138145224095,FALSE
 5177d8928eafa8c721fdb63742bc45b5,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 2 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0419,1.199157771863867,FALSE
 517e164f809aa029b25531dc3708c9f2,NCT05182840,Phase II,"UACR Response I, Defined as Decrease of at Least 30% Absolute Change in First Morning Void Urine of UACR From Treatment Period Baseline to 14 Weeks - Patients With Background Therapy of Placebo Matching Empagliflozin - Multiple Imputation",SECONDARY,Logistic regression,134,0.0419,1.4840061425274276,FALSE
 52958bc0553b3110dab51b69a0b9feaa,NCT05512949,Phase II,Vaccinia Virus Specific Plaque Reduction Neutralization Test (PRNT) Geometric Mean Titer (GMT) at Day 43,PRIMARY,Two-sample t-test,150,0.045,1.664281263311463,FALSE
@@ -160,8 +171,10 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 5b54d8baa3da0d63e1372a3f8bab4e3e,NCT04490109,Phase II,Proportion of Subjects With Any Improvement in Worst Itch Numeric Rating Scale (WI-NRS),SECONDARY,Logistic regression,340,0.0205,1.2686646234665997,FALSE
 5b8abdfe106665fd074dd4fb99d5938f,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 5 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,87,0.0342,1.016524398069111,FALSE
 5bc83d2c544d436c1a3ac6cd73b219b0,NCT00111800,Phase II,Number of Participants Who Were HbA1c Responders at Week 12,SECONDARY,Logistic regression,117,0.032,1.1068190804332043,FALSE
+5ceeb2c2b4299c096fefc4e3e2e66780,NCT04954326,Phase II,Pharmacokinetics Measurement,PRIMARY,One-way ANOVA,80,0.05,1.342177136995123,FALSE
 5d30ab9190c6f70b52ee76d6968bc1d4,NCT00853723,Phase II,Serum Phosphorous,SECONDARY,One-way ANOVA,62,0.05,1.1898381491955368,TRUE
 5dbbed5a0ec8f3f3b2a792dfbafdd024,NCT01910519,Phase II,Measurement of Microneutralization (MN) Titers With Influenza A Vaccine With and Without AS03 Adjuvant,PRIMARY,One-way ANOVA,50,0.0465,1.0140487187047735,FALSE
+5e21eae3fd0eded9a4abca969c4f33a5,NCT01131299,Phase II,"Serum Glucose Levels After 12-14 Weeks Intervention, Compared to Baseline for Alpha-cyclodextrin (a-CD) and Placebo Groups After 12-14 Weeks, Compared to Baseline",SECONDARY,Two-sample t-test,150,0.05,1.8173749039831004,FALSE
 5e2bc8bbe61f1f93d8f5abd339563603,NCT01559259,Phase II,Sum of Pain Relief Rating and Pain Intensity Difference on 4-Point Categorical Scale (PRID4),SECONDARY,One-way ANOVA,182,0.036,1.5151750544204006,FALSE
 5e3efe11d170c3ef385d3e984d6bdc90,NCT00922272,Phase II,Change From Open-label Baseline in Behavioral Rating Inventory of Executive Function - Adult Version (BRIEF-A) T-scores at Week 10 Open-label Phase,SECONDARY,Two-sample t-test,70,0.0461,1.1778527733124906,FALSE
 5ee5294a40d7ec40a06d784693bafe3d,NCT01559259,Phase II,Sum of Pain Relief Rating and Pain Intensity Difference on 4-Point Categorical Scale (PRID4),SECONDARY,One-way ANOVA,120,0.041,1.3814566525301395,FALSE
@@ -181,6 +194,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 65f9071e4b4ba455ea8e6dddb2377efe,NCT01559259,Phase II,Sum of Pain Relief Rating and Pain Intensity Difference on 4-Point Categorical Scale (PRID4),SECONDARY,One-way ANOVA,181,0.042,1.721282466313828,FALSE
 665ba5ac63fd9cc95d7e04620536bc7d,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 2 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,83,0.0461,1.2768746603521453,FALSE
 669729267e74287a8c91957d7468da49,NCT00455533,Phase II,"Randomized Participants With Non-missing pCR & Biomarker Expression (GENE [Probe Set]) to Explore Whether Gene Expression Patterns for GTSE1, Isoforms of β-tubulin, Kallikreins 5, 6, 10 Are Differentially Predictive of pCR/RCB1",SECONDARY,Logistic regression,295,0.0275,1.5252407019634262,FALSE
+66ae87154552d2117604fd7e22a1a996,NCT00958360,Phase II,Comparison of Changes in Visual Information Processing From Baseline to Four Months Later Measured With 48 Item VA Low Vision Visual Functioning Questionnaire,SECONDARY,Two-sample t-test,323,0.05,2.6486320043812284,FALSE
 67fec2b245ac6d2c876f504673614773,NCT00552786,Phase II,"Temporary Threshold Shift Measurement by Pure Tone Audiometry (A Total of Four Hearing Assessments Were Completed for Each Formulation Period on the 1st Day Pre- and Post-shift, and the 14th Day Pre- and Post-shift)",PRIMARY,One-way ANOVA,106,0.05,1.5358903193240496,TRUE
 68b321db363d0c8e2b83a515629759de,NCT03962738,Phase II,Percentage of Participants Who Are Free of Most Bothersome Symptoms (MBS) Associated With Migraine,SECONDARY,Logistic regression,307,0.044,2.32042359355324,FALSE
 693772cf7a20847d4362ad9a13bbe8e2,NCT00112151,Phase II,"Upper Body Muscle Strength (1-RM, kg)",SECONDARY,Linear regression,71,0.05,1.2682817797186745,TRUE
@@ -208,6 +222,8 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 7559d58b4c1632225fdeffb319cb467e,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 5 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,86,0.0405,1.1655192491401778,FALSE
 7562cd2cb442426bc7333fb35fbb6348,NCT04516759,Phase II,"Clinical Improvement at Day 7, 14 and 21",SECONDARY,Mann-Whitney test,153,0.0286,1.1446652337701475,FALSE
 75d8f9ab9e48947ca427f7bb15752eb4,NCT03982368,Phase II,Change From Baseline in Schirmer I Test (Without Anesthesia) vs Week 4 - Per Protocol Set,PRIMARY,One-way ANOVA,152,0.032,1.2558572906031928,FALSE
+763196e0217f1d981201194b4e061a3c,NCT03192176,Phase II,"Number of Participants With Mean Percent Reduction of 70% in The Mean Frequency of Mild, Moderate, and Severe VMS From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.05,1.3892698212835706,FALSE
+7661346c7002f937faa40fe49f251234,NCT03857230,Phase I,Maximum Serum Concentration of Follicle Stimulating Hormone (FSH) (Cmax),PRIMARY,One-way ANOVA,48,0.05,1.056420483493446,FALSE
 76a261c299b235e37512ced8a2fcebb5,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 3 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,85,0.04,1.1470511366348377,FALSE
 774bb45f4ba7c5249e7b2c365cbdb8d8,NCT04455633,Phase II,Patient Global Impression of Change (PGIC) Scale Score at Week 6,SECONDARY,One-way ANOVA,202,0.031,1.4037816264423415,FALSE
 778af8b3baeb1c4c3c8ba8345cf43a80,NCT00741936,Phase II,Complete Spontaneous Bowel Movement (CSBM),SECONDARY,Two-sample t-test,120,0.05,1.630721474794517,TRUE
@@ -230,8 +246,10 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 83645bc8e69b2dd2d5c1ca9cd16701a7,NCT03192176,Phase II,"Number of Participants With Mean Percent Reduction of 100% in The Mean Frequency of Mild, Moderate, and Severe VMS From Baseline to Each Study Week",SECONDARY,Logistic regression,85,0.0402,1.151856801556301,FALSE
 8366b33fad5e93ca54d2fbf29e75f1e7,NCT01559259,Phase II,Sum of Pain Relief Rating and Pain Intensity Difference on 4-Point Categorical Scale (PRID4),SECONDARY,One-way ANOVA,119,0.045,1.4875448823352064,FALSE
 83c62f241aa697db5aa91560a4f84be3,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 3 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0431,1.227799467275546,FALSE
+8431e0fed019f68ba98266343e2dcb4c,NCT03471767,Phase II,Change in Smoking Intensity,PRIMARY,Two-sample t-test,58,0.05,1.153277765735231,FALSE
 844b3b9883f0694e9748e3ee6fb5eba3,NCT00932737,Phase II,"Percentage of Participants With Response Based on the 4-point Verbal Rating Scale (VRS) of ""Very Satisfied"" in Episode 1",PRIMARY,Logistic regression,145,0.03,1.161787406125825,FALSE
 850fab6e674283e6da4a94e997121b5a,NCT01559259,Phase II,Pain Relief Rating Score (PRR),SECONDARY,One-way ANOVA,182,0.03,1.297312524926194,FALSE
+85186b54f19ea8c1121b0eee95fa54f0,NCT02517099,Phase II,Number of Unscheduled Healthcare Visits (UHCV),PRIMARY,Mann-Whitney test,52,0.05,1.0961779658986848,FALSE
 85e83360ad9e037e01bd8d0b1093b6f9,NCT01378299,Phase I,Percent Change in Bone Mineral Density According the Presence of Diabetes Mellitus,SECONDARY,One-way ANOVA,84,0.05,1.3737508086616856,TRUE
 8611f4bf7151a44459a78234b17a8a69,NCT02967510,Phase II,Change From Baseline to Week 12 in the Severity of Dry Mucosa,SECONDARY,Mann-Whitney test,137,0.032,1.1942577262591343,FALSE
 86e070737c0aad8b98b0c39de5e157d1,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 2 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,87,0.0389,1.132981037263767,FALSE
@@ -265,6 +283,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 955a9868ae67849c0758c98435a9bb2a,NCT04490109,Phase II,Proportion of Subjects With ≥4 Point Improvement in Average Itch Numeric Rating Scale (AI-NRS),SECONDARY,Logistic regression,336,0.0486,2.6373773351766117,FALSE
 95a04641ce6d1dc9b5e274873ca7ebe5,NCT01874431,Phase II,Change From Baseline to Day 90 in Serum Potassium,SECONDARY,Two-sample t-test,180,0.0428,1.7440924984798365,FALSE
 96144b74a9cfa2980bf09e75201c7bb8,NCT03252587,Phase II,Number of Participants Who Meet Response Criteria for Systemic Lupus Erythematosus (SLE) Responder Index [SRI(4)] at Week 48,SECONDARY,Logistic regression,179,0.0439,1.7768335962976376,FALSE
+967c3d7a15ea7c56e7932addffa86b91,NCT02475655,Phase II,Change in (CD3+CD8+) CD38+HLADR+,SECONDARY,Two-sample t-test,51,0.05,1.0863731544968434,FALSE
 96a7706ffa3626bad7a78289c5774ab5,NCT03201419,Phase II,Responder Rate in Nocturnal Voids at Week 12,SECONDARY,Logistic regression,109,0.046,1.452288959850108,FALSE
 96b0eac083eef2e719455c0632455950,NCT00149643,Phase II,Days Per Week of Cannabis Use.,PRIMARY,One-way ANOVA,70,0.05,1.259805321467302,TRUE
 96bec87c8142ea588d142cf20e4e991e,NCT01340027,Phase II,Percentage of Participants With 50% Reduction in Incontinence Episodes,SECONDARY,Logistic regression,59,0.042,1.006230053164186,FALSE
@@ -292,6 +311,7 @@ analysisId,nctId,phase,outcomeTitle,outcomeType,statisticalMethod,sample_size,p_
 9fe0948ac6a575a28f8d26568bc620bb,NCT02209181,Phase II,Pain Intensity Difference From Baseline (PID) Scores at 1.5 Hours Post Dose,SECONDARY,One-way ANOVA,136,0.028,1.0618832474123414,FALSE
 9ff2dcba38d0b6df5e165216f199b268,NCT01559259,Phase II,Pain Relief Rating Score (PRR),SECONDARY,One-way ANOVA,120,0.038,1.29585716458414,FALSE
 a00d2310c07f4c63d331130bde257ce6,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 2 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,85,0.0392,1.1277774991624878,FALSE
+a02282550b96c26947526ebeac5f0a12,NCT03705286,Phase II,Airway Related Complications,SECONDARY,Logistic regression,156,0.05,1.852453471535684,FALSE
 a03c832acac0b0ab265cfafe9258a677,NCT00539539,Phase II,CPR Fraction,SECONDARY,Linear regression,1586,0.016,2.1921385037738568,FALSE
 a0490ffe3c0019ba6aad7cec23765d0a,NCT00967330,Phase II,"Change From Baseline in European Organization for Research and Treatment of Cancer Quality of Life Questionnaire Core 30 (EORTC QLQ - C30) at Baseline, Post-Baseline (up to Month 30)",SECONDARY,One-way ANOVA,170,0.0485,1.8833654594127651,FALSE
 a06969994a57ae058f1263f1ede07b45,NCT01044706,Phase I,Cmax (Maximum Observed Concentration of Drug Substance in Plasma),PRIMARY,One-way ANOVA,60,0.05,1.1716992289175274,TRUE
@@ -318,6 +338,7 @@ af0ce1c52df130e22dda58d0a834c156,NCT01982942,Phase II,Covariate-adjusted Mean Ra
 b02d012c596173b0497bc3fe6a52b39f,NCT03193047,Phase II,Percent Change From Baseline in High-sensitivity C-reactive Protein (Hs-CRP) at Month 1 and Month 2,SECONDARY,Mann-Whitney test,53,0.046,1.032425550864372,FALSE
 b0b0fff6cc33b53cb2abc4e83480f23f,NCT04925934,Phase II,Number of Participants Achieving Lupus Low Disease Activity State (LLDAS) at Week 48,SECONDARY,Logistic regression,133,0.037,1.3315233035299925,FALSE
 b0b9996d73ff486c5a4e5ad3c57228fb,NCT02899988,Phase II,Percentage of Participants With a 100% Improvement in Psoriasis Area and Severity Index (PASI 100),SECONDARY,Logistic regression,103,0.039,1.23073869944513,FALSE
+b1074112909317742613bec1b4d6198f,NCT01754909,Phase II,Number of Participants With Radiation Pneumonitis,PRIMARY,Two-sample t-test,43,0.05,1.0045490891545463,FALSE
 b1dba337d197cdec650eccc38da46d95,NCT03992872,Phase II,Geometric Mean Titer of Anti-CHIKV Total Antibody Response,SECONDARY,One-way ANOVA,60,0.0475,1.123116855143273,FALSE
 b31464fa0d876852d5bbe72c40559dd3,NCT02806895,Phase II,SDLP at 6 Hours Post-dose,SECONDARY,One-way ANOVA,64,0.0432,1.069933300530873,FALSE
 b3857bdcb2ea9fac7670b70ae4c17076,NCT01005810,Phase II,Percentage of Negative Urine Cannabinoid Tests During Treatment,PRIMARY,Logistic regression,116,0.029,1.01363050411392,FALSE
@@ -325,6 +346,7 @@ b3a190bd9da04ef6f306fddd33b665c0,NCT03192176,Phase II,"Number of Participants Wi
 b4251dda3ce8d28bee4a43fbb298afab,NCT00741936,Phase II,Bowel Movement,SECONDARY,Two-sample t-test,120,0.05,1.630721474794517,TRUE
 b47a0c893651617decbb744d348a559c,NCT00455533,Phase II,"Randomized Participants With Non-missing pCR & Biomarker Expression (GENE [Probe Set]) to Explore Whether Gene Expression Patterns for GTSE1, Isoforms of β-tubulin, Kallikreins 5, 6, 10 Are Differentially Predictive of pCR/RCB1",SECONDARY,Logistic regression,295,0.0281,1.553793831080045,FALSE
 b55cb0d31e3654f0782954dd612fedb0,NCT03019796,Early Phase I,Mean Arterial Pressure,PRIMARY,One-way ANOVA,76,0.04,1.087817740950588,FALSE
+b5f38852f801efab03810571ab73078c,NCT04954326,Phase II,Pharmacokinetics Measurements,SECONDARY,One-way ANOVA,80,0.05,1.342177136995123,FALSE
 b65bf16b2ced55bf6365d3731803e0d2,NCT03192176,Phase II,"Number of Participants With Mean Percent Reduction of 50% in The Mean Frequency of Mild, Moderate, and Severe VMS From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0389,1.1267719538821444,FALSE
 b86e4cd5b6195214183cc68462d32382,NCT00550173,Phase II,Percentage of Participants With a Tumor Response of Complete Response (CR) or Partial Response (PR) [Tumor Response Rate (TRR)],SECONDARY,Logistic regression,158,0.031,1.2455046082899186,FALSE
 b8900ee72b3688334056d7981028bc89,NCT03192176,Phase II,"Number of Participants With Mean Percent Reduction of 100% in The Mean Frequency of Mild, Moderate, and Severe VMS From Baseline to Each Study Week",SECONDARY,Logistic regression,83,0.0396,1.1246383285618,FALSE
@@ -334,6 +356,7 @@ bb20a3ac2c65a4700d19ba03f3c2c3e0,NCT01378299,Phase I,Percent Change in Prostate-
 bb3b62d73fd7040eea2a4c656d4226a6,NCT01559259,Phase II,Pain Intensity Difference on 4-Point Categorical Scale (PID4),SECONDARY,One-way ANOVA,119,0.031,1.0861406049258802,FALSE
 bb602db9720bb53d7de27a0c8e428746,NCT01505491,Phase I,Area Under the Concentration-time Curve of the BI 695501 in Plasma Over the Time Interval From 0 to the Time of the Last Quantifiable Data Point (AUC0-tz),PRIMARY,One-way ANOVA,129,0.0303,1.1073810701224536,FALSE
 bc4d7b58495454adb1c173998395ad45,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 3 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,83,0.0475,1.3090294907532254,FALSE
+bc66f389bebbd13162e3430d3a489cce,NCT00043186,Phase II,Serum CTX Percent Change From Baseline at Month 48,SECONDARY,Mann-Whitney test,51,0.05,1.0863731544968434,FALSE
 bc817713fc4c0920b38f1277ebb02f88,NCT01874431,Phase II,Change From Baseline to Day 90 in KDQOL-36 Domain Score (Effects of Kidney Disease),SECONDARY,Two-sample t-test,177,0.0386,1.5856081563065223,FALSE
 bd695422b909b5d900b97b79bb08a207,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 100% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,87,0.0384,1.1207357014013797,FALSE
 bdad30817faddd4fcee22b33c1e961cb,NCT01340027,Phase II,Percentage of Participants With Improvement in PPBC,SECONDARY,Logistic regression,291,0.021,1.2001157727622345,FALSE
@@ -350,10 +373,13 @@ bfe5488f485931284b95bfb97e8b78d0,NCT03192176,Phase II,"Number of Participants Wi
 c0d4cb6d5bfdbcc492987e072400d91b,NCT04321343,Phase II,Change From Baseline to Week 36 in NAFLD Fibrosis Score,SECONDARY,Linear regression,60,0.0424,1.022158061725154,FALSE
 c28581b59f365d4c2728de769dbc213c,NCT00455533,Phase II,"Randomized Participants With Non-missing pCR & Biomarker Expression (GENE [Probe Set]) to Explore Whether Gene Expression Patterns for GTSE1, Isoforms of β-tubulin, Kallikreins 5, 6, 10 Are Differentially Predictive of pCR/RCB1",SECONDARY,Logistic regression,295,0.0434,2.24909061346799,FALSE
 c2a9cab6dd26db0c18e15b2d82a88edd,NCT00759954,Phase I,Area Under the Curve to the Last Measurable Time Point for Plasma Morphine,SECONDARY,One-way ANOVA,56,0.05,1.1345602994302164,TRUE
+c2d073dcb9e055e34d0b1ad40b31adb6,NCT00043186,Phase II,Serum CTX Percent Change From Baseline at Month 48,SECONDARY,Mann-Whitney test,57,0.05,1.1439569152678966,FALSE
 c3275cf8dcf94ee07f2be3b355492a9e,NCT02046980,Phase II,Conversion in Direction of Nystagmus From Apogeotropic to Geotropic or Disappearance of Nystagmus,PRIMARY,Logistic regression,139,0.0366,1.347819765179524,FALSE
+c329cd14593323a533b3930e797bd07c,NCT01217801,Phase I,Area Under Plasma Concentration,PRIMARY,Linear regression,90,0.05,1.4198012012757764,FALSE
 c36f07c553f52cab7d8308e899e42650,NCT01817530,Phase II,"Mean Percentage Change From Baseline in Primary Fibroid Volume at Month 3, Month 6, and Final Visit",SECONDARY,Kruskal-Wallis test,155,0.04,1.5316971114101732,FALSE
 c41ae4e13b5aac3224a1efea55c829f9,NCT01225822,Phase II,"Number of Participants With Proximal DVT, PE (Pulmonary Embolism) and VTE Related Mortality",SECONDARY,Logistic regression,753,0.0373,3.147415329301819,FALSE
 c47f083e9dbb4a55e111520b08653b7e,NCT03019796,Early Phase I,Systolic Blood Pressure,PRIMARY,One-way ANOVA,76,0.04,1.087817740950588,FALSE
+c4b138a9a832eb2750c0e2b398ea9d4f,NCT04662060,Phase II,Time to First Resolution,SECONDARY,Linear regression,120,0.05,1.630721474794517,FALSE
 c555342947bbe3411b287d1a2cfe4922,NCT03589768,Phase II,GMC of Serum IgG Antibodies to Tetanus in Infants Born to Women Receiving BOOSTRIX or Td,SECONDARY,Two-sample t-test,188,0.0261,1.1696368790068885,FALSE
 c5eed28dc4d848575aefbc4887248a9f,NCT00455533,Phase II,"Randomized Participants With Non-missing pCR & Biomarker Expression (GENE [Probe Set]), to Explore Whether Gene Expression Patterns for GTSE1, Isoforms of β-tubulin, Kallikreins 5, 6, 10 Are Differentially Predictive of pCR",SECONDARY,Logistic regression,295,0.0266,1.4821991205043097,FALSE
 c6799eb1e1a5637049201eb8e0794e0f,NCT02303704,Phase II,Pharmacological Inotropic Support (Nor-adrenaline),SECONDARY,Two-sample t-test,434,0.05,3.065523948653756,TRUE
@@ -364,6 +390,7 @@ c9bd79271cea0e0e7f4c584f8b50f726,NCT03192176,Phase II,Number of Participants Wit
 c9c3d66f33c6660d445199a968f10f9d,NCT00420784,Phase II,Percentage of Subjects With Undetectable Plasma Hepatitis C Virus (HCV) Ribonucleic Acid (RNA) at Week 24 After the Completion of Study Drug Dosing,PRIMARY,Logistic regression,225,0.024,1.1877436244740074,FALSE
 cb44c486ed9defa5c9de78858852dcf0,NCT02209181,Phase II,Pain Relief (PAR) Scores at 45 Minutes Post Dose,SECONDARY,One-way ANOVA,136,0.037,1.345971067800683,FALSE
 cb76c9d1b94ef60b3e24ea79029e59f7,NCT00147446,Phase II,No.of Gd+ Lesions From Week 8 to Week 24,PRIMARY,Mann-Whitney test,121,0.04,1.3585014999344065,FALSE
+cc0753b9f4472682f39b2535d3cb4a78,NCT02260934,Phase II,"Percentage of Participants Hypocomplementemic for Complement Component C3 at Week 24, Week 48, and Week 96",SECONDARY,Logistic regression,43,0.05,1.0045490891545463,FALSE
 cc81a82dcf2540946cb05cb38bd778c1,NCT01559259,Phase II,Pain Intensity Difference on 4-Point Categorical Scale (PID4),SECONDARY,One-way ANOVA,120,0.033,1.150040361158046,FALSE
 cdb997e3f4a6085da9ad49e127891b16,NCT03201419,Phase II,Responder Rate in Nocturnal Voids at Week 1,SECONDARY,Logistic regression,104,0.048,1.4710854186020448,FALSE
 ce0c13971df9f2478b771cdc35a394a2,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 5 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,83,0.0432,1.2095699319460078,FALSE
@@ -375,6 +402,7 @@ d0af9d21142d07df23719369abba8b2b,NCT03192176,Phase II,"Number of Participants Wi
 d31413103f9e174a4294599019840657,NCT02477020,Phase II,Percentage of Responders Based on CGI-I Ratings Score,SECONDARY,Logistic regression,156,0.036,1.4056066179400624,FALSE
 d3745a499ab9c55c54c39633792b7e66,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 4 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0423,1.208724381648492,FALSE
 d39d1a74a6d81f9aeb3675ba51c57f2d,NCT01340027,Phase II,Percentage of Participants With 50% Reduction in Incontinence Episodes,SECONDARY,Logistic regression,59,0.047,1.104629480815542,FALSE
+d45c0322e68167a7aa6ea2034e5cecec,NCT00405821,Phase II,HIV-1 Viral Load Difference Between Arms,SECONDARY,Two-sample t-test,440,0.05,3.086455197838425,FALSE
 d4e2a2cfd7f69e6318635bd8ba1a10e5,NCT00395850,Phase II,Retention,SECONDARY,Two-sample t-test,107,0.05,1.5428567786839715,TRUE
 d614ee3b0cfda99dad3345cedde74100,NCT01658514,Phase II,Cmax of Plasma Metformin,PRIMARY,One-way ANOVA,68,0.0474,1.188976379249745,FALSE
 d627aa3a606264e8ae11cb6a350df566,NCT05182840,Phase II,"UACR Response II, Defined as Decrease of at Least 15% Absolute Change in First Morning Void Urine of UACR From Treatment Period Baseline to 14 Weeks - Patients With Background Therapy of Empagliflozin - Last Observation on Treatment Carried Forward",SECONDARY,Logistic regression,127,0.0342,1.2182446873966322,FALSE
@@ -414,6 +442,7 @@ e1e868975bb252a6011ba47554246448,NCT00438464,Phase II,Comparison of Biomarkers B
 e26fadbcda446a8d369e2f2afce2ae6a,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 5 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,85,0.0345,1.0128238451125848,FALSE
 e295cec6bf709ed1fca0bc6e3a4bcd72,NCT01570036,Phase II,Percent Ejection Fraction - A Measure of Cardiac Toxicity,SECONDARY,One-way ANOVA,273,0.02,1.1148284946544178,FALSE
 e2dcffc5268617f9ed1a4ea81e69553b,NCT01874431,Phase II,Change From Baseline to Day 90 in eGFR,SECONDARY,Two-sample t-test,177,0.0462,1.8444073506157712,FALSE
+e34d746dd6722dfc44bd236b8b6cdd9e,NCT02475655,Phase II,Change in Aspartate Aminotransferase (AST) (SGOT) Values From Entry,SECONDARY,Two-sample t-test,60,0.05,1.1716992289175274,FALSE
 e42413c0bb01fae7d3c224fc0962487c,NCT01037985,Phase II,Participants Observer Scar Assessment Score at Week 12 and 24: Part B,SECONDARY,Two-sample t-test,64,0.04,1.003457434247132,FALSE
 e5299f5c62ad82e9495dc73592da6cbd,NCT01559259,Phase II,Pain Intensity Difference on 4-Point Categorical Scale (PID4),SECONDARY,One-way ANOVA,122,0.031,1.0992176673018952,FALSE
 e54e4edc3d3d630a0516e5cdeb779453,NCT02899988,Phase II,Percentage of Participants With a Static Physician Global Assessment (sPGA) 0 and 0/1,SECONDARY,Logistic regression,103,0.041,1.2835490872156858,FALSE
@@ -425,12 +454,14 @@ e9085d1303505f7ca079ab5eaf822716,NCT01378299,Phase I,Percent Change in Bone Turn
 e99a492a73ef7a752120ae591b3d83a0,NCT05182840,Phase II,"UACR Response II, Defined as Decrease of at Least 15% Absolute Change in First Morning Void Urine of UACR From Treatment Period Baseline to 14 Weeks - All Patients - Last Observation on Treatment Carried Forward (LOCF)",SECONDARY,Logistic regression,261,0.0418,2.0514676958519655,FALSE
 ea53d222bf858dac1e0171fc9c3125b0,NCT00736996,Phase II,Change in Insulin Resistance,SECONDARY,Linear regression,49,0.05,1.066496842283554,TRUE
 eaa3c1ed30a6d440401002778a4c0c28,NCT03064113,Phase II,"Forced Expiratory Flow From 25% to 75% of Vital Capacity (FEF25-75), as Related to FEV1",SECONDARY,Two-sample t-test,63,0.045,1.0987152822622397,FALSE
+eb062769f3dc86a7fbbf909b0cecdff8,NCT01340027,Phase II,Percentage of Participants With Improvement in PPBC,SECONDARY,Logistic regression,290,0.05,2.5113846539707714,FALSE
 eb93d3b92c620c7413172fd25c66d238,NCT03638258,Phase II,Percentage of Participants With Baseline Worst Itch-Numeric Rating Scale (WI-NRS) Pruritus Score ≥6 Who Experienced a 4-point Reduction,SECONDARY,Logistic regression,135,0.034,1.2484870473764489,FALSE
 ebfcd1ad3450da293359f1ff4559ef80,NCT00495469,Phase II,Number of Participants Who Were Fasting Plasma Glucose (FPG) Responders at Week 12,SECONDARY,Logistic regression,66,0.043,1.0812870893889828,FALSE
 ec00c7a1dcfde6c69781053f8b40c183,NCT03638258,Phase II,Percentage of Participants With an Investigator Global Assessment (IGA) Score of 'Clear' or 'Almost Clear' Plus a 2-Grade Improvement From Baseline,SECONDARY,Logistic regression,218,0.038,1.7325777891813754,FALSE
 ec488e4cf1e698148c6607889f973717,NCT01340027,Phase II,Percentage of Participants With Improvement in PPBC,SECONDARY,Logistic regression,151,0.048,1.7622544752952538,FALSE
 ecff6093c53c89ac5dc5e7ae33222fd3,NCT03192176,Phase II,"Number of Participants With Absolute Reduction of 5 in Mean Number of Mild, Moderate and Severe VMS Per Day From Baseline to Each Study Week",SECONDARY,Logistic regression,86,0.0424,1.211112991720551,FALSE
 ed2e74cfc3a1c86882b6fb868dab6365,NCT03192176,Phase II,Number of Participants With Absolute Reduction of 2 in Mean Number of Moderate and Severe VMS Per Day From Baseline to Each Study Week,SECONDARY,Logistic regression,83,0.0495,1.3545988764250207,FALSE
+ed695fc0007222504c117a3930a61e18,NCT00507819,Phase II,Change From Baseline in Mean Respiratory Rate (Breaths/Min) at 6 Weeks,SECONDARY,Linear regression,55,0.05,1.1250860652611478,FALSE
 ed86bb538227beee6149df0a510829db,NCT00673387,Phase II,Least Squares (LS) Mean Absolute Change From Baseline to Week 28 in Percent of Body Fat - Evaluable Population,SECONDARY,Two-sample t-test,76,0.0464,1.2311623495524868,FALSE
 ee2cd0c97be58743b64440d35fac8dd4,NCT00937326,Phase II,Change From Baseline in PPG and PPI Levels at Day 28,SECONDARY,One-way ANOVA,91,0.034,1.033316925442355,FALSE
 ef32df42461f4233ed24564185d37aef,NCT01434680,Phase II,Geometric Mean hSBA Titers Against N Meningitidis Serogroup C 28 Days After Vaccination,SECONDARY,One-way ANOVA,542,0.05,3.422760439543527,TRUE
@@ -460,3 +491,4 @@ fe84626938a1922a61661e65bc8e32a6,NCT00759954,Phase I,Maximum Plasma Morphine Con
 ff3aa5e0e1b284a5b1d8fbd016aa809a,NCT03192176,Phase II,Number of Participants With Mean Percent Reduction of 90% in The Mean Frequency of Moderate and Severe Vasomotor Symptoms From Baseline to Each Study Week,SECONDARY,Logistic regression,87,0.0392,1.1403124512140663,FALSE
 ff42bcee42d42c5b1b488443bffb185b,NCT01225822,Phase II,Number of Participants With VTE Events and All Cause Mortality,SECONDARY,Logistic regression,757,0.0401,3.355633331792775,FALSE
 ff61f4a48098c809e78785d3f8d136e3,NCT00112151,Phase II,"Lower Body Muscle Strength (1-RM, kg)",SECONDARY,Linear regression,71,0.05,1.2682817797186745,TRUE
+ffc02955c6a618912ab727f27ececd05,NCT01240915,Phase II,"Percentage of Participants With Decrease From Baseline of at Least 1 Point in Rectal Bleeding Mayo Subscore at Weeks 4, 8, 12, and 16",SECONDARY,Logistic regression,88,0.05,1.4046181232793735,FALSE

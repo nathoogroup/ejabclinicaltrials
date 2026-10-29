@@ -152,11 +152,7 @@ alpha_profile <- bind_rows(lapply(phase_levels, function(phase_name) {
     contradiction_rate = vapply(
       alpha_grid,
       function(alpha_level) {
-        is_significant <- if_else(
-          phase_frame$p_left_censored,
-          phase_frame$pValue <= alpha_level,
-          phase_frame$pValue < alpha_level
-        )
+        is_significant <- phase_frame$pValue <= alpha_level
         mean(is_significant & phase_frame$JAB > 1)
       },
       numeric(1)
@@ -270,8 +266,7 @@ application_summary <- tibble(
     n_distinct(scatter_data$statisticalMethod),
     sum(scatter_data$statistically_significant),
     sum(scatter_data$statistically_significant & scatter_data$JAB > 1),
-    sum(if_else(scatter_data$p_left_censored, scatter_data$pValue <= 0.01,
-                scatter_data$pValue < 0.01) & scatter_data$JAB > 1),
+    sum(scatter_data$pValue <= 0.01 & scatter_data$JAB > 1),
     sum(scatter_data$statistically_significant & scatter_data$JAB > 3),
     mean(weak_evidence_posterior$value),
     sd(weak_evidence_posterior$value)
