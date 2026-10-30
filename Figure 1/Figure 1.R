@@ -220,10 +220,10 @@ set.seed(277); df2 <- df[sample(1:nrow(df), nrow(df)),] # shuffle to prevent ove
 
 figA <- ggplot(subset(na.omit(df2), SD > 0), #  <== negative SDdr in ANOVA and rANOVA due to estimation issues
               aes(-log(eJAB), -log(SD),
-                  color=factor(cut(p, breaks=c(0, .01, .05, .1, 1+1E-5), right=F,
-                                   labels=c("[0, .01)", "[.01, .05)", "[.05, .1)", "[.1, 1]"))),
-                  shape=factor(cut(p, breaks=c(0, .01, .05, .1, 1+1E-5), right=F,
-                                   labels=c("[0, .01)", "[.01, .05)", "[.05, .1)", "[.1, 1]"))))) +
+                  color=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))),
+                  shape=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))))) +
   geom_point(size=2, alpha=.1, na.rm=T) +
   facet_wrap(.~test, nrow=2) +
   scale_color_manual(values=c("#8263d9", "#ff7411", "#5494cb", "black")) +
@@ -270,10 +270,10 @@ set.seed(277); df2 <- df[sample(1:nrow(df), nrow(df)),] # shuffle to prevent ove
 
 figB <- ggplot(subset(na.omit(df2), SD > 0), #  <== negative SDdr in ANOVA and rANOVA due to estimation issues
               aes(-log(BIC_approx), -log(SD),
-                  color=factor(cut(p, breaks=c(0, .01, .05, .1, 1+1E-5), right=F,
-                                   labels=c("[0, .01)", "[.01, .05)", "[.05, .1)", "[.1, 1]"))),
-                  shape=factor(cut(p, breaks=c(0, .01, .05, .1, 1+1E-5), right=F,
-                                   labels=c("[0, .01)", "[.01, .05)", "[.05, .1)", "[.1, 1]"))))) +
+                  color=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))),
+                  shape=factor(cut(p, breaks=c(-1E-5, .01, .05, .1, 1),
+                                   labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))))) +
   geom_point(size=2, alpha=.1, na.rm=T) +
   facet_wrap(.~test, nrow=2) +
   scale_color_manual(values=c("#8263d9", "#ff7411", "#5494cb", "black")) +
