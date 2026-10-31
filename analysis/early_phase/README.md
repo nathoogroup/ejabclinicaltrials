@@ -25,10 +25,14 @@ Run from the repository root, with R packages `dplyr`, `ggplot2`, `readr`,
 ```sh
 Rscript analysis/early_phase/early_phase_analysis.R
 Rscript analysis/early_phase/application_figure_revised.R
-Rscript analysis/early_phase/figure4_revised.R
 Rscript analysis/early_phase/supplementary_application_figures.R
 Rscript analysis/early_phase/verify_one_sided.R
 ```
+
+The application renderer builds the combined Figure 3: A and C share the top
+row, scatterplot B spans the middle row, and outcome-distribution panels D-G
+occupy the bottom row. It sources `figure4_revised.R` for the outcome panels;
+that helper can still be run directly to reproduce the legacy Figure 4 layout.
 
 The scripts write analysis-level values, screening counts, phase/test summaries,
 posterior draws, and the candidate catalog to `outputs/`, and manuscript,

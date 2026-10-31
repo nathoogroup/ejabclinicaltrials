@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
-# Reproduce manuscript Figure 4 with a common y-axis scale and the reviewer-
-# requested physical panel order A, C, B, D (unadjusted and adjusted results
-# adjacent within outcome type).
+# Build the outcome-distribution panels used in manuscript Figure 3D-G.
+# Sourcing this file provides make_panel() without writing a figure. Running it
+# directly also reproduces the legacy Figure 4 layout for comparison.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -13,24 +13,11 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-args <- commandArgs(trailingOnly = FALSE)
-script_arg <- grep("^--file=", args, value = TRUE)
-script_file <- if (length(script_arg)) sub("^--file=", "", script_arg[[1]]) else "figure4_revised.R"
-script_dir <- dirname(normalizePath(script_file, mustWork = FALSE))
-repo_dir <- normalizePath(file.path(script_dir, "../.."), mustWork = TRUE)
-input_file <- file.path(script_dir, "outputs", "eligible_early_phase_analyses.csv")
-output_file <- file.path(script_dir, "figures", "Figure4.png")
-
-if (!file.exists(input_file)) {
-  stop("Run early_phase_analysis.R before figure4_revised.R")
-}
-analysis_data <- read_csv(input_file, show_col_types = FALSE)
-
-title_size <- 11
-axis_size <- 9
 common_y_limits <- c(-18, 8)
 
-make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE) {
+make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE, compact = FALSE) {
+  title_size <- if (compact) 12 else 11
+  axis_size <- if (compact) 10 else 9
   plot_data <- data %>%
     filter(toupper(outcomeType) == outcome) %>%
     mutate(
@@ -71,16 +58,23 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE) {
       aes(x = Phase, y = 7.1, label = label),
       parse = TRUE,
       inherit.aes = FALSE,
-      size = 3.4
+      size = if (compact) 3.6 else 3.4
     ) +
     coord_cartesian(ylim = common_y_limits) +
     labs(
-      title = paste0(ifelse(adjusted, "Adjusted ", ""),
-                     ifelse(outcome == "PRIMARY", "Primary", "Secondary"),
-                     " Outcomes"),
+      title = if (compact) {
+        paste0(ifelse(outcome == "PRIMARY", "Primary", "Secondary"),
+               " outcomes\n", ifelse(adjusted, "Adjusted", "Unadjusted"))
+      } else {
+        paste0(ifelse(adjusted, "Adjusted ", ""),
+               ifelse(outcome == "PRIMARY", "Primary", "Secondary"), " Outcomes")
+      },
       x = NULL,
       y = NULL
     ) +
+    scale_x_discrete(labels = function(labels) {
+      if (compact) sub("Early Phase I", "Early\nPhase I", labels, fixed = TRUE) else labels
+    }) +
     scale_fill_manual(
       values = c(logJAB = "#1f77b4", logP = "#ff7f0e"),
       labels = c(expression("ln" ~ italic("eJAB")["01"]), expression("ln" ~ italic(p)))
@@ -88,7 +82,7 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE) {
     theme_minimal() +
     theme(
       axis.text.y = element_text(size = axis_size),
-      axis.text.x = element_text(size = 8),
+      axis.text.x = element_text(size = if (compact) 10 else 8),
       plot.title = element_text(size = title_size),
       plot.margin = margin(6, 14, 6, 14),
       legend.key.spacing.x = unit(20, "pt"),
@@ -96,21 +90,36 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE) {
     )
 }
 
-panel_a <- make_panel(analysis_data, "PRIMARY", adjusted = FALSE)
-panel_b <- make_panel(analysis_data, "SECONDARY", adjusted = FALSE)
-panel_c <- make_panel(analysis_data, "PRIMARY", adjusted = TRUE)
-panel_d <- make_panel(analysis_data, "SECONDARY", adjusted = TRUE)
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly = FALSE)
+  script_arg <- grep("^--file=", args, value = TRUE)
+  script_file <- if (length(script_arg)) sub("^--file=", "", script_arg[[1]]) else "figure4_revised.R"
+  script_dir <- dirname(normalizePath(script_file, mustWork = FALSE))
+  repo_dir <- normalizePath(file.path(script_dir, "../.."), mustWork = TRUE)
+  input_file <- file.path(script_dir, "outputs", "eligible_early_phase_analyses.csv")
+  output_file <- file.path(script_dir, "figures", "Figure4.png")
 
-figure4 <- ggarrange(
-  panel_a, panel_c, panel_b, panel_d,
-  nrow = 2,
-  ncol = 2,
-  labels = c("A", "C", "B", "D"),
-  align = "hv",
-  common.legend = TRUE,
-  legend = "bottom",
-  font.label = list(size = axis_size + 3)
-)
+  if (!file.exists(input_file)) {
+    stop("Run early_phase_analysis.R before figure4_revised.R")
+  }
+  analysis_data <- read_csv(input_file, show_col_types = FALSE)
 
-ggsave(output_file, figure4, width = 10.83, height = 7.17, units = "in", dpi = 300, bg = "white")
-cat("Saved", output_file, "\n")
+  panel_a <- make_panel(analysis_data, "PRIMARY", adjusted = FALSE)
+  panel_b <- make_panel(analysis_data, "SECONDARY", adjusted = FALSE)
+  panel_c <- make_panel(analysis_data, "PRIMARY", adjusted = TRUE)
+  panel_d <- make_panel(analysis_data, "SECONDARY", adjusted = TRUE)
+
+  figure4 <- ggarrange(
+    panel_a, panel_c, panel_b, panel_d,
+    nrow = 2,
+    ncol = 2,
+    labels = c("A", "C", "B", "D"),
+    align = "hv",
+    common.legend = TRUE,
+    legend = "bottom",
+    font.label = list(size = 12)
+  )
+
+  ggsave(output_file, figure4, width = 10.83, height = 7.17, units = "in", dpi = 300, bg = "white")
+  cat("Saved", output_file, "\n")
+}

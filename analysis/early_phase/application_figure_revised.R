@@ -327,21 +327,49 @@ posterior_plot <- ggplot(
     axis.text = element_text(size = 9.5)
   )
 
-application_figure <- plot_grid(
-  alpha_plot,
-  scatter_plot,
+# Preserve the original A-C labels: summaries on top and scatterplot B
+# across the middle. The former Figure 4 panels occupy the bottom row D-G,
+# with unadjusted and adjusted results adjacent within each outcome type.
+evidence_environment <- new.env(parent = environment())
+sys.source(file.path(script_dir, "figure4_revised.R"), envir = evidence_environment)
+evidence_data <- read_csv(eligible_file, show_col_types = FALSE)
+outcome_panels <- list(
+  evidence_environment$make_panel(evidence_data, "PRIMARY", FALSE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "PRIMARY", TRUE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "SECONDARY", FALSE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "SECONDARY", TRUE, compact = TRUE)
+)
+outcome_legend <- get_legend(
+  outcome_panels[[1]] + theme(legend.position = "bottom", legend.text = element_text(size = 12))
+)
+outcome_panels <- lapply(outcome_panels, function(panel) {
+  panel + theme(legend.position = "none", plot.margin = margin(6, 5, 6, 5))
+})
+summary_row <- plot_grid(
+  alpha_plot + theme(legend.text = element_text(size = 10), legend.title = element_blank()),
   posterior_plot,
-  labels = c("A", "B", "C"),
-  label_size = 16,
-  ncol = 1,
-  rel_heights = c(1.0, 1.8, 1.0)
+  labels = c("A", "C"), label_size = 16,
+  nrow = 1, rel_widths = c(1, 1.45), align = "h", axis = "tb"
+)
+scatter_row <- plot_grid(scatter_plot, labels = "B", label_size = 16)
+outcome_row <- plot_grid(
+  plotlist = outcome_panels,
+  labels = c("D", "E", "F", "G"), label_size = 16,
+  nrow = 1, align = "h", axis = "tb"
+)
+outcome_section <- plot_grid(
+  outcome_row, outcome_legend, ncol = 1, rel_heights = c(1, 0.09)
+)
+application_figure <- plot_grid(
+  summary_row, scatter_row, outcome_section,
+  ncol = 1, rel_heights = c(1.05, 1.7, 1.3)
 )
 
 ggsave(
   file.path(revision_dir, "Figure3.png"),
   application_figure,
-  width = 14,
-  height = 14,
+  width = 12,
+  height = 13.2,
   dpi = 300,
   bg = "white"
 )

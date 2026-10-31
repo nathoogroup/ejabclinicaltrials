@@ -1923,10 +1923,13 @@ ggsave(
 
 The companion methods draft combines the estimated-effect TSBF,
 prespecified-effect TSBF, and \(p\le0.05\) comparisons without changing their
-panelwise normalization. The revised journal manuscript and poster use a
-four-panel arrangement that adds BIC as Panel D; `poster/render_profiles.R`
-builds it from these same component plots and copies the figures into the
-active manuscript and reviewer-response directories.
+panelwise normalization. The revised journal manuscript uses a four-panel
+arrangement with \(p\le0.005\) in Panel C and BIC in Panel D; the standalone
+\(p\le0.05\) comparison appears as Supplementary Figure S3. The poster retains
+its \(p\le0.05\) panel. `poster/render_profiles.R` builds these arrangements
+from the same component plots. Use `Rscript poster/render_profiles.R
+--revision-only` to update only the revision's Figure 2 and Figure S3 from
+the cached results, without rerunning simulations or updating the poster.
 
 ```{r manuscript-figure, fig.width=12, fig.height=13.2}
 manuscript_a <- tsbf_estimated_omega_vs_ejab +
