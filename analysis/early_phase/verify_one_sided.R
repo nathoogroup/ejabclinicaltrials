@@ -6,7 +6,7 @@ data <- read.csv(file.path(script_dir, "outputs", "eligible_early_phase_analyses
 one <- data$one_sided
 stopifnot(all(data$dimension[one] == 1), sum(one) == 427, sum(!one) == 16136)
 expected_one <- sqrt(data$sample_size[one]) * exp(
-  -(1 - 1 / data$sample_size[one]) * qnorm(data$p_bound[one])^2 / 2
+  -qnorm(data$p_bound[one])^2 / 2
 ) / (2 * (1 - data$p_bound[one]))
 expected_two <- sqrt(data$sample_size[!one]) * exp(
   -0.5 * (1 - data$sample_size[!one]^(-1 / data$dimension[!one])) *
@@ -18,9 +18,13 @@ stopifnot(identical(data$contradiction, data$statistically_significant & data$ej
 two_at_reconstructed_p <- sqrt(data$sample_size[one]) * exp(
   -0.5 * (1 - 1 / data$sample_size[one]) * qchisq(1 - data$p_two_sided[one], df = 1)
 )
-stopifnot(isTRUE(all.equal(data$ejab_01[one] * (2 * (1 - data$p_bound[one])),
-                           two_at_reconstructed_p, tolerance = 1e-10)))
-stopifnot(all(data$ejab_01[one] >= two_at_reconstructed_p / 2))
+sample_size <- data$sample_size[one]
+identity_log <- log(sample_size) / (2 * (1 - sample_size)) +
+  (sample_size / (sample_size - 1)) * log(two_at_reconstructed_p) -
+  log(2 * (1 - data$p_bound[one]))
+stopifnot(isTRUE(all.equal(log(data$ejab_01[one]), identity_log, tolerance = 1e-10)))
+direct_correction <- two_at_reconstructed_p / (2 * (1 - data$p_bound[one]))
+stopifnot(all(data$ejab_01[one] <= direct_correction * (1 + 1e-10)))
 cat("Verified", sum(one), "one-sided and", sum(!one), "two-sided Bayes factors.\n")
 
 # Boundary reports must be included in the manuscript's directional NHST rule.

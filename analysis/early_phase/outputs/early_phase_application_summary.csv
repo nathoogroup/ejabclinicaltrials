@@ -6,5 +6,5 @@ results_p_le_0_05,6474
 contradictions_p_le_0_05_ejab_gt_1,493
 contradictions_p_le_0_01_ejab_gt_1,0
 jlp_p_le_0_05_ejab_gt_3,20
-weak_evidence_posterior_mean,0.35024597445883143
-weak_evidence_posterior_sd,0.004615474845231342
+weak_evidence_posterior_mean,0.34986038557843174
+weak_evidence_posterior_sd,0.004634072366872322

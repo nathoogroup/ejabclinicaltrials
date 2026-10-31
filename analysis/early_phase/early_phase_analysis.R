@@ -175,11 +175,12 @@ eligible <- analysis_level[keep, ] %>%
       -0.5 * ((sample_size^(1 / dimension) - 1) / sample_size^(1 / dimension)) *
         qchisq(1 - p_two_sided, df = dimension)
     ),
-    # Apply the directional correction to the two-sided eJAB, retaining
-    # its finite-sample factor (n - 1) / n for scalar one-sided tests.
+    # Use the null-centered scalar approximation without (n - 1) / n,
+    # then apply the prior-to-posterior directional probability correction.
     ejab_01 = if_else(
       one_sided,
-      ejab_two_sided_01 / (2 * (1 - p_bound)),
+      sqrt(sample_size) * exp(-0.5 * qchisq(1 - p_two_sided, df = 1)) /
+        (2 * (1 - p_bound)),
       ejab_two_sided_01
     ),
     significance_threshold = if_else(one_sided, 0.025, 0.05),
