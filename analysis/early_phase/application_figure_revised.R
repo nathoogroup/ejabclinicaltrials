@@ -32,7 +32,7 @@ early_phase_data <- read_csv(eligible_file, show_col_types = FALSE) %>%
     outcomeTitle,
     outcomeType,
     exact_phase = phase,
-    pValue = p_two_sided,
+    pValue = p_nhst,
     p_left_censored,
     statistically_significant,
     statisticalMethod = test_class,
@@ -69,7 +69,7 @@ evidence_bands <- tibble(
 scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
   geom_rect(
     data = evidence_bands,
-    aes(xmin = 0, xmax = 1, ymin = ymin, ymax = ymax, fill = fill),
+    aes(xmin = 0, xmax = 2, ymin = ymin, ymax = ymax, fill = fill),
     alpha = 0.18,
     inherit.aes = FALSE
   ) +
@@ -104,10 +104,10 @@ scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
   )
 
 scatter_main <- scatter_base +
-  coord_cartesian(xlim = c(0, 1), ylim = c(-6, 3), expand = FALSE) +
+  coord_cartesian(xlim = c(0, 2), ylim = c(-6, 3), expand = FALSE) +
   scale_x_continuous(
-    name = expression(italic(p) * "-value"),
-    breaks = seq(0, 1, 0.25),
+    name = expression(italic(p)[NHST]),
+    breaks = seq(0, 2, 0.5),
     expand = c(0, 0)
   ) +
   scale_y_continuous(
@@ -143,22 +143,10 @@ phase_data <- early_phase_data %>%
     phase = factor(phase, levels = phase_levels)
   )
 
-alpha_grid <- seq(0.001, 0.25, by = 0.001)
-alpha_profile <- bind_rows(lapply(phase_levels, function(phase_name) {
-  phase_frame <- filter(phase_data, phase == phase_name)
-  tibble(
-    phase = phase_name,
-    alpha = alpha_grid,
-    contradiction_rate = vapply(
-      alpha_grid,
-      function(alpha_level) {
-        is_significant <- phase_frame$pValue <= alpha_level
-        mean(is_significant & phase_frame$JAB > 1)
-      },
-      numeric(1)
-    )
-  )
-})) %>%
+# Use the same directional sweep as the reviewer-response figure.
+alpha_profile <- read_csv(
+  file.path(output_dir, "early_phase_alpha_profile.csv"), show_col_types = FALSE
+) %>%
   mutate(phase = factor(phase, levels = phase_levels))
 
 alpha_plot <- ggplot(alpha_profile, aes(alpha, contradiction_rate, color = phase)) +

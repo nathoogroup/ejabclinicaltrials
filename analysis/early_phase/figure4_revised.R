@@ -23,7 +23,7 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE, compact = FA
     mutate(
       Phase = phase,
       Phase = factor(Phase, levels = c("Early Phase I", "Phase I", "Phase II")),
-      logP = log(p_two_sided),
+      logP = log(p_nhst),
       logJAB = log(ejab_01),
       N = sample_size,
       Study = nctId
@@ -77,7 +77,7 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE, compact = FA
     }) +
     scale_fill_manual(
       values = c(logJAB = "#1f77b4", logP = "#ff7f0e"),
-      labels = c(expression("ln" ~ italic("eJAB")["01"]), expression("ln" ~ italic(p)))
+      labels = c(expression("ln" ~ italic("eJAB")["01"]), expression("ln" ~ italic(p)[NHST]))
     ) +
     theme_minimal() +
     theme(

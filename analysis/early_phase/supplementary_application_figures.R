@@ -34,7 +34,7 @@ sample_levels <- c("[2, 30)", "[30, 900)", "[900, 30K)",
 analysis_data <- read_csv(input_file, show_col_types = FALSE) %>%
   mutate(
     phase = factor(phase, levels = c("Early Phase I", "Phase I", "Phase II")),
-    log_p = log(p_two_sided),
+    log_p = log(p_nhst),
     log_ejab = log(ejab_01),
     statisticalMethod = test_class,
     sample_group = case_when(
@@ -110,10 +110,10 @@ mesh_data <- condition_data %>%
 
 make_mesh_plot <- function(tree_data, tree_code) {
   n_findings <- n_distinct(tree_data$analysisId)
-  base <- ggplot(tree_data, aes(p_two_sided, log_ejab)) +
-    annotate("rect", xmin = 0, xmax = 1, ymin = -Inf, ymax = log(1 / 3), fill = "#A6C7E5", alpha = 0.22) +
-    annotate("rect", xmin = 0, xmax = 1, ymin = log(1 / 3), ymax = log(3), fill = "grey70", alpha = 0.22) +
-    annotate("rect", xmin = 0, xmax = 1, ymin = log(3), ymax = Inf, fill = "#FFB84D", alpha = 0.22) +
+  base <- ggplot(tree_data, aes(p_nhst, log_ejab)) +
+    annotate("rect", xmin = 0, xmax = 2, ymin = -Inf, ymax = log(1 / 3), fill = "#A6C7E5", alpha = 0.22) +
+    annotate("rect", xmin = 0, xmax = 2, ymin = log(1 / 3), ymax = log(3), fill = "grey70", alpha = 0.22) +
+    annotate("rect", xmin = 0, xmax = 2, ymin = log(3), ymax = Inf, fill = "#FFB84D", alpha = 0.22) +
     geom_point(
       aes(color = statisticalMethod, shape = sample_group),
       size = 0.38,
@@ -142,8 +142,8 @@ make_mesh_plot <- function(tree_data, tree_code) {
     )
 
   main <- base +
-    coord_cartesian(xlim = c(0, 1), ylim = c(-12, 7), expand = FALSE) +
-    scale_x_continuous(name = expression(italic(p) * "-value"), breaks = c(0, 0.5, 1)) +
+    coord_cartesian(xlim = c(0, 2), ylim = c(-12, 7), expand = FALSE) +
+    scale_x_continuous(name = expression(italic(p)[NHST]), breaks = c(0, 1, 2)) +
     scale_y_continuous(name = expression("ln " * italic(eJAB)["01"]), breaks = c(-10, 0, 5)) +
     ggtitle(sprintf("%s (n = %s)", tree_code, format(n_findings, big.mark = ",")))
 
@@ -164,7 +164,7 @@ make_mesh_plot <- function(tree_data, tree_code) {
 shared_legend <- get_legend(
   ggplot(
     analysis_data,
-    aes(p_two_sided, log_ejab, color = statisticalMethod, shape = sample_group)
+    aes(p_nhst, log_ejab, color = statisticalMethod, shape = sample_group)
   ) +
     geom_point(size = 1.8, alpha = 1) +
     scale_color_brewer(
@@ -245,7 +245,7 @@ residual_data <- analysis_data %>%
   mutate(metric = factor(
     metric,
     levels = c("log_ejab", "log_p"),
-    labels = c("ln~italic(eJAB)[0*1]", "ln~italic(p)")
+    labels = c("ln~italic(eJAB)[0*1]", "ln~italic(p)[NHST]")
   ))
 
 residual_plot <- ggplot(residual_data, aes(fitted, residual)) +
@@ -261,13 +261,13 @@ residual_plot <- ggplot(residual_data, aes(fitted, residual)) +
 ggsave(file.path(figure_dir, "FigureS7.png"), residual_plot,
        width = 9.5, height = 5.8, units = "in", dpi = 300, bg = "white")
 
-p_plot <- ggplot(analysis_data, aes(p_two_sided, color = phase, fill = phase)) +
+p_plot <- ggplot(analysis_data, aes(p_nhst, color = phase, fill = phase)) +
   geom_density(alpha = 0.16, linewidth = 0.75) +
   geom_vline(xintercept = 0.05, color = "black", linetype = "dashed") +
   scale_color_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
   scale_fill_manual(values = c("#56B4E9", "#E69F00", "#009E73")) +
-  scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.25)) +
-  labs(x = expression(italic(p) * "-value"), y = "Density", color = "Trial phase", fill = "Trial phase") +
+  scale_x_continuous(limits = c(0, 2), breaks = seq(0, 2, 0.5)) +
+  labs(x = expression(italic(p)[NHST]), y = "Density", color = "Trial phase", fill = "Trial phase") +
   theme_bw(base_size = 11) +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
 

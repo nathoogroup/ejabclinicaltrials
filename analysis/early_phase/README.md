@@ -49,5 +49,14 @@ The updated totals are 6,474 significant results, 493 contradictions, and 20
 Jeffreys-Lindley cases. The eligible set is unchanged. One-sided eJAB values
 follow the null-centered approximation above; two-sided values are
 unchanged.
-The alpha-sweep figures retain the reconstructed two-sided-p-value convention
-and include equality at each alpha threshold.
+All clinical NHST comparisons and plots use `p_nhst = p` for two-sided tests
+and `p_nhst = 2*p1` for one-sided tests. The alpha sweep counts a contradiction
+when `p_nhst <= alpha` and the applicable eJAB exceeds one. Thus a one-sided
+test must satisfy `p1 <= alpha/2`, preserving its specified direction. The
+comparison value can exceed one; it is not a reconstructed two-sided p-value.
+The folded `p_two_sided = 2*min(p1, 1-p1)` is used only to reconstruct the
+unsigned chi-squared statistic inside eJAB. Using it for NHST would incorrectly
+admit opposite-tail findings. At alpha .05 this formerly added two Phase II
+findings to the sweep, although the reported total of 493 contradictions
+already used the directional rule and is unchanged. Both alpha-sweep figures
+now read the same `early_phase_alpha_profile.csv` output.

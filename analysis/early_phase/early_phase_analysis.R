@@ -170,7 +170,11 @@ flow <- bind_rows(lapply(seq_along(flow_steps), function(i) {
 
 eligible <- analysis_level[keep, ] %>%
   mutate(
+    # Folding recovers the unsigned statistic for eJAB, not the NHST decision.
     p_two_sided = if_else(one_sided, 2 * pmin(p_bound, 1 - p_bound), p_bound),
+    # The common alpha scale preserves the specified one-sided direction.
+    # Values above one are allowed: this is a comparison value, not a p-value.
+    p_nhst = if_else(one_sided, 2 * p_bound, p_bound),
     ejab_two_sided_01 = sqrt(sample_size) * exp(
       -0.5 * ((sample_size^(1 / dimension) - 1) / sample_size^(1 / dimension)) *
         qchisq(1 - p_two_sided, df = dimension)
@@ -187,7 +191,7 @@ eligible <- analysis_level[keep, ] %>%
     # NHST includes equality at the direction-specific threshold. Compare
     # numerical reports as displayed; retain literal bounds such as p < .05
     # and use their upper bound for classification and the eJAB calculation.
-    statistically_significant = p_bound <= significance_threshold,
+    statistically_significant = p_nhst <= 0.05,
     favors_null = ejab_01 > 1,
     contradiction = statistically_significant & favors_null,
     evidence_category = case_when(
@@ -331,7 +335,7 @@ write_csv(mixed_model_summary, file.path(output_dir, "mixed_model_summary.csv"))
 write_csv(
   eligible %>% select(
     analysisId, nctId, phase, outcomeTitle, outcomeType, conditionIds, originalMethod, test_class,
-    test_direction, one_sided, p_reported, p_bound, p_two_sided, p_left_censored, sample_size,
+    test_direction, one_sided, p_reported, p_bound, p_two_sided, p_nhst, p_left_censored, sample_size,
     dimension, statistically_significant, ejab_01, favors_null, contradiction
   ),
   file.path(output_dir, "eligible_early_phase_analyses.csv")
@@ -365,15 +369,20 @@ alpha_grid <- seq(0.001, 0.25, by = 0.001)
 alpha_profile <- bind_rows(lapply(phase_levels, function(phase_name) {
   phase_frame <- filter(eligible, phase == phase_name)
   bind_rows(lapply(alpha_grid, function(alpha_level) {
-    is_significant <- phase_frame$p_two_sided <= alpha_level
+    is_significant <- phase_frame$p_nhst <= alpha_level
     tibble(
       phase = phase_name,
       alpha = alpha_level,
+      eligible_analyses = nrow(phase_frame),
+      significant_analyses = sum(is_significant),
+      contradictions = sum(is_significant & phase_frame$ejab_01 > 1),
       contradiction_rate = mean(is_significant & phase_frame$ejab_01 > 1)
     )
   }))
 })) %>%
   mutate(phase = factor(phase, levels = phase_levels))
+
+write_csv(alpha_profile, file.path(output_dir, "early_phase_alpha_profile.csv"))
 
 alpha_figure <- ggplot(
   alpha_profile,
