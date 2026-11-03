@@ -299,11 +299,60 @@ figB <- ggplot(subset(na.omit(df2), SD > 0), #  <== negative SDdr in ANOVA and r
   guides(colour=guide_legend(override.aes=list(size=2, alpha=1)))
 
 
-library(ggpubr)   # v1.0.0
+############################
+##### Create BIC Insets ####
+############################
 
-ggarrange(figA, figB,
-          nrow=2, ncol=1, labels=c("A", "B"), align="v",
-          font.label=list(size=13))
+bic_data <- figB$data
+bic_data$p_group <- cut(bic_data$p, breaks=c(-1e-5, .01, .05, .1, 1), 
+                        labels=c("[0, .01]", "(.01, .05]", "(.05, .1]", "(.1, 1]"))
 
-ggsave("~/Downloads/osfstorage-archive/Figure 1/Figure 1.png", width=2600, height=3000, units="px", device="jpg", dpi=300)
+# Function to create an axis-free BIC inset
+make_bic_inset <- function(dat) {
+  ggplot(dat, aes(-log(BIC_approx), -log(SD))) +
+    geom_abline(slope=1, color="gray", linewidth=0.4) +
+    geom_vline(xintercept=c(-log(3),log(3)), linetype="dotted", color="gray", linewidth=0.3) +
+    geom_hline(yintercept=c(-log(3),log(3)), linetype="dotted", color="gray", linewidth=0.3) +
+    geom_point(aes(color=p_group, shape=p_group), size=0.7, alpha=0.3, na.rm=T) +
+    scale_color_manual(values=c("#8263d9", "#ff7411", "#5494cb", "black")) +
+    coord_cartesian(xlim=c(-3, 5), ylim=c(-3, 5), expand=F) +
+    theme_void() +
+    theme(legend.position="none",
+          panel.background=element_rect(fill="gray95", color=NA),
+          plot.background=element_rect(fill="gray95", color=NA),
+          plot.margin=margin(0, 0, 0, 0))
+}
+
+
+####################################
+##### Insert into Matching Facet ###
+####################################
+
+make_facet_inset <- function(test_name) {
+  dat <- subset(bic_data, test==test_name) # select Panel B observations for this test
+  inset_plot <- make_bic_inset(dat) # construct the inset
+  inset_layer <- annotation_custom(
+    grob=ggplotGrob(inset_plot),
+    xmin=1.2, xmax=4.8,
+    ymin=-2.7, ymax=0.9) # create the annotation layer
+  # Restrict the annotation to the matching facet
+  inset_layer$data <- data.frame("test"=factor(test_name, levels=levels(figA$data$test)))
+  inset_layer
+}
+
+facet_names <- unique(as.character(figA$data$test)) # generate one inset per facet
+insets <- lapply(facet_names, make_facet_inset)
+fig_combined <- figA + insets +
+  labs(x=expression("ln"~italic("eJAB")[10]~" and  ln"~italic("BF")[10]^"(BIC)")) # add all insets to Panel A
+
+ggsave("~/Downloads/GITeJAB/ejabclinicaltrials/Figure 1/Figure 1.png", fig_combined, width=2600, height=1600, units="px", device="jpg", dpi=300)
+
+
+# library(ggpubr)   # v1.0.0
+# 
+# ggarrange(figA, figB,
+#           nrow=2, ncol=1, labels=c("A", "B"), align="v",
+#           font.label=list(size=13))
+# 
+# ggsave("~/Downloads/osfstorage-archive/Figure 1/Figure 1.png", width=2600, height=3000, units="px", device="jpg", dpi=300)
 
