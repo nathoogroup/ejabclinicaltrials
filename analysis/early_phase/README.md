@@ -75,3 +75,16 @@ across the three phases, with no monotonic phase pattern. The per-study
 Dirichlet(1,1,1,1) prior adds one pseudocount to each category, so these posterior
 means can differ substantially from the raw significant-result proportions,
 especially when study counts are sparse.
+
+The response's Figure 2 (manuscript Figure 3A) plots `C_g(alpha) / N_g`,
+where `N_g` is all eligible analyses in phase `g` and `C_g(alpha)` counts
+NHST-significant results with the applicable eJAB above one. The response's
+Figure 3 (manuscript Figure 3C) estimates the conditional contradiction
+proportion among significant results at alpha .05; its raw counterpart is
+`C_g(.05) / S_g(.05)`, where `S_g` counts significant results. For example,
+Early Phase I contributes 6/270 overall and 6/94 among significant results.
+
+Both posterior figures overlay the three phase densities on common x and y
+axes using `posterior_density_plot.R`. Colors identify phases, dashed lines
+mark posterior means, and legend entries retain means and 95% credible
+intervals. The posterior model, draws, and significance rules are unchanged.

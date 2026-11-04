@@ -213,13 +213,6 @@ posterior_summary <- posterior_long %>%
     by = "phase"
   )
 
-phase_labels <- posterior_summary %>%
-  transmute(
-    phase,
-    label = sprintf("%s\nmean %.3f (%.3f, %.3f)", phase, mean, lower, upper)
-  )
-phase_labels <- setNames(phase_labels$label, phase_labels$phase)
-
 write_csv(
   posterior_long,
   file.path(output_dir, "early_phase_contradiction_posterior_draws.csv")
@@ -283,37 +276,10 @@ write_csv(
   file.path(output_dir, "early_phase_candidate_contradictions.csv")
 )
 
-posterior_plot <- ggplot(
-  posterior_long,
-  aes(value, fill = phase, color = phase)
-) +
-  geom_density(alpha = 0.30, linewidth = 0.75) +
-  geom_vline(
-    data = posterior_summary,
-    aes(xintercept = mean, color = phase),
-    linetype = "dashed",
-    linewidth = 0.6,
-    inherit.aes = FALSE
-  ) +
-  facet_wrap(
-    ~phase,
-    nrow = 1,
-    scales = "free_y",
-    labeller = as_labeller(phase_labels)
-  ) +
-  scale_fill_manual(values = c("#56B4E9", "#0072B2", "#009E73")) +
-  scale_color_manual(values = c("#0072B2", "#004C80", "#007A55")) +
-  scale_x_continuous(limits = c(0, 0.4), breaks = c(0, 0.1, 0.2, 0.3, 0.4)) +
-  labs(x = "Posterior contradiction proportion", y = "Density") +
-  theme_bw(base_size = 12) +
-  theme(
-    legend.position = "none",
-    strip.background = element_rect(fill = "grey95"),
-    strip.text = element_text(size = 10.5),
-    panel.grid.minor = element_blank(),
-    axis.title = element_text(size = 11),
-    axis.text = element_text(size = 9.5)
-  )
+source(file.path(script_dir, "posterior_density_plot.R"))
+posterior_plot <- make_contradiction_density_plot(
+  posterior_long, posterior_summary, base_size = 12
+)
 
 # Preserve the original A-C labels: summaries on top and scatterplot B
 # across the middle. The former Figure 4 panels occupy the bottom row D-G,

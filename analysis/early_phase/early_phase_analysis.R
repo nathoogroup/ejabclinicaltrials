@@ -348,17 +348,17 @@ posterior_long <- posterior_draws %>%
     levels = paste(phase_levels, "proportion")
   ))
 
-density_figure <- ggplot(posterior_long, aes(x = value, fill = parameter, color = parameter)) +
-  geom_density(alpha = 0.30, linewidth = 0.7) +
-  geom_vline(data = posterior_summary,
-             aes(xintercept = posterior_mean, color = parameter),
-             linetype = "dashed", linewidth = 0.6, show.legend = FALSE) +
-  facet_wrap(~parameter, scales = "free", ncol = 3) +
-  scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73"), guide = "none") +
-  scale_color_manual(values = c("#0072B2", "#D55E00", "#009E73"), guide = "none") +
-  labs(x = "Posterior value", y = "Density") +
-  theme_bw(base_size = 11) +
-  theme(strip.background = element_rect(fill = "grey95"), panel.grid.minor = element_blank())
+source(file.path(script_dir, "posterior_density_plot.R"))
+density_figure <- make_contradiction_density_plot(
+  posterior_long %>% transmute(
+    phase = sub(" proportion$", "", as.character(parameter)), value
+  ),
+  posterior_summary %>% transmute(
+    phase = sub(" proportion$", "", parameter), mean = posterior_mean,
+    lower = credible_lower_95, upper = credible_upper_95
+  ),
+  base_size = 11
+)
 
 ggsave(file.path(figure_dir, "early_phase_posterior.png"), density_figure,
        width = 10.5, height = 3.5, units = "in", dpi = 400)
