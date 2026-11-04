@@ -40,7 +40,7 @@ mapping in `outputs/mesh_tree_numbers.csv` avoids network requests during figure
 generation. The scripts use fixed random seeds for the posterior summaries.
 
 Numerical p-values are classified as displayed, including equality at the
-direction-specific threshold. Literal reports such as `p < .05` retain their
+applicable NHST threshold. Literal reports such as `p < .05` retain their
 reported inequality and use the numerical upper bound for eJAB. Rounding at
 the threshold can obscure the underlying full-precision p-value.
 
@@ -60,3 +60,18 @@ admit opposite-tail findings. At alpha .05 this formerly added two Phase II
 findings to the sweep, although the reported total of 493 contradictions
 already used the directional rule and is unchanged. Both alpha-sweep figures
 now read the same `early_phase_alpha_profile.csv` output.
+
+Both one-sided and two-sided/unrestricted tests contribute to the phase summaries
+and posterior distributions. At alpha .05, significant denominators are 94, 927,
+and 5,453 in Early Phase I, Phase I, and Phase II, respectively, including 4, 27,
+and 104 one-sided results. The observed contradiction counts are 6, 28, and 459;
+none of the 135 significant one-sided results has eJAB greater than one.
+
+The alpha-sweep denominator is all eligible analyses in a phase. The posterior
+contradiction proportion instead conditions on NHST significance after weighting
+each study's posterior category probabilities by its eligible-analysis count.
+It includes both test types. Its means are approximately 24.1%, 16.3%, and 18.1%
+across the three phases, with no monotonic phase pattern. The per-study
+Dirichlet(1,1,1,1) prior adds one pseudocount to each category, so these posterior
+means can differ substantially from the raw significant-result proportions,
+especially when study counts are sparse.
