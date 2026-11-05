@@ -69,14 +69,14 @@ if (!revision_only) {
 }
 for (name in plot_chunks) run_plot(name)
 
-# The revision uses p <= 0.005 in Panel C and retains p <= 0.05 as Figure S3.
+# The revision uses p <= 0.005 in Panel A and retains p <= 0.05 as Figure S3.
 # The existing poster and companion methods draft retain their p <= 0.05 panel.
 poster_a <- manuscript_a +
   facet_wrap(~ facet_label, ncol = 3, labeller = label_parsed)
 poster_b <- manuscript_b +
   facet_wrap(~ facet_label, ncol = 3, labeller = label_parsed)
 poster_d <- bic_vs_ejab + labs(title = expression(
-  "D. " * BF["01"]^plain(BIC) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+  "D. " * BF["01"]^plain(BIC) < 1 ~ "versus" ~ eJAB["01"] < 1
 ))
 four_panel_profiles <- function(panel_c) {
   (poster_a / poster_b / panel_c / poster_d) +
@@ -86,20 +86,37 @@ four_panel_profiles <- function(panel_c) {
       theme = theme(plot.title = element_text(hjust = 0.5, size = 18))
     )
 }
-revision_c <- p_vs_ejab + labs(title = expression(
-  "C. " * p <= 0.005 ~ "versus" ~ eJAB["01"] <= 1
+# Reorder the revision's former panels C, D, B, A and relabel A--D.
+# Keep the two NHST/BIC grids above the two single-row TSBF comparisons.
+revision_a <- p_vs_ejab + labs(title = expression(
+  "A. " * p <= 0.005 ~ "versus" ~ eJAB["01"] < 1
 ))
+revision_b <- bic_vs_ejab + labs(title = expression(
+  "B. " * BF["01"]^plain(BIC) < 1 ~ "versus" ~ eJAB["01"] < 1
+))
+revision_c <- poster_b + labs(title = expression(
+  "C. " * TSBF["01"](omega) < 1 ~ "versus" ~ eJAB["01"] < 1
+))
+revision_d <- poster_a + labs(title = expression(
+  "D. " * TSBF["01"](hat(omega)) < 1 ~ "versus" ~ eJAB["01"] < 1
+))
+revision_profiles <- (revision_a / revision_b / revision_c / revision_d) +
+  plot_layout(heights = c(2, 2, 1, 1), guides = "collect") +
+  plot_annotation(
+    title = "Equally Weighted Decision Error Profiles",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 18))
+  )
 revision_figure <- file.path(
   repo, "bayes_risk_outputs/revised_three_comparisons/06_revision_ewde.png"
 )
-ggsave(revision_figure, four_panel_profiles(revision_c),
+ggsave(revision_figure, revision_profiles,
        width = 12, height = 13.2, dpi = 300)
-message("Rendered revision Figure 2 with p <= 0.005 in Panel C.")
+message("Rendered revision Figure 2 in NHST, BIC, true-effect TSBF, estimated-effect TSBF order.")
 supplement_profiles <- p05_vs_ejab +
   facet_wrap(~ facet_label, ncol = 2, labeller = label_parsed) +
   labs(title = expression(atop(
     "Equally Weighted Decision Error Profiles",
-    p <= 0.05 ~ "versus" ~ eJAB["01"] <= 1
+    p <= 0.05 ~ "versus" ~ eJAB["01"] < 1
   )))
 supplement_figure <- file.path(
   repo, "bayes_risk_outputs/revised_three_comparisons/07_supplement_ewde_p05.png"

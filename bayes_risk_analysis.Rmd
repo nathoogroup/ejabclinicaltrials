@@ -80,13 +80,16 @@ This R Markdown file is the single source for Equally Weighted Decision
 Error Profiles, displaying normalized equally weighted decision error (EWDE)
 for four comparisons:
 
-1. \(eJAB_{01}\leq1\) versus \(p\le0.005\), for all 10 tests.
-2. \(eJAB_{01}\leq1\) versus \(p\le0.05\), for all 10 tests.
-3. \(eJAB_{01}\leq1\) versus \(BF_{01}^{BIC}\leq1\), for the six tests
+1. \(eJAB_{01}<1\) versus \(p\le0.005\), for all 10 tests.
+2. \(eJAB_{01}<1\) versus \(p\le0.05\), for all 10 tests.
+3. \(eJAB_{01}<1\) versus \(BF_{01}^{BIC}<1\), for the six tests
    with an explicit parametric likelihood. Cox regression and the three rank
    tests are excluded.
-4. \(eJAB_{01}\leq1\) versus \(TSBF_{01}\leq1\), for the \(2\times2\),
+4. \(eJAB_{01}<1\) versus \(TSBF_{01}<1\), for the \(2\times2\),
    \(3\times3\), and \(5\times5\) chi-square independence designs.
+
+All three Bayes-factor rules reject only when \(BF_{01}<1\); equality does
+not reject. The NHST rules retain equality, rejecting when \(p\le\alpha\).
 
 The TSBF comparison is restricted to these three chi-square independence
 designs. Its test-statistic Bayes-factor function is transcribed from page 6 of
@@ -596,9 +599,9 @@ decisions_for <- function(draws, test_key, n, theta) {
 
   tibble(
     reject_p = p <= p_threshold,
-    reject_ejab = ejab <= bf01_threshold,
-    reject_bic = bic <= bf01_threshold,
-    reject_tsbf = tsbf <= bf01_threshold
+    reject_ejab = ejab < bf01_threshold,
+    reject_bic = bic < bf01_threshold,
+    reject_tsbf = tsbf < bf01_threshold
   )
 }
 
@@ -938,8 +941,8 @@ native_ncp <- function(test_key, n, theta) {
 }
 
 # These dense-grid reference distributions are continuous. Their upper-tail
-# probabilities apply equally to p <= alpha and p < alpha; retain the
-# cached risks when updating the decision-rule notation.
+# probabilities implement the strict BF rejection boundary and the inclusive
+# p-value boundary; equality at a single statistic has probability zero.
 native_rejection_at_stat <- function(test_key, n, theta, critical) {
   if (!is.finite(critical)) return(0)
   if (critical <= 0) return(1)
@@ -1052,14 +1055,14 @@ log_bff10_chisq <- function(chisq_stat, q, tau2) {
 
 critical_root <- function(log_bf_function) {
   target <- log(1 / bf01_threshold)
-  if (log_bf_function(0) >= target) return(0)
+  if (log_bf_function(0) > target) return(0)
   upper <- 1
   value <- log_bf_function(upper)
-  while ((!is.finite(value) || value < target) && upper < 1e7) {
+  while ((!is.finite(value) || value <= target) && upper < 1e7) {
     upper <- upper * 2
     value <- log_bf_function(upper)
   }
-  if (!is.finite(value) || value < target) return(Inf)
+  if (!is.finite(value) || value <= target) return(Inf)
   uniroot(
     function(x) log_bf_function(x) - target,
     interval = c(0, upper),
@@ -1073,9 +1076,9 @@ estimated_omega_tsbf_critical <- function(q) {
     log_bff10_chisq(x, q, tau2 = x / q) - target
   }
 
-  # With BF01 = 1, x = 0 is a measure-zero equality point. For positive x,
-  # the plug-in BFF first falls below 1 and then crosses back above 1. The
-  # rejection region is determined by this positive upper crossing.
+  # At x = 0, BF01 = 1 and the strict decision rule does not reject. For
+  # positive x, the plug-in BFF first falls below 1 and then crosses back
+  # above 1. Rejection occurs strictly above this positive upper crossing.
   lower <- sqrt(.Machine$double.eps)
   if (!is.finite(objective(lower)) || objective(lower) >= 0) {
     stop("Could not bracket the positive plug-in TSBF crossing.")
@@ -1735,17 +1738,17 @@ all_risk_panel_scaling_factors <- bind_rows(
   panel_scaling_summary(
     empirical_bic_plot_data,
     "delta_bic_minus_ejab",
-    "BIC BF01 <= 1 versus eJAB"
+    "BIC BF01 < 1 versus eJAB"
   ),
   panel_scaling_summary(
     tsbf_dimension_plot_data,
     "delta_tsbf_minus_ejab",
-    "TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5"
+    "TSBF01 < 1 versus eJAB: 2x2, 3x3, and 5x5"
   ),
   panel_scaling_summary(
     tsbf_estimated_omega_dimension_plot_data,
     "delta_tsbf_estimated_omega_minus_ejab",
-    "TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5"
+    "TSBF01 with estimated omega < 1 versus eJAB: 2x2, 3x3, and 5x5"
   )
 )
 
@@ -1764,7 +1767,7 @@ p_vs_ejab <- plot_criticality_map(
   "delta_p_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      p <= 0.005 ~ "versus" ~ eJAB["01"] <= 1
+      p <= 0.005 ~ "versus" ~ eJAB["01"] < 1
   ),
   "01_ejab_vs_p005_all_10_tests.png",
   ncol = 5,
@@ -1781,7 +1784,7 @@ p05_vs_ejab <- plot_criticality_map(
   "delta_p05_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      p <= 0.05 ~ "versus" ~ eJAB["01"] <= 1
+      p <= 0.05 ~ "versus" ~ eJAB["01"] < 1
   ),
   "02_ejab_vs_p05_all_10_tests.png",
   ncol = 5,
@@ -1798,7 +1801,7 @@ bic_vs_ejab <- plot_criticality_map(
   "delta_bic_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      BF["01"]^plain(BIC) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+      BF["01"]^plain(BIC) < 1 ~ "versus" ~ eJAB["01"] < 1
   ),
   "02_ejab_vs_bic_bf01_six_parametric_tests.png",
   ncol = 3,
@@ -1820,7 +1823,7 @@ tsbf_vs_ejab <- plot_criticality_map(
   "delta_tsbf_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      TSBF["01"] <= 1 ~ "versus" ~ eJAB["01"] <= 1
+      TSBF["01"] < 1 ~ "versus" ~ eJAB["01"] < 1
   ),
   "03_ejab_vs_tsbf01_three_table_sizes.png",
   ncol = 3,
@@ -1844,11 +1847,11 @@ version estimates Cohen's effect from each realized chi-square statistic:
 \]
 
 Consequently, the BFF depends on the observed \(X^2\) both directly and through
-\(\widehat\tau^2\). With the threshold \(BF_{01}\leq1\), \(X^2=0\) is an exact
-equality point with probability zero under the continuous chi-square
-distribution. For positive \(X^2\), the BFF initially falls below the threshold
-and then crosses it from below. The risk calculation uses that positive upper
-crossing as the rejection boundary.
+\(\widehat\tau^2\). Under the rule \(BF_{01}<1\), \(X^2=0\) gives an exact
+BF equality and does not reject. For positive \(X^2\), \(BFF_{10}\) initially
+falls below one and then crosses it from below. Rejection occurs strictly
+above this positive upper crossing. The continuous chi-square risk
+calculation assigns zero probability to either equality point.
 
 This plug-in calculation is useful for the requested sensitivity check, but it
 is an empirical-Bayes-style use of the test statistic rather than integration
@@ -1888,7 +1891,7 @@ tsbf_estimated_omega_vs_ejab <- plot_criticality_map(
   "delta_tsbf_estimated_omega_minus_ejab",
   expression(
     "Equally Weighted Decision Error Profiles: " *
-      TSBF["01"](hat(omega)) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+      TSBF["01"](hat(omega)) < 1 ~ "versus" ~ eJAB["01"] < 1
   ),
   "03b_ejab_vs_tsbf01_estimated_omega_three_table_sizes.png",
   ncol = 3,
@@ -1936,18 +1939,18 @@ manuscript_a <- tsbf_estimated_omega_vs_ejab +
   facet_wrap(~ facet_label, ncol = 1, labeller = label_parsed) +
   labs(
     title = expression(
-      "A. " * TSBF["01"](hat(omega)) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+      "A. " * TSBF["01"](hat(omega)) < 1 ~ "versus" ~ eJAB["01"] < 1
     ),
     y = expression("True standardized effect size (" * omega * ")")
   )
 manuscript_b <- tsbf_vs_ejab +
   facet_wrap(~ facet_label, ncol = 1, labeller = label_parsed) +
   labs(title = expression(
-    "B. " * TSBF["01"](omega) <= 1 ~ "versus" ~ eJAB["01"] <= 1
+    "B. " * TSBF["01"](omega) < 1 ~ "versus" ~ eJAB["01"] < 1
   ))
 manuscript_c <- p05_vs_ejab +
   labs(title = expression(
-    "C. " * p <= 0.05 ~ "versus" ~ eJAB["01"] <= 1
+    "C. " * p <= 0.05 ~ "versus" ~ eJAB["01"] < 1
   ))
 manuscript_ewde <- ((manuscript_a | manuscript_b) / manuscript_c) +
   plot_layout(heights = c(3, 2), guides = "collect") +
@@ -1968,10 +1971,10 @@ ggsave(
 # Focused chi-square comparison across table dimensions
 
 This analysis directly addresses the comparison of
-\(eJAB_{01}\leq1\) with:
+\(eJAB_{01}<1\) with:
 
 1. \(p\le0.05\), and
-2. \(TSBF_{01}\leq1\), with the BFF evaluated at the true standardized
+2. \(TSBF_{01}<1\), with the BFF evaluated at the true standardized
    effect size.
 
 The columns correspond to \(2\times2\), \(3\times3\), and \(5\times5\)
@@ -2252,8 +2255,8 @@ chisq_dimension_plot_data <- chisq_dimension_risk |>
         "TSBF(true w) versus eJAB"
       ),
       labels = c(
-        "italic(p) < 0.05~'versus'~eJAB['01'] <= 1",
-        "TSBF['01'](omega) <= 1~'versus'~eJAB['01'] <= 1"
+        "italic(p) <= 0.05~'versus'~eJAB['01'] < 1",
+        "TSBF['01'](omega) < 1~'versus'~eJAB['01'] < 1"
       )
     ),
     table_plot_label = factor(

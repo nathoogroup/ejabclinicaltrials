@@ -275,11 +275,12 @@ comparison rule. The shared color scale is \([-1,1]\), and the printed
 The calculation is pointwise in effect size, rather than integrated over
 a composite alternative prior.
 
-The profiles use the unrestricted rule \(\ejab_{01}\leq1\).
-Figure~\ref{fig:main-ewde} compares it with the TSBF rules and \(p<.05\).
+The profiles reject the null when \(\ejab_{01}<1\), \(\TSBF_{01}<1\),
+or \(\BF_{01}^{\mathrm{BIC}}<1\), retaining the null at equality.
+Figure~\ref{fig:main-ewde} compares unrestricted eJAB with the TSBF rules and \(p\leq.05\).
 The Bayes-factor threshold of one corresponds to equal prior model
 probabilities and \(0\)--\(1\) loss. Figure~\ref{fig:additional-ewde}
-compares eJAB with \(p<.005\) and the BIC Bayes-factor rule.
+compares eJAB with \(p\leq.005\) and the BIC Bayes-factor rule.
 
 \subsection{Test-statistic Bayes-factor comparisons}
 The chi-squared comparison uses the Bayes factor function of
@@ -333,7 +334,7 @@ increases. At stronger effects, where both rules have high power, BIC's
 lower Type I error can yield lower EWDE; these differences tend to diminish
 at larger samples.
 
-Against the NHST significance rule \(p<.05\), eJAB generally gains with
+Against the NHST significance rule \(p\leq.05\), eJAB generally gains with
 larger samples and sufficiently strong signals. NHST can have lower EWDE
 in weak-signal bands. Small-sample behavior also depends on dimension:
 for multiparameter tests, eJAB can gain at intermediate effects while
@@ -390,10 +391,10 @@ Type I error.
 \centering
 \includegraphics[width=\textwidth]{ewde_main.png}
 \caption{Equally Weighted Decision Error Profiles.
-(A) \(\TSBF_{01}(\widehat\omega)\leq1\) and
-(B) \(\TSBF_{01}(\omega)\leq1\), each versus \(\ejab_{01}\leq1\), for
+(A) \(\TSBF_{01}(\widehat\omega)<1\) and
+(B) \(\TSBF_{01}(\omega)<1\), each versus \(\ejab_{01}<1\), for
 \(2\times2\), \(3\times3\) and \(5\times5\) contingency tables.
-(C) \(p<.05\) versus \(\ejab_{01}\leq1\) across ten statistical tests.
+(C) \(p\leq.05\) versus \(\ejab_{01}<1\) across ten statistical tests.
 Colors show normalized EWDE: yellow favors eJAB; purple favors the comparison rule.
 Each panel reports its normalization constant \(M\). Dashed curves show
 \(\theta=c/\sqrt n\), with \(\theta=\omega\) in (A) and (B).
@@ -408,8 +409,8 @@ The figure uses unrestricted eJAB.}
 
 \includegraphics[width=\textwidth]{ewde_bic.png}
 \caption{Equally Weighted Decision Error Profiles: additional comparisons.
-Top: \(p<.005\) versus \(\ejab_{01}\leq1\) across ten tests.
-Bottom: \(\BF_{01}^{\mathrm{BIC}}\leq1\) versus \(\ejab_{01}\leq1\)
+Top: \(p\leq.005\) versus \(\ejab_{01}<1\) across ten tests.
+Bottom: \(\BF_{01}^{\mathrm{BIC}}<1\) versus \(\ejab_{01}<1\)
 for the six tests with an explicit parametric likelihood.
 The BIC comparison excludes Cox regression and the three rank tests.
 Colors show normalized EWDE. Positive values favor eJAB, and negative values favor the comparison

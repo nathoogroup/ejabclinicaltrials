@@ -1,33 +1,33 @@
 "comparison","test_key","test","q","panel_max_abs_risk_difference"
-"p < 0.005 versus eJAB","anova","One-way ANOVA",3,0.207368897362326
-"p < 0.005 versus eJAB","chisq","Chi-square independence",4,0.182191989575194
-"p < 0.005 versus eJAB","cox","Cox PH regression",1,0.21744416245839
-"p < 0.005 versus eJAB","kruskal","Kruskal-Wallis",4,0.182255822617695
-"p < 0.005 versus eJAB","lm","Linear regression",1,0.218438021415317
-"p < 0.005 versus eJAB","logistic","Logistic regression",1,0.218154937761428
-"p < 0.005 versus eJAB","mannwhitney","Mann-Whitney",1,0.224360827340895
-"p < 0.005 versus eJAB","ranova","Repeated-measures ANOVA",3,0.183738114124404
-"p < 0.005 versus eJAB","ttest","Two-sample t-test",1,0.218154996630881
-"p < 0.005 versus eJAB","wilcoxon","Wilcoxon signed-rank",1,0.212426390395271
-"p < 0.05 versus eJAB","anova","One-way ANOVA",3,0.215339224219398
-"p < 0.05 versus eJAB","chisq","Chi-square independence",4,0.173354365507391
-"p < 0.05 versus eJAB","cox","Cox PH regression",1,0.316905540896916
-"p < 0.05 versus eJAB","kruskal","Kruskal-Wallis",4,0.158717209012501
-"p < 0.05 versus eJAB","lm","Linear regression",1,0.319229399792346
-"p < 0.05 versus eJAB","logistic","Logistic regression",1,0.319466734927217
-"p < 0.05 versus eJAB","mannwhitney","Mann-Whitney",1,0.316493261681171
-"p < 0.05 versus eJAB","ranova","Repeated-measures ANOVA",3,0.208231791493569
-"p < 0.05 versus eJAB","ttest","Two-sample t-test",1,0.319466880923422
-"p < 0.05 versus eJAB","wilcoxon","Wilcoxon signed-rank",1,0.311072548189691
-"BIC BF01 <= 1 versus eJAB","anova","One-way ANOVA",3,0.4355
-"BIC BF01 <= 1 versus eJAB","chisq","Chi-square independence",4,0.48175
-"BIC BF01 <= 1 versus eJAB","lm","Linear regression",1,0.02175
-"BIC BF01 <= 1 versus eJAB","logistic","Logistic regression",1,0.0335000000000001
-"BIC BF01 <= 1 versus eJAB","ranova","Repeated-measures ANOVA",3,0.34575
-"BIC BF01 <= 1 versus eJAB","ttest","Two-sample t-test",1,0.023
-"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.314733024870209
-"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.201793560645627
-"TSBF01 <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.168764666330525
-"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.326802425865855
-"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.204649151496453
-"TSBF01 with estimated omega <= 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.1402725507799
+"p <= 0.005 versus eJAB","anova","One-way ANOVA",3,0.207368897362326
+"p <= 0.005 versus eJAB","chisq","Chi-square independence",4,0.182191989575194
+"p <= 0.005 versus eJAB","cox","Cox PH regression",1,0.21744416245839
+"p <= 0.005 versus eJAB","kruskal","Kruskal-Wallis",4,0.182255822617695
+"p <= 0.005 versus eJAB","lm","Linear regression",1,0.218438021415317
+"p <= 0.005 versus eJAB","logistic","Logistic regression",1,0.218154937761428
+"p <= 0.005 versus eJAB","mannwhitney","Mann-Whitney",1,0.224360827340895
+"p <= 0.005 versus eJAB","ranova","Repeated-measures ANOVA",3,0.183738114124404
+"p <= 0.005 versus eJAB","ttest","Two-sample t-test",1,0.218154996630881
+"p <= 0.005 versus eJAB","wilcoxon","Wilcoxon signed-rank",1,0.212426390395271
+"p <= 0.05 versus eJAB","anova","One-way ANOVA",3,0.215339224219398
+"p <= 0.05 versus eJAB","chisq","Chi-square independence",4,0.173354365507391
+"p <= 0.05 versus eJAB","cox","Cox PH regression",1,0.316905540896916
+"p <= 0.05 versus eJAB","kruskal","Kruskal-Wallis",4,0.158717209012501
+"p <= 0.05 versus eJAB","lm","Linear regression",1,0.319229399792346
+"p <= 0.05 versus eJAB","logistic","Logistic regression",1,0.319466734927217
+"p <= 0.05 versus eJAB","mannwhitney","Mann-Whitney",1,0.316493261681171
+"p <= 0.05 versus eJAB","ranova","Repeated-measures ANOVA",3,0.208231791493569
+"p <= 0.05 versus eJAB","ttest","Two-sample t-test",1,0.319466880923422
+"p <= 0.05 versus eJAB","wilcoxon","Wilcoxon signed-rank",1,0.311072548189691
+"BIC BF01 < 1 versus eJAB","anova","One-way ANOVA",3,0.4355
+"BIC BF01 < 1 versus eJAB","chisq","Chi-square independence",4,0.48175
+"BIC BF01 < 1 versus eJAB","lm","Linear regression",1,0.02175
+"BIC BF01 < 1 versus eJAB","logistic","Logistic regression",1,0.0335000000000001
+"BIC BF01 < 1 versus eJAB","ranova","Repeated-measures ANOVA",3,0.34575
+"BIC BF01 < 1 versus eJAB","ttest","Two-sample t-test",1,0.023
+"TSBF01 < 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.314733024870209
+"TSBF01 < 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.201793560645627
+"TSBF01 < 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.168764666330525
+"TSBF01 with estimated omega < 1 versus eJAB: 2x2, 3x3, and 5x5","2 x 2 (q=1)","2 x 2 (q=1)",1,0.326802425865855
+"TSBF01 with estimated omega < 1 versus eJAB: 2x2, 3x3, and 5x5","3 x 3 (q=4)","3 x 3 (q=4)",4,0.204649151496453
+"TSBF01 with estimated omega < 1 versus eJAB: 2x2, 3x3, and 5x5","5 x 5 (q=16)","5 x 5 (q=16)",16,0.1402725507799

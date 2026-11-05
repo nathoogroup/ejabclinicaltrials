@@ -3,7 +3,7 @@
 ## Goal
 
 Run the Bayes-risk analysis on Fir with the common decision threshold
-`BF01 <= 1` for eJAB, BIC, and TSBF. Use Slurm task parallelism for the dense
+`BF01 < 1` for eJAB, BIC, and TSBF. Use Slurm task parallelism for the dense
 empirical BIC calculation, merge the task outputs, and render the final HTML,
 tables, and plots.
 
@@ -49,7 +49,8 @@ regenerated locally.
 - BIC null replicates per `(test_key, n)` task: 2,000.
 - BIC alternative replicates per effect-size cell: 400.
 - Equal prior model probabilities and equal error costs.
-- Rejection rule for eJAB, BIC, and TSBF: `BF01 <= 1`.
+- Rejection rule for eJAB, BIC, and TSBF: `BF01 < 1`; retain the null at equality.
+- NHST rejection remains inclusive: `p <= alpha`.
 - Cox uses the observed number of events as `n_eff`.
 
 ## Suggested Slurm layout
@@ -85,6 +86,6 @@ runs cannot mix results.
   `4 * exp(-c / 4) = 1` for Kruskal-Wallis.
 - The merged BIC cache has exactly one row per requested
   `(test_key, n, theta)` cell and no missing/non-finite in-scope BIC risks.
-- Every figure title and comparison label displays `BF01 <= 1`.
+- Every figure title and comparison label displays `BF01 < 1`.
 - The R Markdown render completes without errors, and `git diff --check`
   passes before committing generated results.

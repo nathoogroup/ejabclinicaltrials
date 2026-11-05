@@ -32,10 +32,11 @@ finite-sample convention, regularity conditions and a consistency proof
 sketch, Equally Weighted Decision Error Profiles, and a compact early-phase clinical-trial
 contradiction table containing the three examples from the revised manuscript.
 The poster has four profile panels: A, estimated-effect TSBF; B, true-effect
-TSBF; C, p < .05 across ten tests; D, BIC across six parametric tests.
+TSBF; C, p <= .05 across ten tests; D, BIC across six parametric tests.
 The companion methods draft retains the three-panel main figure and the
-separate p < .005 and BIC comparison figures. The revised journal
-manuscript shares the poster's four-panel A-D arrangement.
+separate p <= .005 and BIC comparison figures. The revised journal
+manuscript orders its four panels as A, p <= .005; B, BIC; C, true-effect
+TSBF; D, estimated-effect TSBF. Its p <= .05 comparison is Figure S3.
 
 SOURCE_MAP.txt records the source sections and the limited editorial changes.
 
@@ -105,6 +106,8 @@ prespecified-effect TSBF gives a UMP upper-tail rule among X^2-based tests
 at its attained size. Equal model probabilities and 0-1 loss select
 cutoff 1 for minimizing prior-predictive error. THRESHOLD_NOTES.txt gives
 the proof and qualifications; Fowlie (2021) is added to the citations QR.
+eJAB, BIC, and TSBF reject the null only when BF01 < 1; equality retains
+the null. NHST rejection remains inclusive: p <= alpha.
 Panel A remains a plug-in sensitivity analysis. The caption is a single
 paragraph. All existing font sizes and the physical normalized EWDE figure size are
 preserved.
@@ -132,6 +135,6 @@ Detailed comparison wording
 The abstract now cites Velidi and Wei (2025), Johnson (2005), and
 Johnson et al. (2023), and calls the p-value comparisons NHST significance
 rules. It distinguishes 2x2/3x3 from 5x5 Pearson independence tests,
-estimated from true omega, and the BIC and p < .05 regimes. The abstract
+estimated from true omega, and the BIC and p <= .05 regimes. The abstract
 panel is taller; the hypothesis statement is inline and display spacing
 is tightened to preserve all poster font sizes and the figure area.
