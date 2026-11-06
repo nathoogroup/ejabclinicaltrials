@@ -1,0 +1,12 @@
+Original per-study model: independent pi_i | data ~ Dirichlet(y_i1+a,...,y_i4+a).
+Categories: nonsignificant/BF<=1, nonsignificant/BF>1, significant/BF<=1, significant/BF>1.
+Significance: p_nhst<=.05, with p_nhst=p for unrestricted tests and 2*p1 for one-sided tests.
+Target: rho = sum_i m_i*pi_i4 / sum_i m_i*(pi_i3+pi_i4); m_i is each trial's eligible result count.
+Each of nine cells uses 50,000 independent normalized-gamma Dirichlet draws and a distinct fixed seed.
+Posterior-mean MCSE=SD/sqrt(draws); endpoint MCSE=SD(25 batch quantiles)/sqrt(25).
+Analytic weighted numerator and denominator expectations/variances/covariance audit simulation.
+ratio_of_expectations is E[numerator]/E[denominator], NOT E[rho]; second_order_ratio_mean is a delta-method approximation.
+Small-a symmetric Dirichlet priors concentrate near boundaries/vertices; results assess sensitivity within this family, not generic weak-prior robustness.
+Gamma draws for zero-count cells may underflow to zero; row sums remain strictly positive, normalization is checked, all phase ratios remain finite and positive.
+The supplied zero-count underflow counts describe floating-point values near zero; they are not posterior atoms at zero.
+No eligibility, Bayes-factor, bootstrap, original posterior, V2, main-figure or manuscript files are modified.
