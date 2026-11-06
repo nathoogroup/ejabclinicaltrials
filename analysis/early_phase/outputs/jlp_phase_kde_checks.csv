@@ -1,0 +1,4 @@
+phase,positive_draws,bandwidth,zero_mass,continuous_weight,integrated_density,integration_error
+Early Phase I,0,NA,1,0,0,0
+Phase I,17231,1.790072517827878e-4,0.13845,0.86155,0.861549989004808,-1.099519209013522e-8
+Phase II,19979,1.8849219285160365e-4,0.00105,0.99895,0.9989499353258761,-6.467412394517424e-8

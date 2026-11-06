@@ -1,0 +1,4 @@
+phase,eligible_trials,eligible_analyses,significant_analyses,screened_jlp,numeric_screens,bound_screens,observed_overall,observed_among_significant,lower,upper,zero_mass,zero_mass_theoretical,zero_replicates,positive_screen_trials,bootstrap_replicates,seed,zero_denominator_draws
+Early Phase I,47,270,94,0,0,0,0,0,0,0,1,1,20000,0,20000,20261106,0
+Phase I,280,2098,927,2,0,2,9.532888465204957e-4,0.002157497303128371,0,0.005747126436781609,0.13845,0.13436745184267654,2769,2,20000,20261106,0
+Phase II,1463,14195,5453,18,11,7,0.0012680521310320535,0.003300935264991748,8.568540630991746e-4,0.006884410769594227,0.00105,8.9669029642774e-4,21,7,20000,20261106,0

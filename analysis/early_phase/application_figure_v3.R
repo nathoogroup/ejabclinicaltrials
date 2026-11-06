@@ -22,7 +22,7 @@ phase_levels <- c("Early Phase I", "Phase I", "Phase II")
 
 eligible_file <- file.path(output_dir, "eligible_early_phase_analyses.csv")
 if (!file.exists(eligible_file)) {
-  stop("Run early_phase_analysis.R before application_figure_revised.R")
+  stop("Run early_phase_analysis.R before application_figure_v3.R")
 }
 
 early_phase_data <- read_csv(eligible_file, show_col_types = FALSE) %>%
@@ -69,7 +69,7 @@ evidence_bands <- tibble(
 scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
   geom_rect(
     data = evidence_bands,
-    aes(xmin = 0, xmax = 2, ymin = ymin, ymax = ymax, fill = fill),
+    aes(xmin = 0, xmax = 1, ymin = ymin, ymax = ymax, fill = fill),
     alpha = 0.18,
     inherit.aes = FALSE
   ) +
@@ -104,10 +104,10 @@ scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
   )
 
 scatter_main <- scatter_base +
-  coord_cartesian(xlim = c(0, 2), ylim = c(-6, 3), expand = FALSE) +
+  coord_cartesian(xlim = c(0, 1), ylim = c(-6, 3), expand = FALSE) +
   scale_x_continuous(
     name = expression(italic(p)[NHST]),
-    breaks = seq(0, 2, 0.5),
+    breaks = seq(0, 1, 0.25),
     expand = c(0, 0)
   ) +
   scale_y_continuous(
@@ -294,8 +294,8 @@ write_csv(
   file.path(output_dir, "early_phase_candidate_contradictions.csv")
 )
 
-# Keep the previous Dirichlet summaries for the sensitivity audit, while the
-# primary panel reports the observed ratio with whole-trial bootstrap intervals.
+# Keep previous Dirichlet summaries for the sensitivity audit. Primary V3
+# density curves use whole-trial bootstrap draws, with no prior pseudocounts.
 source(file.path(script_dir, "clinical_phase_summary.R"))
 clinical_summary <- summarise_clinical_phases(
   phase_data %>% transmute(phase, nctId, statistically_significant,
@@ -310,9 +310,22 @@ prior_audit_plot <- make_clinical_prior_audit_plot(posterior_long, clinical_summ
 ggsave(file.path(revision_dir, "FigureS10_posterior_audit.png"), prior_audit_plot,
        width = 10.5, height = 4.5, units = "in", dpi = 400, bg = "white")
 
-# Preserve the original A-C labels: summaries on top and scatterplot B
-# across the middle. The former Figure 4 panels occupy the bottom row D-G,
-# with unadjusted and adjusted results adjacent within each outcome type.
+# V3 separates the overall BF-threshold curve (A), conditional bootstrap
+# densities for contradictions and screened JLPs (B), and scatterplot (C).
+# Alpha profiles remain available as Supplementary Figure S11.
+source(file.path(script_dir, "jlp_phase_panels.R"))
+phase_panels <- compute_jlp_phase_panels(
+  read_csv(eligible_file, show_col_types = FALSE),
+  contradiction_draws = clinical_summary$draws,
+  contradiction_summary = clinical_summary$summary
+)
+write_jlp_phase_panels(phase_panels, output_dir, file.path(script_dir, "figures"))
+threshold_plot <- make_jlp_threshold_plot(phase_panels$threshold_sweep)
+density_plot <- make_combined_phase_density_plot(phase_panels)
+ggsave(file.path(revision_dir, "FigureS11_alpha_profile.png"), alpha_plot,
+       width = 8, height = 5, units = "in", dpi = 400, bg = "white")
+
+# Outcome-distribution panels D-G retain their established data and layout.
 evidence_environment <- new.env(parent = environment())
 sys.source(file.path(script_dir, "figure4_revised.R"), envir = evidence_environment)
 evidence_data <- read_csv(eligible_file, show_col_types = FALSE)
@@ -329,12 +342,11 @@ outcome_panels <- lapply(outcome_panels, function(panel) {
   panel + theme(legend.position = "none", plot.margin = margin(6, 5, 6, 5))
 })
 summary_row <- plot_grid(
-  alpha_plot + theme(legend.text = element_text(size = 10), legend.title = element_blank()),
-  observed_plot,
-  labels = c("A", "C"), label_size = 16,
-  nrow = 1, rel_widths = c(1, 1.45), align = "h", axis = "tb"
+  threshold_plot, density_plot,
+  labels = c("A", "B"), label_size = 16,
+  nrow = 1, rel_widths = c(1, 1.3)
 )
-scatter_row <- plot_grid(scatter_plot, labels = "B", label_size = 16)
+scatter_row <- plot_grid(scatter_plot, labels = "C", label_size = 16)
 outcome_row <- plot_grid(
   plotlist = outcome_panels,
   labels = c("D", "E", "F", "G"), label_size = 16,
@@ -345,7 +357,7 @@ outcome_section <- plot_grid(
 )
 application_figure <- plot_grid(
   summary_row, scatter_row, outcome_section,
-  ncol = 1, rel_heights = c(1.05, 1.7, 1.3)
+  ncol = 1, rel_heights = c(1.45, 1.6, 1.3)
 )
 
 ggsave(
