@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the unchanged 20-record screen with explicit source-review flags.
+"""Render the ten largest calculated eJAB values with numerical p reports.
 
 This is a presentation layer: it does not overwrite eligibility or eJAB values.
 The source review is documented in jlp_source_audit_20261106.md and its CSV.
@@ -12,8 +12,13 @@ ROOT = Path(__file__).resolve().parents[2]
 MANUSCRIPT = ROOT / "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors"
 ROWS = list(csv.DictReader((ROOT / "analysis/early_phase/outputs/jlp_cases.csv").open()))
 assert len(ROWS) == 20 and len({r["catalog_id"] for r in ROWS}) == 20
+NUMERIC_ROWS = [row for row in ROWS
+                if row["p_left_censored"] == "FALSE" and row["bf_is_upper_bound"] == "FALSE"]
+assert len(NUMERIC_ROWS) == 11
+assert all(not any(symbol in row["p_reported"] for symbol in ("<", ">", "≤", "≥"))
+           for row in NUMERIC_ROWS)
+TOP_ROWS = sorted(NUMERIC_ROWS, key=lambda row: (-float(row["ejab_01"]), row["catalog_id"]))[:10]
 HIGHLIGHTS = {"J05", "J06", "J09"}
-SOURCE_FLAGS = {"J03": "C", "J04": "S", "J08": "C", "J18": "D", "J19": "M,S", "J20": "M,S"}
 
 
 def escape(text):
@@ -26,52 +31,64 @@ def table_row(row):
     method = {"Logistic regression": "Logit", "Two-sample t-test": "$t$", "One-way ANOVA": "ANOVA"}[row["test_class"]]
     bf = float(row["ejab_01"])
     bf_text = rf"$\le {math.ceil(bf * 100) / 100:.2f}$" if row["bf_is_upper_bound"] == "TRUE" else f"${bf:.2f}$"
-    flags = row["table_flag"] + ("," + SOURCE_FLAGS[ident] if ident in SOURCE_FLAGS else "")
     phase = row["phase"].replace("Phase ", "")
     cells = [ident, rf"\href{{{row['registry_url']}}}{{{row['nctId']}}}\newline Phase {phase}",
              escape(row["table_outcome"]), method, row["sample_size"],
-             "$" + row["p_reported"].replace(" ", "") + "$", bf_text, flags]
+             "$" + row["p_reported"].replace(" ", "").removeprefix("=") + "$", bf_text]
     if ident in HIGHLIGHTS:
         cells = [r"{\bfseries\boldmath " + cell + "}" for cell in cells]
     return " & ".join(cells) + r" \\[2pt]"
 
 
-CAPTION = (r"Registry records selected by the automated screen $p_{\mathrm{NHST}}\le .05$ and calculated eJAB $>3$, "
-           r"before detailed source review. Bold rows identify three candidate illustrations for review. Flags distinguish numerical reports, "
-           r"bounds, and source qualifications; this is not a list of 20 verified paradoxes.")
-NOTES = (
-    r"\textit{Notes.} All screened calculations used $q=1$ and the two-sided/unrestricted rule. "
-    r"Logit: logistic regression; $t$: two-sample $t$-test. N: numerical report; B: reported upper bound on $p$, "
-    r"giving only an upper bound on eJAB (rounded upward). E: equivalence/bioequivalence context. "
-    r"C: reported $p$ and confidence interval require method reconciliation. "
-    r"S: the extracted outcome-level denominator differs from the analysis-specific count. "
-    r"D: source identifies a one-sided $p$-value; J18 fails $p_1\le .025$. "
-    r"M: Benjamini--Hochberg-adjusted $p$-value, unsuitable for direct inversion as an ordinary test $p$-value. "
-    r"J04 uses $n=698$ at month 24 rather than 971 (recomputed eJAB $=2.66$); "
-    r"J19--J20 have smaller biomarker-specific denominators. "
-    r"The displayed $n$ and eJAB retain the original screen for audit, rather than silently replacing uncertain inputs. "
-    r"Multiple rows in one trial are not independent replications; numerical reports may be rounded. "
-    r"Source-review fields and primary-source URLs are supplied in the accompanying \texttt{jlp\_source\_audit\_20261106.csv}; full analysis identifiers are retained in \texttt{jlp\_cases.csv}."
-)
+def manuscript_rows(row):
+    ident = row["catalog_id"]
+    display_id = rf"\textbf{{{ident}}}" if ident in HIGHLIGHTS else ident
+    trial = (rf"{display_id}\quad\href{{{row['registry_url']}}}{{{row['nctId']}}}"
+             rf"\hfill {escape(row['phase'])}")
+    method = {"Logistic regression": "Logistic regression", "Two-sample t-test": "$t$-test",
+              "One-way ANOVA": "ANOVA"}[row["test_class"]]
+    analysis = rf"\textit{{{method}}}; $n={row['sample_size']}$"
+    outcome = escape(row["table_outcome"]) + r"\newline " + analysis
+    p_text = "$" + row["p_reported"].replace(" ", "").removeprefix("=") + "$"
+    bf = float(row["ejab_01"])
+    bf_text = rf"$\le {math.ceil(bf * 100) / 100:.2f}$" if row["bf_is_upper_bound"] == "TRUE" else f"${bf:.2f}$"
+    if ident in HIGHLIGHTS:
+        bf_text = r"{\bfseries\boldmath " + bf_text + "}"
+    return [r"\multicolumn{3}{@{}p{\linewidth}@{}}{" + trial + r"} \\[2pt]",
+            " & ".join([outcome, p_text, bf_text]) + r" \\"]
+
+
+CAPTION = (r"Ten largest calculated eJAB values among records in the Jeffreys--Lindley screening "
+           r"catalogue with numerically reported $p$-values, in descending order.")
 
 
 def render(target, label, response=False):
-    env = "table" if response else "table*"
-    # A full-width compact table preserves every row and comparison while
-    # avoiding a multi-page longtable in the two-column manuscript class.
+    env = "table"
+    placement = "p" if response else "!htbp"
+    columns = (r"@{}>{\raggedright\arraybackslash}p{.04\linewidth}>{\raggedright\arraybackslash}p{.16\linewidth}>{\raggedright\arraybackslash}p{.39\linewidth}>{\raggedright\arraybackslash}p{.09\linewidth}>{\raggedleft\arraybackslash}p{.05\linewidth}>{\raggedleft\arraybackslash}p{.075\linewidth}>{\raggedleft\arraybackslash}p{.08\linewidth}@{}"
+               if response else
+               r"@{}>{\raggedright\arraybackslash}p{\dimexpr.66\linewidth-4pt\relax}>{\raggedleft\arraybackslash}p{\dimexpr.17\linewidth-2pt\relax}>{\raggedleft\arraybackslash}p{\dimexpr.17\linewidth-2pt\relax}@{}")
+    header = ("ID & Trial / phase & Outcome or comparison & Test & $n$ & $p$ & eJAB "
+              if response else "Outcome and analysis & $p$ & eJAB ")
+    # Retain stable catalogue identifiers and reported inequality notation.
     text = ["% Generated by analysis/early_phase/render_jlp_tables.py; requires array.",
-            rf"\begin{{{env}}}[p]", r"\centering", r"\begingroup"]
+            rf"\begin{{{env}}}[{placement}]", r"\centering", r"\begingroup"]
     if response:
         text.append(r"\color{red}")
     text += [r"\fontsize{8.5}{10}\selectfont", r"\setlength{\tabcolsep}{2pt}",
              r"\renewcommand{\arraystretch}{1.03}",
              r"\caption{" + CAPTION + r"}\label{" + label + "}",
-             r"\begin{tabular}{@{}>{\raggedright\arraybackslash}p{.04\linewidth}>{\raggedright\arraybackslash}p{.16\linewidth}>{\raggedright\arraybackslash}p{.35\linewidth}>{\raggedright\arraybackslash}p{.075\linewidth}>{\raggedleft\arraybackslash}p{.05\linewidth}>{\raggedleft\arraybackslash}p{.075\linewidth}>{\raggedleft\arraybackslash}p{.065\linewidth}>{\raggedright\arraybackslash}p{.07\linewidth}@{}}",
-             r"\toprule", "ID & Trial / phase & Outcome or comparison & Test & $n$ & $p$ & eJAB & Flags " + chr(92) * 2,
+             r"\begin{tabular}{" + columns + "}",
+             r"\toprule", header + chr(92) * 2,
              r"\midrule"]
-    text += [table_row(row) for row in ROWS]
-    text += [r"\bottomrule", r"\end{tabular}", r"\par\vspace{4pt}",
-             r"\begin{minipage}{.98\linewidth}\fontsize{8}{9.3}\selectfont " + NOTES + r"\end{minipage}",
+    if response:
+        text += [table_row(row) for row in TOP_ROWS]
+    else:
+        for i, row in enumerate(TOP_ROWS):
+            if i:
+                text.append(r"\midrule[.25pt]")
+            text += manuscript_rows(row)
+    text += [r"\bottomrule", r"\end{tabular}",
              r"\endgroup", rf"\end{{{env}}}"]
     target.write_text("\n".join(text) + "\n")
 
@@ -79,4 +96,4 @@ def render(target, label, response=False):
 if __name__ == "__main__":
     render(MANUSCRIPT / "REVISION/JLP_cases_main.tex", "tab:jlp_cases_main")
     render(MANUSCRIPT / "response_to_reviewers/JLP_cases_response.tex", "tab:jlp_cases_response", response=True)
-    print("Rendered 20 records, highlighting J05, J06, J09; original screen values retained.")
+    print("Rendered ten largest calculated eJAB values with numerical p reports: " + ", ".join(row["catalog_id"] for row in TOP_ROWS))
