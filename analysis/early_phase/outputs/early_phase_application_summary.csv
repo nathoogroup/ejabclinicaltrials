@@ -5,6 +5,9 @@ statistical_test_classes,8
 results_p_le_0_05,6474
 contradictions_p_le_0_05_ejab_gt_1,493
 contradictions_p_le_0_01_ejab_gt_1,0
-jlp_p_le_0_05_ejab_gt_3,20
+jlp_screened_cases_p_le_0_05_ejab_gt_3,20
+jlp_numeric_reports,11
+jlp_left_censored_reports,9
+jlp_hypothesis_context_flags,4
 weak_evidence_posterior_mean,0.34986038557843174
 weak_evidence_posterior_sd,0.004634072366872322

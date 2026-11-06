@@ -1,0 +1,9 @@
+step,criterion,excluded_at_step,retained,studies_retained
+1,Unique statistical analyses in archived extraction,0,279927,22454
+2,After removing four prespecified malformed analysis identifiers,4,279923,22453
+3,Interventional studies,11893,268030,21500
+4,"Exact Early Phase I, Phase I, or Phase II classification",175191,92839,6302
+5,Primary- and secondary-outcome analyses,1806,91033,6277
+6,"Parseable p-value in (0,1), excluding right-censored reports",26665,64368,4461
+7,Method mapped to a prespecified eJAB test class,47214,17154,1877
+8,Required denominator counts and test dimension available,591,16563,1790

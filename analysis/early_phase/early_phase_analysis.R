@@ -365,6 +365,13 @@ ggsave(file.path(figure_dir, "early_phase_posterior.png"), density_figure,
 ggsave(file.path(response_figure_dir, "early_phase_posterior.png"), density_figure,
        width = 10.5, height = 3.5, units = "in", dpi = 400)
 
+# The primary phase comparison uses observed counts and trial-cluster
+# bootstrap intervals; the previous density remains an audit/sensitivity output.
+source(file.path(script_dir, "clinical_phase_summary.R"))
+clinical_summary <- summarise_clinical_phases(eligible)
+write_clinical_phase_summary(clinical_summary, output_dir,
+                             c(figure_dir, response_figure_dir))
+
 alpha_grid <- seq(0.001, 0.25, by = 0.001)
 alpha_profile <- bind_rows(lapply(phase_levels, function(phase_name) {
   phase_frame <- filter(eligible, phase == phase_name)

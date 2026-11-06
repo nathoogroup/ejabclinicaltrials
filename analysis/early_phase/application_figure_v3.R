@@ -1,0 +1,363 @@
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages({
+  library(cowplot)
+  library(dplyr)
+  library(ggplot2)
+  library(readr)
+  library(tidyr)
+})
+
+args <- commandArgs(trailingOnly = FALSE)
+script_arg <- grep("^--file=", args, value = TRUE)
+script_dir <- dirname(normalizePath(sub("^--file=", "", script_arg)))
+response_dir <- normalizePath(file.path(script_dir, ".."))
+revision_dir <- normalizePath(file.path(script_dir, "figures"))
+output_dir <- file.path(script_dir, "outputs")
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+sample_levels <- c("[2, 30)", "[30, 900)", "[900, 30K)",
+                   "[30K, 900K)", "[900K, 6030K]")
+phase_levels <- c("Early Phase I", "Phase I", "Phase II")
+
+eligible_file <- file.path(output_dir, "eligible_early_phase_analyses.csv")
+if (!file.exists(eligible_file)) {
+  stop("Run early_phase_analysis.R before application_figure_revised.R")
+}
+
+early_phase_data <- read_csv(eligible_file, show_col_types = FALSE) %>%
+  transmute(
+    analysisId,
+    nctId,
+    outcomeTitle,
+    outcomeType,
+    exact_phase = phase,
+    pValue = p_nhst,
+    p_left_censored,
+    statistically_significant,
+    statisticalMethod = test_class,
+    N = sample_size,
+    JAB = ejab_01
+  )
+
+scatter_data <- early_phase_data %>%
+  mutate(
+    logJAB = log(JAB),
+    sample_group = case_when(
+      N < 30 ~ "[2, 30)",
+      N < 900 ~ "[30, 900)",
+      N < 30000 ~ "[900, 30K)",
+      N < 900000 ~ "[30K, 900K)",
+      TRUE ~ "[900K, 6030K]"
+    ),
+    sample_group = factor(sample_group, levels = sample_levels)
+  )
+
+test_counts <- scatter_data %>%
+  count(statisticalMethod, name = "count")
+test_labels <- setNames(
+  paste0(test_counts$statisticalMethod, " (", test_counts$count, ")"),
+  test_counts$statisticalMethod
+)
+
+evidence_bands <- tibble(
+  ymin = c(-6, log(1 / 3), log(3)),
+  ymax = c(log(1 / 3), log(3), 3),
+  fill = c("#A6C7E5", "#B4B4B4", "#FFB84D")
+)
+
+scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
+  geom_rect(
+    data = evidence_bands,
+    aes(xmin = 0, xmax = 2, ymin = ymin, ymax = ymax, fill = fill),
+    alpha = 0.18,
+    inherit.aes = FALSE
+  ) +
+  geom_point(
+    aes(color = statisticalMethod, shape = sample_group),
+    size = 0.55,
+    alpha = 0.68
+  ) +
+  geom_vline(xintercept = 0.05, linetype = "dashed", linewidth = 0.55) +
+  geom_hline(yintercept = c(log(1 / 3), log(3)),
+             linetype = "dashed", linewidth = 0.55) +
+  scale_fill_identity() +
+  scale_color_brewer(
+    name = "Test",
+    palette = "Paired",
+    labels = test_labels
+  ) +
+  scale_shape_manual(name = "Sample size", values = c(17, 15, 16, 1, 8)) +
+  guides(
+    color = guide_legend(override.aes = list(size = 2.3, alpha = 1), ncol = 1),
+    shape = guide_legend(override.aes = list(size = 2.3), ncol = 1)
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    legend.key.height = unit(0.36, "cm"),
+    legend.text = element_text(size = 8.5),
+    legend.title = element_text(size = 9.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+scatter_main <- scatter_base +
+  coord_cartesian(xlim = c(0, 2), ylim = c(-6, 3), expand = FALSE) +
+  scale_x_continuous(
+    name = expression(italic(p)[NHST]),
+    breaks = seq(0, 2, 0.5),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    name = expression("ln " * italic(eJAB)["01"]),
+    breaks = seq(-6, 3, 3),
+    expand = c(0, 0)
+  )
+
+scatter_inset <- scatter_base +
+  coord_cartesian(xlim = c(0, 0.05), ylim = c(-3, 3), expand = FALSE) +
+  scale_x_continuous(
+    name = NULL,
+    breaks = c(0, 0.025, 0.05),
+    labels = c("0", ".025", ".05"),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(name = NULL, breaks = c(-3, 0, 3), expand = c(0, 0)) +
+  theme(
+    legend.position = "none",
+    axis.title = element_blank(),
+    axis.text = element_text(size = 7),
+    axis.ticks = element_line(linewidth = 0.35),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white", color = "black", linewidth = 0.7)
+  )
+
+scatter_plot <- ggdraw(scatter_main) +
+  draw_plot(scatter_inset, x = 0.20, y = 0.10, width = 0.55, height = 0.60)
+
+phase_data <- early_phase_data %>%
+  mutate(
+    phase = exact_phase,
+    phase = factor(phase, levels = phase_levels)
+  )
+
+# Use the same directional sweep as the reviewer-response figure.
+alpha_profile <- read_csv(
+  file.path(output_dir, "early_phase_alpha_profile.csv"), show_col_types = FALSE
+) %>%
+  mutate(phase = factor(phase, levels = phase_levels))
+
+alpha_plot <- ggplot(alpha_profile, aes(alpha, contradiction_rate, color = phase)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dotted", linewidth = 0.6) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  scale_x_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, 0.05), expand = expansion(mult = c(0, 0.015))) +
+  scale_y_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, 0.05), expand = expansion(mult = c(0, 0.015))) +
+  labs(
+    x = expression("Significance level " * alpha),
+    y = "Contradiction rate",
+    color = "Trial phase"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+draw_phase_posterior <- function(phase_frame, n_sim = 5000, bf_threshold = 1) {
+  study_counts <- phase_frame %>%
+    group_by(nctId) %>%
+    summarise(
+      weight = n(),
+      y1 = sum(!statistically_significant & JAB <= bf_threshold),
+      y2 = sum(!statistically_significant & JAB > bf_threshold),
+      y3 = sum(statistically_significant & JAB <= bf_threshold),
+      y4 = sum(statistically_significant & JAB > bf_threshold),
+      .groups = "drop"
+    )
+
+  numerator <- numeric(n_sim)
+  denominator <- numeric(n_sim)
+  for (index in seq_len(nrow(study_counts))) {
+    alpha <- 1 + unlist(study_counts[index, c("y1", "y2", "y3", "y4")],
+                        use.names = FALSE)
+    draws <- vapply(alpha, function(shape) rgamma(n_sim, shape = shape),
+                    numeric(n_sim))
+    draws <- draws / rowSums(draws)
+    weight <- study_counts$weight[index]
+    numerator <- numerator + weight * draws[, 4]
+    denominator <- denominator + weight * (draws[, 3] + draws[, 4])
+  }
+
+  tibble(draw = seq_len(n_sim), value = numerator / denominator)
+}
+
+set.seed(20260828)
+posterior_long <- bind_rows(lapply(phase_levels, function(phase_name) {
+  draw_phase_posterior(filter(phase_data, phase == phase_name)) %>%
+    mutate(phase = phase_name)
+})) %>%
+  mutate(phase = factor(phase, levels = phase_levels))
+
+posterior_summary <- posterior_long %>%
+  group_by(phase) %>%
+  summarise(
+    mean = mean(value),
+    lower = quantile(value, 0.025),
+    upper = quantile(value, 0.975),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    phase_data %>%
+      group_by(phase) %>%
+      summarise(analyses = n(), studies = n_distinct(nctId), .groups = "drop"),
+    by = "phase"
+  )
+
+write_csv(
+  posterior_long,
+  file.path(output_dir, "early_phase_contradiction_posterior_draws.csv")
+)
+write_csv(
+  posterior_summary,
+  file.path(output_dir, "early_phase_contradiction_posterior_summary.csv")
+)
+
+set.seed(20260903)
+weak_evidence_posterior <- draw_phase_posterior(
+  scatter_data,
+  n_sim = 20000,
+  bf_threshold = 1 / 3
+)
+
+# BF > 3 at a reported p-value bound is a screening flag, not a confirmed
+# JLP case. Keep numeric reports, censored reports and hypothesis flags explicit.
+jlp_screened <- filter(scatter_data, statistically_significant, JAB > 3)
+jlp_hypothesis_flags <- NA_integer_
+jlp_catalog_file <- file.path(output_dir, "jlp_cases.csv")
+if (file.exists(jlp_catalog_file)) {
+  jlp_catalog <- read_csv(jlp_catalog_file, show_col_types = FALSE)
+  stopifnot(!anyDuplicated(jlp_catalog$analysisId),
+            setequal(jlp_catalog$analysisId, jlp_screened$analysisId))
+  jlp_hypothesis_flags <- sum(jlp_catalog$hypothesis_context_flag)
+}
+
+application_summary <- tibble(
+  metric = c(
+    "eligible_results",
+    "eligible_trials",
+    "statistical_test_classes",
+    "results_p_le_0_05",
+    "contradictions_p_le_0_05_ejab_gt_1",
+    "contradictions_p_le_0_01_ejab_gt_1",
+    "jlp_screened_cases_p_le_0_05_ejab_gt_3",
+    "jlp_numeric_reports",
+    "jlp_left_censored_reports",
+    "jlp_hypothesis_context_flags",
+    "weak_evidence_posterior_mean",
+    "weak_evidence_posterior_sd"
+  ),
+  value = c(
+    nrow(scatter_data),
+    n_distinct(scatter_data$nctId),
+    n_distinct(scatter_data$statisticalMethod),
+    sum(scatter_data$statistically_significant),
+    sum(scatter_data$statistically_significant & scatter_data$JAB > 1),
+    sum(scatter_data$pValue <= 0.01 & scatter_data$JAB > 1),
+    nrow(jlp_screened),
+    sum(!jlp_screened$p_left_censored),
+    sum(jlp_screened$p_left_censored),
+    jlp_hypothesis_flags,
+    mean(weak_evidence_posterior$value),
+    sd(weak_evidence_posterior$value)
+  )
+)
+
+write_csv(
+  application_summary,
+  file.path(output_dir, "early_phase_application_summary.csv")
+)
+write_csv(
+  scatter_data %>%
+    filter(statistically_significant, JAB > 1) %>%
+    transmute(
+      analysisId,
+      nctId,
+      phase = exact_phase,
+      outcomeTitle,
+      outcomeType,
+      statisticalMethod,
+      sample_size = N,
+      p_value = pValue,
+      ejab_01 = JAB,
+      reported_as_inequality = p_left_censored
+    ),
+  file.path(output_dir, "early_phase_candidate_contradictions.csv")
+)
+
+# Keep the previous Dirichlet summaries for the sensitivity audit, while the
+# primary panel reports the observed ratio with whole-trial bootstrap intervals.
+source(file.path(script_dir, "clinical_phase_summary.R"))
+clinical_summary <- summarise_clinical_phases(
+  phase_data %>% transmute(phase, nctId, statistically_significant,
+                          ejab_01 = JAB, p_nhst = pValue)
+)
+write_clinical_phase_summary(
+  clinical_summary, output_dir,
+  file.path(script_dir, "figures")
+)
+observed_plot <- make_clinical_phase_plot(clinical_summary$summary, base_size = 12)
+prior_audit_plot <- make_clinical_prior_audit_plot(posterior_long, clinical_summary$summary)
+ggsave(file.path(revision_dir, "FigureS10_posterior_audit.png"), prior_audit_plot,
+       width = 10.5, height = 4.5, units = "in", dpi = 400, bg = "white")
+
+# Preserve the original A-C labels: summaries on top and scatterplot B
+# across the middle. The former Figure 4 panels occupy the bottom row D-G,
+# with unadjusted and adjusted results adjacent within each outcome type.
+evidence_environment <- new.env(parent = environment())
+sys.source(file.path(script_dir, "figure4_revised.R"), envir = evidence_environment)
+evidence_data <- read_csv(eligible_file, show_col_types = FALSE)
+outcome_panels <- list(
+  evidence_environment$make_panel(evidence_data, "PRIMARY", FALSE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "PRIMARY", TRUE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "SECONDARY", FALSE, compact = TRUE),
+  evidence_environment$make_panel(evidence_data, "SECONDARY", TRUE, compact = TRUE)
+)
+outcome_legend <- get_legend(
+  outcome_panels[[1]] + theme(legend.position = "bottom", legend.text = element_text(size = 12))
+)
+outcome_panels <- lapply(outcome_panels, function(panel) {
+  panel + theme(legend.position = "none", plot.margin = margin(6, 5, 6, 5))
+})
+summary_row <- plot_grid(
+  alpha_plot + theme(legend.text = element_text(size = 10), legend.title = element_blank()),
+  observed_plot,
+  labels = c("A", "C"), label_size = 16,
+  nrow = 1, rel_widths = c(1, 1.45), align = "h", axis = "tb"
+)
+scatter_row <- plot_grid(scatter_plot, labels = "B", label_size = 16)
+outcome_row <- plot_grid(
+  plotlist = outcome_panels,
+  labels = c("D", "E", "F", "G"), label_size = 16,
+  nrow = 1, align = "h", axis = "tb"
+)
+outcome_section <- plot_grid(
+  outcome_row, outcome_legend, ncol = 1, rel_heights = c(1, 0.09)
+)
+application_figure <- plot_grid(
+  summary_row, scatter_row, outcome_section,
+  ncol = 1, rel_heights = c(1.05, 1.7, 1.3)
+)
+
+ggsave(
+  file.path(revision_dir, "Figure3_V3.png"),
+  application_figure,
+  width = 12,
+  height = 13.2,
+  dpi = 300,
+  bg = "white"
+)
+
+print(application_summary)
+print(posterior_summary)
+print(clinical_summary$summary)
+print(clinical_summary$raw_evidence_summary)

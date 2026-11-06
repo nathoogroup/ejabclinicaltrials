@@ -1,0 +1,30 @@
+{
+  "root_commit": "fdfa57a7c8cfbd3929f20e31d763281a7790a16b",
+  "manuscript_commit": "a6bc833d7f1afad4779b637aa0b9434c29744fd0",
+  "sha256": {
+    "Figure 3/setup.RData": "dca72aae2c8d2b59f68331163122c9e84f329a3e729749b6ff19bf54e8fd4fb6",
+    "jtc/study3.zip": "7f481eb59dcccc39e27835a92f48d33d7e86adce4b9a03050849a9704ec73c8f",
+    "rfuncs/DirichletMultinomial.R": "dd5822f52c029d8eb235260e7570fa295b38bf932369ca9afdbc5f5a5c216f56",
+    "Figure 3/Figure 3.R": "3a1d5ff423060dc625fb3a26d016875a513fd07e393bc338666012ee6ae2b6f5",
+    "analysis/early_phase/early_phase_analysis.R": "c62fabb0c6c29a73d0dd4440c78f3198a7c2adcb05de8ee79b093dec72298ffc",
+    "analysis/early_phase/application_figure_revised.R": "2dd798914e7ab1dad4c5f1b8889b4e6e52bd1b8adfbb008876399a2e7b99b295",
+    "analysis/early_phase/outputs/early_phase_alpha_profile.csv": "fca084880b60d35954b1f7305e863de9332e647a16eeedfffc621770b0d4cde0",
+    "analysis/early_phase/outputs/early_phase_application_summary.csv": "4b0713d3798637ab099a1fc406a63401ec976f3b4bd4ab3e27fc42a21b1d8ab6",
+    "analysis/early_phase/outputs/early_phase_candidate_contradictions.csv": "dc61dddf285a6356ea2ac2c4b954c536e3f22d3fe7e50b32f90b8de1e6916f49",
+    "analysis/early_phase/outputs/early_phase_contradiction_posterior_draws.csv": "2c1d3bb31cf2d2d66ad7866dfef0d7543d16f91c8e16d483435783d7b69cc5af",
+    "analysis/early_phase/outputs/early_phase_contradiction_posterior_summary.csv": "0bac7b94bc43be317f4fc8d34c3b90aaca8718f335ca033eb7e41b99939a9867",
+    "analysis/early_phase/outputs/eligible_early_phase_analyses.csv": "06af25a40543d6959d9b8b1f500fc13dfc5c8d687c9ab26f528e907b9e0bbe33",
+    "analysis/early_phase/outputs/inclusion_exclusion_flow.csv": "4ca6a0f46684534533e54350efc1f6de607e5795de483fc2a4a8fb957ef894a2",
+    "analysis/early_phase/outputs/mesh_tree_numbers.csv": "71e82ac3d985e3f74d956bed2e68a3518933370c0e2890962e20caa356f45005",
+    "analysis/early_phase/outputs/mixed_model_summary.csv": "9e62095d81fb9818e702ab3e2d7946ff9ebb9e00a1a3536b6757797d560b08f6",
+    "analysis/early_phase/outputs/phase_summary.csv": "4b64f1a726e02976f7bd59b0f3145441fcc5bab26a1c1b32e407acf26fde00ea",
+    "analysis/early_phase/outputs/posterior_draws.csv": "7e307b210191b334e62b2a9b4c5e9bac3678289e446e0d4b0c38fc1641f0be31",
+    "analysis/early_phase/outputs/posterior_summary.csv": "3d03839d2cc7640069ee75b11965e3e2c8919f4fcbdab03e65e8ac81517cd92e",
+    "analysis/early_phase/outputs/test_summary.csv": "47a38d1fa65f9c70beb81d373ef23432d6040b37cf0b741d88f3bf0f8205e059",
+    "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors/manuscript/submitted1022.tex": "5710a29dd2ff6dff29eaaf5d872de4bae52fe6d6ff94152ce662b7538fff7f6b",
+    "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors/REVISION/REVISED.tex": "2b11dc69d7e3f70333c5dcc29899329d3b1ef9eafc160db7909b1f6a8c8a52f0",
+    "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors/REVISION/SI.tex": "3f3834e8448d55bb32b018d956368fdc2704f1d59250eabc76bb56e581000953",
+    "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors/response_to_reviewers/Response_to_Reviewers.tex": "63c8a737d1c80b89d91f4d7d95024bcb5f09920f3e988d0cb7a7f4be1a71c790"
+  },
+  "checks": "Independent Python reconstruction of all old/current eJABs, directional NHST flags, contradiction flags, and exact prior decomposition passed."
+}

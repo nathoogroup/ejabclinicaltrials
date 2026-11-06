@@ -1,0 +1,11 @@
+step,threshold,analyses,studies,significant,flagged,empirical
+Original full cohort,0.3333333333333333,71126,9002,30790,11369,0.3692432607989607
+Original full cohort,1,71126,9002,30790,4088,0.13277037999350438
+"Original: interventional exact early phases, primary/secondary",0.3333333333333333,17227,1888,6955,2285,0.32854061826024444
+"Original: interventional exact early phases, primary/secondary",1,17227,1888,6955,544,0.07821710999281092
+Original values on IDs shared with revision,0.3333333333333333,16463,1782,6470,2020,0.312210200927357
+Original values on IDs shared with revision,1,16463,1782,6470,498,0.07697063369397218
+Revised values on IDs shared with original,0.3333333333333333,16463,1782,6470,1991,0.3077279752704791
+Revised values on IDs shared with original,1,16463,1782,6470,492,0.07604327666151468
+Revised full cohort,0.3333333333333333,16563,1790,6474,1994,0.3080012357120791
+Revised full cohort,1,16563,1790,6474,493,0.07615075687364845
