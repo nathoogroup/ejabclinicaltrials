@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""Insert only generated prior-sensitivity result artifacts, without prose edits."""
+"""Regenerate the SI input and a review copy for the consolidated response.
+
+The response copy in tmp/early_phase_latex requires manual review and transfer;
+the consolidated response document is not edited.
+"""
 import csv
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MANUSCRIPT = ROOT / "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors"
+REVIEW_DIR = ROOT / "tmp/early_phase_latex"
 ROWS = list(csv.DictReader((ROOT / "analysis/early_phase/outputs/prior_sensitivity_summary.csv").open()))
 PHASES = ["Early Phase I", "Phase I", "Phase II"]
 PRIORS = [1e-2, 1e-4, 1e-6]
 CAPTION = (r"Posterior sensitivity for the proportion of NHST-significant records with eJAB $>1$. "
            r"Each phase panel overlays kernel density estimates from 50,000 posterior draws under independent "
-           r"per-trial Dirichlet$(a,a,a,a)$ priors, with the original eligible-analysis-count weights. "
+           r"per-trial Dirichlet$(a,a,a,a)$ priors, with eligible-analysis-count weights. "
            r"Grey dashed lines mark observed screening proportions; panel axes differ. "
            r"The eligible set, NHST rule, and eJAB threshold are held fixed across priors. "
            r"Small symmetric concentration parameters favor boundary configurations; the curves assess "
@@ -49,5 +54,8 @@ def render(path, response=False):
 
 
 if __name__ == "__main__":
-    render(MANUSCRIPT / "REVISION/Prior_sensitivity_results.tex")
-    render(MANUSCRIPT / "response_to_reviewers/Prior_sensitivity_results_response.tex", response=True)
+    REVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    render(MANUSCRIPT / "SI/Prior_sensitivity_results.tex")
+    render(REVIEW_DIR / "Prior_sensitivity_results_response.tex", response=True)
+    print(f"Regenerated SI input: {MANUSCRIPT / 'SI/Prior_sensitivity_results.tex'}")
+    print(f"Response review copy: {REVIEW_DIR / 'Prior_sensitivity_results_response.tex'}; transfer reviewed changes into the consolidated response manually.")

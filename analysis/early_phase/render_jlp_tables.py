@@ -3,13 +3,15 @@
 
 This is a presentation layer: it does not overwrite eligibility or eJAB values.
 The source review is documented in jlp_source_audit_20261106.md and its CSV.
+Generated copies in tmp/early_phase_latex require manual review and transfer
+into the consolidated manuscript and response; those documents are not edited.
 """
 import csv
 import math
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MANUSCRIPT = ROOT / "Reassessing_the_Statistical_Evidence_in_Cancer_Research_Using_Approximate_Objective_Bayes_Factors"
+REVIEW_DIR = ROOT / "tmp/early_phase_latex"
 ROWS = list(csv.DictReader((ROOT / "analysis/early_phase/outputs/jlp_cases.csv").open()))
 assert len(ROWS) == 20 and len({r["catalog_id"] for r in ROWS}) == 20
 NUMERIC_ROWS = [row for row in ROWS
@@ -94,6 +96,8 @@ def render(target, label, response=False):
 
 
 if __name__ == "__main__":
-    render(MANUSCRIPT / "REVISION/JLP_cases_main.tex", "tab:jlp_cases_main")
-    render(MANUSCRIPT / "response_to_reviewers/JLP_cases_response.tex", "tab:jlp_cases_response", response=True)
+    REVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    render(REVIEW_DIR / "JLP_cases_main.tex", "tab:jlp_cases_main")
+    render(REVIEW_DIR / "JLP_cases_response.tex", "tab:jlp_cases_response", response=True)
     print("Rendered ten largest calculated eJAB values with numerical p reports: " + ", ".join(row["catalog_id"] for row in TOP_ROWS))
+    print(f"Review copies: {REVIEW_DIR}; transfer reviewed changes into the consolidated documents manually.")

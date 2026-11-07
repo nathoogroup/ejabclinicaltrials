@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Build the outcome-distribution panels used in manuscript Figure 3D-G.
+# Build the outcome-distribution panels used in the clinical profiles C-F.
 # Sourcing this file provides make_panel() without writing a figure. Running it
 # directly also reproduces the legacy Figure 4 layout for comparison.
 
@@ -23,7 +23,7 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE, compact = FA
     mutate(
       Phase = phase,
       Phase = factor(Phase, levels = c("Early Phase I", "Phase I", "Phase II")),
-      logP = log(p_nhst),
+      logP = log(p_two_sided),
       logJAB = log(ejab_01),
       N = sample_size,
       Study = nctId
@@ -77,7 +77,7 @@ make_panel <- function(data, outcome = "PRIMARY", adjusted = FALSE, compact = FA
     }) +
     scale_fill_manual(
       values = c(logJAB = "#1f77b4", logP = "#ff7f0e"),
-      labels = c(expression("ln" ~ italic("eJAB")["01"]), expression("ln" ~ italic(p)[NHST]))
+      labels = c(expression("ln" ~ italic("eJAB")["01"]), expression("ln" ~ italic(p)))
     ) +
     theme_minimal() +
     theme(

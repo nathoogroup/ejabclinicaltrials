@@ -11,10 +11,8 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = FALSE)
 script_arg <- grep("^--file=", args, value = TRUE)
 script_dir <- dirname(normalizePath(sub("^--file=", "", script_arg)))
-response_dir <- normalizePath(file.path(script_dir, ".."))
 revision_dir <- normalizePath(file.path(script_dir, "figures"))
 output_dir <- file.path(script_dir, "outputs")
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 sample_levels <- c("[2, 30)", "[30, 900)", "[900, 30K)",
                    "[30K, 900K)", "[900K, 6030K]")
@@ -32,7 +30,7 @@ early_phase_data <- read_csv(eligible_file, show_col_types = FALSE) %>%
     outcomeTitle,
     outcomeType,
     exact_phase = phase,
-    pValue = p_nhst,
+    pValue = p_two_sided,
     p_left_censored,
     statistically_significant,
     statisticalMethod = test_class,
@@ -106,7 +104,7 @@ scatter_base <- ggplot(scatter_data, aes(pValue, logJAB)) +
 scatter_main <- scatter_base +
   coord_cartesian(xlim = c(0, 1), ylim = c(-6, 3), expand = FALSE) +
   scale_x_continuous(
-    name = expression(italic(p)[NHST]),
+    name = "Two-sided p-value",
     breaks = seq(0, 1, 0.25),
     expand = c(0, 0)
   ) +
@@ -135,197 +133,37 @@ scatter_inset <- scatter_base +
   )
 
 scatter_plot <- ggdraw(scatter_main) +
-  draw_plot(scatter_inset, x = 0.20, y = 0.10, width = 0.55, height = 0.60)
+  draw_plot(scatter_inset, x = 0.17, y = 0.13, width = 0.42, height = 0.49)
 
-phase_data <- early_phase_data %>%
-  mutate(
-    phase = exact_phase,
-    phase = factor(phase, levels = phase_levels)
-  )
-
-# Use the same directional sweep as the reviewer-response figure.
-alpha_profile <- read_csv(
-  file.path(output_dir, "early_phase_alpha_profile.csv"), show_col_types = FALSE
-) %>%
-  mutate(phase = factor(phase, levels = phase_levels))
-
-alpha_plot <- ggplot(alpha_profile, aes(alpha, contradiction_rate, color = phase)) +
-  geom_abline(intercept = 0, slope = 1, linetype = "dotted", linewidth = 0.6) +
-  geom_line(linewidth = 1) +
-  scale_color_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
-  scale_x_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, 0.05), expand = expansion(mult = c(0, 0.015))) +
-  scale_y_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, 0.05), expand = expansion(mult = c(0, 0.015))) +
-  labs(
-    x = expression("Significance level " * alpha),
-    y = "Contradiction rate",
-    color = "Trial phase"
-  ) +
-  theme_bw(base_size = 12) +
-  theme(panel.grid.minor = element_blank(), legend.position = "top")
-
-draw_phase_posterior <- function(phase_frame, n_sim = 5000, bf_threshold = 1) {
-  study_counts <- phase_frame %>%
-    group_by(nctId) %>%
-    summarise(
-      weight = n(),
-      y1 = sum(!statistically_significant & JAB <= bf_threshold),
-      y2 = sum(!statistically_significant & JAB > bf_threshold),
-      y3 = sum(statistically_significant & JAB <= bf_threshold),
-      y4 = sum(statistically_significant & JAB > bf_threshold),
-      .groups = "drop"
-    )
-
-  numerator <- numeric(n_sim)
-  denominator <- numeric(n_sim)
-  for (index in seq_len(nrow(study_counts))) {
-    alpha <- 1 + unlist(study_counts[index, c("y1", "y2", "y3", "y4")],
-                        use.names = FALSE)
-    draws <- vapply(alpha, function(shape) rgamma(n_sim, shape = shape),
-                    numeric(n_sim))
-    draws <- draws / rowSums(draws)
-    weight <- study_counts$weight[index]
-    numerator <- numerator + weight * draws[, 4]
-    denominator <- denominator + weight * (draws[, 3] + draws[, 4])
-  }
-
-  tibble(draw = seq_len(n_sim), value = numerator / denominator)
-}
-
-set.seed(20260828)
-posterior_long <- bind_rows(lapply(phase_levels, function(phase_name) {
-  draw_phase_posterior(filter(phase_data, phase == phase_name)) %>%
-    mutate(phase = phase_name)
-})) %>%
-  mutate(phase = factor(phase, levels = phase_levels))
-
-posterior_summary <- posterior_long %>%
-  group_by(phase) %>%
-  summarise(
-    mean = mean(value),
-    lower = quantile(value, 0.025),
-    upper = quantile(value, 0.975),
-    .groups = "drop"
-  ) %>%
-  left_join(
-    phase_data %>%
-      group_by(phase) %>%
-      summarise(analyses = n(), studies = n_distinct(nctId), .groups = "drop"),
-    by = "phase"
-  )
-
-write_csv(
-  posterior_long,
-  file.path(output_dir, "early_phase_contradiction_posterior_draws.csv")
-)
-write_csv(
-  posterior_summary,
-  file.path(output_dir, "early_phase_contradiction_posterior_summary.csv")
-)
-
-set.seed(20260903)
-weak_evidence_posterior <- draw_phase_posterior(
-  scatter_data,
-  n_sim = 20000,
-  bf_threshold = 1 / 3
-)
-
-# BF > 3 at a reported p-value bound is a screening flag, not a confirmed
-# JLP case. Keep numeric reports, censored reports and hypothesis flags explicit.
-jlp_screened <- filter(scatter_data, statistically_significant, JAB > 3)
-jlp_hypothesis_flags <- NA_integer_
-jlp_catalog_file <- file.path(output_dir, "jlp_cases.csv")
-if (file.exists(jlp_catalog_file)) {
-  jlp_catalog <- read_csv(jlp_catalog_file, show_col_types = FALSE)
-  stopifnot(!anyDuplicated(jlp_catalog$analysisId),
-            setequal(jlp_catalog$analysisId, jlp_screened$analysisId))
-  jlp_hypothesis_flags <- sum(jlp_catalog$hypothesis_context_flag)
-}
-
-application_summary <- tibble(
-  metric = c(
-    "eligible_results",
-    "eligible_trials",
-    "statistical_test_classes",
-    "results_p_le_0_05",
-    "contradictions_p_le_0_05_ejab_gt_1",
-    "contradictions_p_le_0_01_ejab_gt_1",
-    "jlp_screened_cases_p_le_0_05_ejab_gt_3",
-    "jlp_numeric_reports",
-    "jlp_left_censored_reports",
-    "jlp_hypothesis_context_flags",
-    "weak_evidence_posterior_mean",
-    "weak_evidence_posterior_sd"
-  ),
-  value = c(
-    nrow(scatter_data),
-    n_distinct(scatter_data$nctId),
-    n_distinct(scatter_data$statisticalMethod),
-    sum(scatter_data$statistically_significant),
-    sum(scatter_data$statistically_significant & scatter_data$JAB > 1),
-    sum(scatter_data$pValue <= 0.01 & scatter_data$JAB > 1),
-    nrow(jlp_screened),
-    sum(!jlp_screened$p_left_censored),
-    sum(jlp_screened$p_left_censored),
-    jlp_hypothesis_flags,
-    mean(weak_evidence_posterior$value),
-    sd(weak_evidence_posterior$value)
-  )
-)
-
-write_csv(
-  application_summary,
-  file.path(output_dir, "early_phase_application_summary.csv")
-)
-write_csv(
-  scatter_data %>%
-    filter(statistically_significant, JAB > 1) %>%
-    transmute(
-      analysisId,
-      nctId,
-      phase = exact_phase,
-      outcomeTitle,
-      outcomeType,
-      statisticalMethod,
-      sample_size = N,
-      p_value = pValue,
-      ejab_01 = JAB,
-      reported_as_inequality = p_left_censored
-    ),
-  file.path(output_dir, "early_phase_candidate_contradictions.csv")
-)
-
-# Keep previous Dirichlet summaries for the sensitivity audit. Primary V3
-# density curves use whole-trial bootstrap draws, with no prior pseudocounts.
-source(file.path(script_dir, "clinical_phase_summary.R"))
-clinical_summary <- summarise_clinical_phases(
-  phase_data %>% transmute(phase, nctId, statistically_significant,
-                          ejab_01 = JAB, p_nhst = pValue)
-)
-write_clinical_phase_summary(
-  clinical_summary, output_dir,
-  file.path(script_dir, "figures")
-)
-observed_plot <- make_clinical_phase_plot(clinical_summary$summary, base_size = 12)
-prior_audit_plot <- make_clinical_prior_audit_plot(posterior_long, clinical_summary$summary)
-ggsave(file.path(revision_dir, "FigureS10_posterior_audit.png"), prior_audit_plot,
-       width = 10.5, height = 4.5, units = "in", dpi = 400, bg = "white")
-
-# V3 separates the overall BF-threshold curve (A), conditional bootstrap
-# densities for contradictions and screened JLPs (B), and scatterplot (C).
-# Alpha profiles remain available as Supplementary Figure S11.
+# This renderer writes the six-panel figure and a large standalone scatterplot.
+# Small-a posterior densities
+# are generated separately; historical a=1 and bootstrap artifacts are retained
+# for reproducibility but are not recomputed or plotted here.
 source(file.path(script_dir, "jlp_phase_panels.R"))
-phase_panels <- compute_jlp_phase_panels(
-  read_csv(eligible_file, show_col_types = FALSE),
-  contradiction_draws = clinical_summary$draws,
-  contradiction_summary = clinical_summary$summary
-)
-write_jlp_phase_panels(phase_panels, output_dir, file.path(script_dir, "figures"))
-threshold_plot <- make_jlp_threshold_plot(phase_panels$threshold_sweep)
-density_plot <- make_combined_phase_density_plot(phase_panels)
-ggsave(file.path(revision_dir, "FigureS11_alpha_profile.png"), alpha_plot,
-       width = 8, height = 5, units = "in", dpi = 400, bg = "white")
+threshold_grid <- sort(unique(c(
+  exp(seq(log(1 / 300), log(300), length.out = 1000)),
+  seq(3, 5, length.out = 1001), 1 / 3, 1, 3,
+  scatter_data$JAB[scatter_data$statistically_significant &
+                   scatter_data$JAB >= 1 / 300 & scatter_data$JAB <= 300]
+)))
+threshold_sweep <- bind_rows(lapply(phase_levels, function(phase_name) {
+  phase_frame <- filter(scatter_data, exact_phase == phase_name)
+  counts <- vapply(threshold_grid, function(threshold) {
+    sum(phase_frame$statistically_significant & phase_frame$JAB > threshold)
+  }, integer(1))
+  stopifnot(all(diff(counts) <= 0))
+  tibble(
+    phase = phase_name,
+    bf_threshold = threshold_grid,
+    screened_results = counts,
+    eligible_analyses = nrow(phase_frame),
+    proportion = counts / nrow(phase_frame)
+  )
+}))
+threshold_plot <- make_jlp_threshold_plot(threshold_sweep)
 
-# Outcome-distribution panels D-G retain their established data and layout.
+# Outcome-distribution panels C-F display folded two-sided p-values; significance
+# membership and eJAB remain those of the original directional analysis.
 evidence_environment <- new.env(parent = environment())
 sys.source(file.path(script_dir, "figure4_revised.R"), envir = evidence_environment)
 evidence_data <- read_csv(eligible_file, show_col_types = FALSE)
@@ -342,34 +180,56 @@ outcome_panels <- lapply(outcome_panels, function(panel) {
   panel + theme(legend.position = "none", plot.margin = margin(6, 5, 6, 5))
 })
 summary_row <- plot_grid(
-  threshold_plot, density_plot,
+  threshold_plot, scatter_plot,
   labels = c("A", "B"), label_size = 16,
   nrow = 1, rel_widths = c(1, 1.3)
 )
-scatter_row <- plot_grid(scatter_plot, labels = "C", label_size = 16)
 outcome_row <- plot_grid(
   plotlist = outcome_panels,
-  labels = c("D", "E", "F", "G"), label_size = 16,
+  labels = c("C", "D", "E", "F"), label_size = 16,
   nrow = 1, align = "h", axis = "tb"
 )
 outcome_section <- plot_grid(
   outcome_row, outcome_legend, ncol = 1, rel_heights = c(1, 0.09)
 )
 application_figure <- plot_grid(
-  summary_row, scatter_row, outcome_section,
-  ncol = 1, rel_heights = c(1.45, 1.6, 1.3)
+  summary_row, outcome_section,
+  ncol = 1, rel_heights = c(1.55, 1.3)
 )
 
 ggsave(
   file.path(revision_dir, "Figure3_V3.png"),
   application_figure,
   width = 12,
-  height = 13.2,
+  height = 8.5,
   dpi = 300,
   bg = "white"
 )
 
-print(application_summary)
-print(posterior_summary)
-print(clinical_summary$summary)
-print(clinical_summary$raw_evidence_summary)
+# A full-page version retains the same records, axes and evidence bands as
+# panel B, with larger text and a spacious inset for standalone inspection.
+scatter_main_large <- scatter_main +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.text = element_text(size = 11.5),
+    legend.title = element_text(size = 12.5),
+    legend.key.height = unit(0.48, "cm"),
+    plot.margin = margin(8, 12, 8, 8)
+  )
+scatter_inset_large <- scatter_inset +
+  theme(
+    axis.text = element_text(size = 11),
+    axis.ticks = element_line(linewidth = 0.45),
+    plot.margin = margin(6, 6, 6, 6)
+  )
+scatter_large <- ggdraw(scatter_main_large) +
+  draw_plot(scatter_inset_large, x = 0.20, y = 0.12, width = 0.47, height = 0.56)
+ggsave(
+  file.path(revision_dir, "Clinical_scatter_large.png"),
+  scatter_large,
+  width = 10,
+  height = 8,
+  dpi = 300,
+  bg = "white"
+)
