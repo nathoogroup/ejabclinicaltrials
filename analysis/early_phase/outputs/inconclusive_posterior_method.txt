@@ -1,0 +1,19 @@
+Target: proportion with 1/3 <= applicable eJAB <= 3 AMONG results with plotted p <= .05.
+Main rule p_two_sided: p for unrestricted tests; 2*min(p1,1-p1) for one-sided tests, matching the scatterplot inset.
+Directional sensitivity p_nhst: p for unrestricted tests; 2*p1 for one-sided tests.
+The full inset cohort is retained: 16,563 primary/secondary findings from 1,790 trials.
+Categories: nonsignificant/non-inconclusive, nonsignificant/inconclusive, significant/non-inconclusive, significant/inconclusive.
+For trial i: y_i | pi_i ~ Multinomial(m_i, pi_i), independently pi_i ~ Dirichlet(a,a,a,a).
+Thus pi_i | y_i ~ Dirichlet(y_i1+a,...,y_i4+a), independently across trials.
+This is the existing study-specific model, with no estimated shared concentration or hyperprior.
+The conditional target is rho = sum_i m_i*pi_i4 / sum_i m_i*(pi_i3+pi_i4).
+Weights m_i are each trial's eligible finding count, so rho is a finding-weighted conditional proportion, not an equal-trial mean.
+Trial-level vectors represent within-trial clustering; uncertainty is conditional on the observed trials and their fixed weights, not predictive uncertainty for new trials.
+Each prior/rule uses 50,000 independent posterior draws, increased to 200,000 for the selected main-rule prior. Phase summaries and the pooled ratio use the same trial draws.
+Posterior SD measures precision; MCSE(mean)=posterior SD/sqrt(draws) measures numerical simulation error.
+Analytic numerator/denominator expectations, variances and covariance validate simulation; ratio_of_expectations is not the posterior mean of rho.
+Select largest a in {1e-2,1e-4,1e-6} with analytic second-order ratio mean within 0.0001 (0.01 percentage points) of raw: a=0.0001; validate |posterior mean - raw| + 3*MCSE < 0.0001.
+This closeness-based choice follows the requested empirical calibration; all three prior results are reported.
+Small-a symmetric Dirichlet priors concentrate near boundaries; their choice is not claimed to establish general weak informativeness.
+Gamma zeros occur only in empty categories from floating-point underflow; positive row sums and probability normalization are checked.
+No bootstrap is used; no raw input, JLP catalogue, existing clinical figure or posterior result is overwritten.

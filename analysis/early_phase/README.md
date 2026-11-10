@@ -27,9 +27,12 @@ set:
 Rscript analysis/early_phase/jlp_catalog.R
 python3 analysis/early_phase/render_jlp_tables.py
 Rscript analysis/early_phase/application_figure_v3.R
+Rscript analysis/early_phase/clinical_scatter_column.R
+Rscript analysis/early_phase/inconclusive_posterior.R
 Rscript analysis/early_phase/supplementary_application_figures.R
 Rscript analysis/early_phase/posterior_prior_sensitivity.R
 python3 analysis/early_phase/render_prior_results.py
+python3 analysis/early_phase/render_inconclusive_results.py
 Rscript analysis/early_phase/verify_one_sided.R
 ```
 
@@ -54,6 +57,10 @@ It sources `figure4_revised.R` for these outcome panels. The same renderer write
 `figures/Clinical_scatter_large.png` for reference. The standalone enlarged
 scatterplot formerly displayed as Supplementary Figure S8 is no longer included;
 its manuscript-repository copy is archived at `SI/cache/Clinical_scatter_large.png`.
+`clinical_scatter_column.R` uses the same shared `clinical_scatter.R` plot builder
+to render `figures/Clinical_scatter_column.png`, copied into `REVISION/` for
+manuscript Figure 3. It preserves the full S7B cohort and inset, with legends and
+fonts sized for one column; S7B remains in the supplement.
 
 The supplement source is `SI/SI.tex`. Appendix C retains the full inclusion and
 exclusion criteria and the JLP screening catalogue. The SI has Appendices A--G;
@@ -135,7 +142,10 @@ eligible set and archived group metadata without changing either. It writes
 `outputs/jlp_cases.csv` and `outputs/jlp_summary.csv`, and generates
 `tmp/jlp_20261105/jlp_cases_table.tex` for supplementary Table S3
 (`SI/JLP_cases_table.tex`, label `tab:jlp_cases`). Row codes J01--J20 map
-to complete archived analysis identifiers. The catalog preserves reported
+to complete archived analysis identifiers. The main and response tables show
+J10 once for the numerically repeated J09/J10 VTE comparison; the full catalogue
+retains both registered endpoints. J19 and J20 remain distinct biomarkers despite
+their matching reported p-values and extracted sample sizes. The catalog preserves reported
 inequalities, group denominators, test-tail information, hypothesis-context
 flags, and independent BF checks. The table rounds upper bounds upward for
 display. Numerical reports remain subject to rounding and do not independently
@@ -156,3 +166,41 @@ manuscript, response, SI, or online supplement; the former SI discrepancy audit
 helper from `jlp_phase_panels.R` and does not recompute bootstrap results.
 Farouk's preserved V2 manuscript and original response now reside in the
 companion repository's `REVISION/cache/` and `response_to_reviewers/cache/`.
+
+## Inconclusive evidence among significant findings
+
+Run `Rscript analysis/early_phase/inconclusive_posterior.R` for the conditional
+proportion shown by the scatterplot inset. The numerator is the 1,974 findings
+with plotted `p <= .05` and `1/3 <= eJAB <= 3`; the denominator is the 6,476
+findings with plotted `p <= .05`, giving 30.4818%. The full cohort of 16,563
+primary/secondary findings from 1,790 trials is retained. The plotted p-value
+is `p_two_sided`, including `2*min(p1, 1-p1)` for one-sided tests. A separate
+directional-significance sensitivity gives 1,974/6,474 (30.4912%). These
+denominators are significant findings, not all findings or numbers of trials.
+
+The existing trial-specific Dirichlet/multinomial model is applied to four
+categories formed by significance and inconclusive-evidence status. For trial
+`i`, `pi_i | y_i ~ Dirichlet(y_i1+a, ..., y_i4+a)`, independently across trials.
+The posterior target is `sum(m_i*pi_i4) / sum(m_i*(pi_i3+pi_i4))`, retaining
+each trial's eligible finding count `m_i` as its weight. All trials contribute,
+including trials with no observed significant finding. This models trial-level
+probability vectors without an estimated shared concentration or hyperprior;
+posterior precision is conditional on the observed trials and their fixed
+weights, rather than predictive uncertainty for new trials.
+
+Results for `a = 1e-2, 1e-4, 1e-6` are saved in
+`outputs/inconclusive_posterior_summary.csv`, including posterior means,
+posterior standard deviations, 95% credible intervals, and Monte Carlo errors.
+For the selected `a = 1e-4`, the pooled posterior mean is 30.4807%, its posterior
+SD is 0.4708 percentage points, and its 95% credible interval is
+29.5611%--31.4068%. The posterior-mean Monte Carlo standard error is 0.0011
+percentage points; it is distinct from the posterior SD.
+The largest `a` whose analytic second-order posterior-mean approximation is
+within 0.01 percentage points of the raw proportion is selected (`a = 1e-4`).
+That choice is validated using 200,000 posterior draws; the other prior/rule
+combinations use 50,000 draws. The final mean must remain within the tolerance
+after adding three Monte Carlo standard errors. The calibration, per-trial
+counts, analytic moment checks, and numerical diagnostics are saved alongside
+the summary. This is an explicitly requested empirical calibration within the
+small-`a` family, not a claim that small concentration parameters are generally
+weakly informative.
